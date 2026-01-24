@@ -1,0 +1,880 @@
+# BunOnRails - Full Framework Overview
+
+## Core Philosophy
+
+A full-stack JavaScript framework built on Bun that captures the "Rails magic" - convention over configuration, batteries included, zero boilerplate. Ships everything you need to build production apps: authentication, file uploads, background jobs, caching, real-time features, email, search, and more. Just `bun create myapp` and start building.
+
+---
+
+## 1. Foundation & Runtime
+
+**Built on Bun** - Leverages Bun's native speed for everything: bundler, transpiler, test runner, SQLite driver, HTTP server, WebSockets. No webpack, no babel, no node_modules bloat.
+
+**JavaScript-first** - Framework written in pure JS with excellent JSDoc types. Users can choose JS or TypeScript - both are first-class citizens with full autocomplete and type safety.
+
+**Convention over Configuration** - Follows Rails-like folder structure: `app/models`, `app/controllers`, `app/components`, `app/jobs`, `config/`, `db/migrations`. Everything has a place, everything is predictable.
+
+---
+
+## 2. Development Experience
+
+### Zero-Config Setup
+
+```bash
+bun create myapp
+cd myapp
+bun setup  # Starts Docker services, creates DB, runs migrations
+bun dev    # Server running, hot reload enabled
+```
+
+**What `bun setup` does:**
+- Generates `docker-compose.yml` with Postgres, Redis, Mailhog
+- Starts all services with health checks
+- Creates databases
+- Loads schema (fast, no migration replay)
+- Seeds initial data
+- Generates `.env.development.local`
+- Ready to code in 30 seconds
+
+### Generators
+
+Scaffold entire features with one command:
+
+```bash
+bun generate scaffold Post title:string body:text published:boolean user:references
+```
+
+**Creates:**
+- Migration file
+- Model with validations
+- Controller with full CRUD
+- React components (List, Form, Show)
+- Test files
+- Updates routes automatically
+
+**Other generators:**
+- `bun generate model`
+- `bun generate controller`
+- `bun generate component`
+- `bun generate job`
+- `bun generate migration`
+- `bun generate auth` (full authentication system)
+- `bun generate admin` (admin panel for models)
+
+---
+
+## 3. Database Layer
+
+### Migrations
+
+Write migrations in clean JavaScript:
+
+```javascript
+// db/migrations/20250124_create_posts.js
+export async function up(db) {
+  await db.createTable('posts', (t) => {
+    t.id()
+    t.string('title').notNull()
+    t.text('body')
+    t.references('user').onDelete('cascade')
+    t.boolean('published').default(false)
+    t.timestamps()
+  })
+}
+```
+
+**Commands:**
+- `bun db:migrate` - Runs pending migrations, auto-updates schema.js, auto-annotates models
+- `bun db:rollback` - Rollback last migration
+- `bun db:reset` - Drop, create, migrate
+- `bun db:schema:load` - Fast schema load for CI/CD (no migration replay)
+- `bun db:seed` - Load seed data
+
+### Schema Management
+
+**Auto-generated schema.js** - Like Rails' schema.rb. Single source of truth for database structure. Updated automatically after each migration.
+
+**Model Annotations** - After each migration, models are automatically annotated with schema comments showing columns, types, indexes, foreign keys. Always in sync.
+
+### ORM (Active Record Style)
+
+**Intuitive query interface:**
+
+```javascript
+// Finding records
+await Post.findAll()
+await Post.find(123)
+await Post.findBy({ title: 'Hello' })
+await Post.where({ published: true }).limit(10)
+
+// Associations (eager loading to prevent N+1)
+await Post.findAll({ include: ['user', 'comments.author'] })
+
+// Scopes
+await Post.published().recent().limit(20)
+
+// Create/Update
+const post = await Post.create({ title: 'Hello', body: 'World' })
+post.title = 'Updated'
+await post.save()
+```
+
+**Associations:**
+
+```javascript
+class Post extends Model {
+  static associations = {
+    belongsTo: ['user'],
+    hasMany: ['comments'],
+    hasOne: ['meta']
+  }
+}
+
+// Usage
+const post = await Post.find(1)
+const author = await post.user()
+const comments = await post.comments()
+```
+
+**Validations:**
+
+```javascript
+class User extends Model {
+  static validations = {
+    email: { presence: true, uniqueness: true, email: true },
+    name: { presence: true, length: { min: 2, max: 100 } },
+    age: { numericality: { greaterThan: 0 } }
+  }
+}
+
+const user = new User({ email: 'bad' })
+await user.save()  // false
+user.errors  // { email: ['is invalid'] }
+```
+
+### N+1 Detection
+
+**Development mode** tracks query patterns and warns about N+1s:
+
+```
+⚠️  N+1 Query detected
+Table: users
+Pattern: SELECT * FROM users WHERE id = ?
+Executed: 50 times
+
+Suggestion: Post.findAll({ include: 'user' })
+```
+
+Uses query logging and pattern matching - similar to Rails' Bullet gem. Hooks into the ORM to track association access and compare against what was eager-loaded.
+
+---
+
+## 4. Routing & Controllers
+
+### Routes
+
+Clean, Rails-like routing DSL:
+
+```javascript
+// config/routes.js
+export default (router) => {
+  router.root('home#index')
+  
+  router.resources('posts')  // Full CRUD routes
+  router.resources('users', { only: ['index', 'show'] })
+  
+  router.namespace('admin', () => {
+    router.resources('posts')
+  })
+  
+  router.get('/search', 'search#index')
+  router.post('/subscribe', 'subscriptions#create')
+}
+```
+
+### Controllers
+
+Clean controller classes with automatic resource injection:
+
+```javascript
+export default class PostsController {
+  async index() {
+    const posts = await Post.findAll({ include: 'user' })
+    return this.render({ posts })
+  }
+  
+  async create() {
+    const post = await Post.create(this.params.post)
+    
+    if (post.errors) {
+      return this.render({ errors: post.errors }, { status: 422 })
+    }
+    
+    // Broadcast to WebSocket subscribers
+    this.broadcast('posts:new', { post })
+    
+    return this.render({ post }, { status: 201 })
+  }
+}
+```
+
+**Automatic context injection:**
+- `this.params` - Request parameters
+- `this.session` - Session (Redis-backed)
+- `this.request` - Full request object
+- `this.currentUser` - If authenticated
+- `this.render()` - Render JSON or trigger React component
+- `this.redirect()` - Redirect
+- `this.broadcast()` - WebSocket broadcast
+- `this.cache` - Cache interface
+- `this.http` - HTTP client
+- `this.temp` - Temp file manager
+- `this.db` - Database connection
+
+---
+
+## 5. Frontend Integration
+
+### React Components
+
+**Pages and Components** - Like Rails views and partials. Clean separation between page-level components and reusable pieces.
+
+**Framework hooks** for seamless backend integration:
+
+```javascript
+import { useResource, useChannel, useAction } from '@framework/react'
+
+export default function PostsList() {
+  // Auto-fetches from /posts, handles loading/error states
+  const { data: posts, loading, mutate } = useResource('posts')
+  
+  // Submit action - knows routes, handles CSRF, errors
+  const { submit, submitting } = useAction('posts.create')
+  
+  // WebSocket subscription - auto cleanup
+  useChannel('posts:new', ({ post }) => {
+    mutate(prev => [post, ...prev])
+  })
+  
+  const handleSubmit = async (data) => {
+    await submit({ post: data })
+  }
+  
+  return (
+    <div>
+      <PostForm onSubmit={handleSubmit} disabled={submitting} />
+      {posts.map(post => <Post key={post.id} {...post} />)}
+    </div>
+  )
+}
+```
+
+**Form helpers** that know your models:
+
+```javascript
+<Form resource="posts" onSubmit={handleSubmit}>
+  <Field name="title" />  // Knows validation from Post model
+  <Field name="body" type="textarea" />
+  <Field name="published" type="checkbox" />
+</Form>
+```
+
+### Asset Pipeline
+
+**Zero configuration** - Just import and it works:
+
+```javascript
+import './Post.scss'  // SCSS compiled automatically
+import styles from './Post.module.scss'  // CSS modules
+import logo from './logo.png'  // Asset bundling
+```
+
+**Production builds** - Single command: `bun build` produces optimized, minified, fingerprinted assets.
+
+---
+
+## 6. Background Jobs
+
+### BullMQ Integration
+
+**Job classes** with declarative configuration:
+
+```javascript
+export default class SendEmailJob {
+  static queue = 'emails'
+  static attempts = 3
+  static backoff = { type: 'exponential', delay: 1000 }
+  static priority = 10
+  
+  async perform({ to, subject, body }) {
+    await Mailer.send({ to, subject, body })
+  }
+}
+
+// Enqueue anywhere
+await SendEmailJob.performLater({ to: 'user@example.com', subject: 'Hi' })
+```
+
+**Scheduled jobs** (cron-like):
+
+```javascript
+export default class CleanupJob {
+  static schedule = '0 2 * * *'  // 2 AM daily
+  
+  async perform() {
+    await Post.where('created_at < ?', thirtyDaysAgo).destroy()
+  }
+}
+```
+
+**Unique jobs** - Prevent duplicates:
+
+```javascript
+export default class SyncUserJob {
+  static unique = true
+  static uniqueKey = (params) => `sync_${params.userId}`
+  
+  async perform({ userId }) {
+    // Only one job per userId runs at a time
+  }
+}
+```
+
+**Priority queues** - Configure different queues with different concurrency and priority.
+
+**Dashboard** - Built-in Bull Board integration at `/jobs` to monitor queues, retry failed jobs, etc.
+
+---
+
+## 7. WebSockets & Real-Time
+
+**Channels** - Like Action Cable. Easy pub/sub:
+
+```javascript
+// Backend - broadcast from anywhere
+this.broadcast('posts:new', { post })
+
+// Frontend - subscribe
+useChannel('posts:new', ({ post }) => {
+  // Handle new post
+})
+```
+
+**Built on Bun's native WebSocket support** - No socket.io dependency. Fast, lightweight, connection pooling handled automatically.
+
+---
+
+## 8. Authentication & Authorization
+
+### Authentication (Devise-like)
+
+**One command** generates complete auth system:
+
+```bash
+bun generate auth
+```
+
+**Creates:**
+- User model with secure password hashing (bcrypt)
+- Session management (Redis-backed)
+- Registration flow
+- Login/logout
+- Password reset via email
+- Email confirmation (optional)
+- Account locking after failed attempts (optional)
+
+**Usage in controllers:**
+
+```javascript
+export default class PostsController {
+  static beforeAction = ['authenticate']
+  
+  async index() {
+    // this.currentUser available
+  }
+}
+```
+
+### OAuth Integration
+
+**Works with any OAuth2 provider** - Google, GitHub, custom:
+
+```javascript
+// config/oauth.js
+export default {
+  google: {
+    clientId: process.env.GOOGLE_CLIENT_ID,
+    clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    scopes: ['email', 'profile']
+  }
+}
+```
+
+Auto-generates routes: `/auth/google`, `/auth/google/callback`. Framework handles entire OAuth dance.
+
+### Authorization
+
+**Simple role-based or policy-based** authorization:
+
+```javascript
+class Post extends Model {
+  canEdit(user) {
+    return this.userId === user.id || user.isAdmin
+  }
+}
+
+// In controller
+if (!post.canEdit(this.currentUser)) {
+  return this.unauthorized()
+}
+```
+
+---
+
+## 9. File Uploads & Storage
+
+### Active Storage Alternative
+
+**Declarative attachments:**
+
+```javascript
+export default class User extends Model {
+  static attachments = {
+    avatar: { 
+      type: 'image', 
+      variants: { thumb: '100x100', large: '500x500' }
+    },
+    resume: { type: 'document' }
+  }
+}
+```
+
+**Usage:**
+
+```javascript
+// Upload
+await user.avatar.attach(file)
+
+// Access
+<img src={user.avatar.url('thumb')} />
+```
+
+**Storage adapters:**
+- Local (development)
+- S3 / R2 / DigitalOcean Spaces (production)
+- Auto-generates image variants
+- **URL caching** - Public URLs cached in Redis for speed (unlike Rails Active Storage)
+
+**Direct uploads** - Client uploads directly to S3 with presigned URLs, then attaches to record. No server bandwidth wasted.
+
+---
+
+## 10. Caching
+
+### Multi-Layer Caching
+
+**Redis-backed by default** in production, memory in development.
+
+**Fragment caching:**
+
+```javascript
+const posts = await cache.fetch('posts:recent', async () => {
+  return await Post.recent().limit(10)
+}, { ttl: 300 })
+```
+
+**Russian doll caching** - Nested cache invalidation:
+
+```javascript
+// When post updates, invalidates:
+// - cache key for that post
+// - parent collections automatically
+```
+
+**HTTP caching** - Proper ETags, Cache-Control headers, conditional requests.
+
+---
+
+## 11. Email
+
+### Action Mailer Style
+
+**Mailer classes:**
+
+```javascript
+export default class UserMailer {
+  welcomeEmail(user) {
+    return {
+      to: user.email,
+      subject: 'Welcome!',
+      template: 'welcome',
+      data: { user }
+    }
+  }
+}
+
+// Send immediately
+await UserMailer.welcomeEmail(user).deliver()
+
+// Send in background
+await UserMailer.welcomeEmail(user).deliverLater()
+```
+
+**Templates** - React components for emails (or plain text):
+
+```javascript
+// app/views/mailers/welcome.jsx
+export default function WelcomeEmail({ user }) {
+  return (
+    <Email>
+      <h1>Welcome {user.name}!</h1>
+      <p>Thanks for signing up.</p>
+    </Email>
+  )
+}
+```
+
+**Adapters:**
+- SMTP (development - Mailhog included in docker-compose)
+- SendGrid / Postmark / SES (production)
+
+---
+
+## 12. Testing
+
+### Built on Bun's Test Runner
+
+**Parallel by default** - Each test worker gets its own database (like Rails):
+- Worker 0: `myapp_test`
+- Worker 1: `myapp_test_1`
+- Worker 2: `myapp_test_2`
+
+**Transaction-based cleanup** - Each test wrapped in transaction, rollback after. Fast, isolated.
+
+**Integration tests** - Full request/response testing:
+
+```javascript
+import { test, expect } from 'bun:test'
+import { request } from '@framework/test'
+
+test('creates post', async () => {
+  const res = await request.post('/posts', {
+    post: { title: 'Hello', body: 'World' }
+  })
+  
+  expect(res.status).toBe(201)
+  expect(res.json.post.title).toBe('Hello')
+})
+```
+
+**Factory pattern** (like FactoryBot):
+
+```javascript
+const user = await factory.create('user')
+const post = await factory.create('post', { userId: user.id })
+```
+
+**Component testing** - React Testing Library included.
+
+**Commands:**
+- `bun test` - Run all tests (parallel)
+- `bun test:unit` - Unit tests only
+- `bun test:integration` - Integration tests
+- `bun test:system` - Full stack tests with browser
+
+---
+
+## 13. Production Features
+
+### Multi-Process Clustering
+
+**Uses all CPUs** in production:
+
+```javascript
+// config/environments/production.js
+export default {
+  server: {
+    workers: 'auto'  // or specific number
+  }
+}
+```
+
+Under the hood: Master process forks workers, auto-restarts on crash, graceful shutdown.
+
+### Connection Pooling
+
+**Database pool per worker** - Configured via environment files:
+
+```javascript
+database: {
+  pool: { min: 2, max: 20 }  // Per worker
+}
+```
+
+**Redis connection pooling** - Automatic, reuses connections across requests/jobs.
+
+**HTTP client pooling** - Keep-alive connections, auto-cleanup.
+
+### Resource Management
+
+**Middleware-based cleanup** - Every request/job gets fresh resources (HTTP client, temp files, DB connection), automatically cleaned up after:
+
+```javascript
+// User code - just use resources
+const data = await this.http.get('https://api.example.com')
+const tempFile = this.temp.create(buffer)
+
+// Framework middleware cleans up automatically
+```
+
+No connection leaks, no temp file buildup, no manual cleanup needed.
+
+### Environment Configuration
+
+**Environment-specific config files:**
+- `config/environments/development.js`
+- `config/environments/test.js`
+- `config/environments/staging.js`
+- `config/environments/production.js`
+
+**Each file defines:**
+- Number of web workers
+- Number of job workers
+- Job concurrency
+- Database pool sizes
+- Cache settings
+- All environment-specific behavior
+
+**No .env sprawl** - Secrets in .env files, configuration in JS files. Clean separation.
+
+### Credentials & Secrets
+
+**Encrypted credentials** (like Rails):
+
+```bash
+bun credentials:edit
+# Opens encrypted file in $EDITOR
+# Stores: API keys, secrets, etc
+# Encrypted with master.key (gitignored)
+```
+
+---
+
+## 14. Additional Batteries
+
+### Rate Limiting
+
+Declarative rate limits on controllers:
+
+```javascript
+export default class ApiController {
+  static rateLimit = {
+    index: { requests: 100, window: 60 },
+    create: { requests: 10, window: 60 }
+  }
+}
+```
+
+### Pagination
+
+Like Kaminari - simple, works everywhere:
+
+```javascript
+const posts = await Post.page(1).per(20)
+// Returns posts + pagination metadata
+```
+
+### Search Integration
+
+Elasticsearch or MeiliSearch integration:
+
+```javascript
+class Post extends Model {
+  static searchable = {
+    fields: ['title', 'body'],
+    index: 'posts'
+  }
+}
+
+const results = await Post.search('query', { filters: { published: true } })
+```
+
+### Internationalization (i18n)
+
+Locale files, translation helpers:
+
+```javascript
+// config/locales/en.js
+export default {
+  posts: { title: 'All Posts' }
+}
+
+// Usage
+t('posts.title')  // Based on current locale
+```
+
+### Sitemap Generation
+
+Auto-generates XML sitemaps from config:
+
+```javascript
+// config/sitemap.js
+export default {
+  static: [{ path: '/', priority: 1.0 }],
+  dynamic: [
+    { model: 'Post', path: (post) => `/posts/${post.slug}` }
+  ]
+}
+```
+
+### Feature Flags
+
+Toggle features per environment or user:
+
+```javascript
+// config/features.js
+export default {
+  newDashboard: {
+    production: (user) => user.isPremium
+  }
+}
+
+if (feature('newDashboard')) { /* ... */ }
+```
+
+### Audit Logging
+
+Track all model changes:
+
+```javascript
+class Post extends Model {
+  static audited = true
+}
+
+const history = await post.audits()  // All changes with who/when
+```
+
+### Admin Panel
+
+Auto-generated CRUD interface:
+
+```bash
+bun generate admin Post User
+# Creates admin interface at /admin
+```
+
+### Health Checks
+
+Built-in endpoints for monitoring:
+- `/health` - Basic status
+- `/health/detailed` - DB pool, Redis, job queues, etc.
+
+### CORS Configuration
+
+Simple CORS setup:
+
+```javascript
+// config/cors.js
+export default {
+  origins: ['https://app.example.com'],
+  credentials: true
+}
+```
+
+---
+
+## 15. Docker & Local Development
+
+### One-Command Setup
+
+**docker-compose.yml auto-generated** with:
+- Postgres (with health checks)
+- Redis (with persistence)
+- Mailhog (email testing)
+
+**Commands:**
+- `bun setup` - Starts everything, creates DB, ready to code
+- `bun docker:up` - Start services
+- `bun docker:down` - Stop services
+- `bun docker:logs` - View logs
+- `bun docker:db` - Open psql console
+- `bun docker:redis` - Open redis-cli
+
+**Development environment** works identically to production - same Redis sessions, same job queue, same everything. No surprises when deploying.
+
+---
+
+## 16. CLI Commands
+
+### Database
+- `bun db:create` - Create database
+- `bun db:migrate` - Run migrations + update schema + annotate
+- `bun db:rollback` - Rollback last migration
+- `bun db:reset` - Drop + create + migrate
+- `bun db:seed` - Load seed data
+- `bun db:schema:load` - Fast schema load (for CI/CD)
+- `bun db:setup` - Create + schema:load + seed (new developers)
+
+### Generators
+- `bun generate scaffold Post title:string body:text`
+- `bun generate model Post`
+- `bun generate controller Posts`
+- `bun generate component Button`
+- `bun generate job SendEmail`
+- `bun generate migration AddPublishedToPosts`
+- `bun generate auth` - Full auth system
+- `bun generate admin Post` - Admin panel
+
+### Server
+- `bun dev` - Development server (hot reload)
+- `bun start` - Production server (multi-process)
+- `bun jobs:work` - Job worker process
+
+### Testing
+- `bun test` - All tests (parallel)
+- `bun test:unit` - Unit tests only
+- `bun test:integration` - Integration tests
+- `bun test:system` - System tests
+
+### Other
+- `bun credentials:edit` - Edit encrypted credentials
+- `bun sitemap:generate` - Generate sitemap.xml
+- `bun routes` - Show all routes
+- `bun console` - Interactive REPL with models loaded
+
+---
+
+## 17. Deployment
+
+### Zero-Config Deployment
+
+**Works out of the box on:**
+- Heroku
+- Railway
+- Render
+- Fly.io
+- Any platform with Dockerfile support
+
+**Procfile:**
+```
+web: bun start
+worker: bun jobs:work
+```
+
+**Environment variables needed:**
+- `DATABASE_URL` (auto-provided by platforms)
+- `REDIS_URL` (auto-provided by platforms)
+- `SECRET_KEY_BASE` (for sessions/cookies)
+- `MASTER_KEY` (for encrypted credentials)
+
+**Migrations** run automatically on deploy (configurable).
+
+### Docker Support
+
+**Auto-generated Dockerfile** optimized for Bun:
+
+```dockerfile
+FROM oven/bun:latest
+WORKDIR /app
+COPY package.json bun.lockb ./
+RUN bun install --p

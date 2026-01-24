@@ -1,0 +1,53 @@
+{
+  "name": "@bun-on-rails/framework",
+  "version": "0.1.0",
+  "description": "A full-stack JavaScript framework built on Bun with Rails-like conventions",
+  "type": "module",
+  "main": "src/index.js",
+  "bin": {
+    "brails": "./src/cli/index.js"
+  },
+  "scripts": {
+    "dev": "bun run src/cli/dev.js",
+    "start": "bun run src/cli/start.js",
+    "build": "bun run src/cli/build.js",
+    "test": "bun test",
+    "test:unit": "bun test --filter unit",
+    "test:integration": "bun test --filter integration",
+    "lint": "bunx eslint src/",
+    "format": "bunx prettier --write .",
+    "docs:dev": "bunx vitepress dev docs",
+    "docs:build": "bunx vitepress build docs",
+    "docs:preview": "bunx vitepress preview docs"
+  },
+  "keywords": [
+    "bun",
+    "rails",
+    "framework",
+    "full-stack",
+    "javascript",
+    "mvc",
+    "orm",
+    "websockets",
+    "jobs"
+  ],
+  "author": "BunOnRails Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/developerz-ai/bun-on-rails.git"
+  },
+  "bugs": {
+    "url": "https://github.com/developerz-ai/bun-on-rails/issues"
+  },
+  "homepage": "https://bunonrails.com",
+  "engines": {
+    "bun": ">=1.0.0"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "vitepress": "^1.0.0",
+    "prettier": "^3.0.0",
+    "eslint": "^8.0.0"
+  }
+}

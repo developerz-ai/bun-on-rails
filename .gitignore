@@ -1,0 +1,65 @@
+# Dependencies
+node_modules/
+bun.lockb
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+*.local
+
+# Credentials
+config/credentials/*.key
+master.key
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temp files
+tmp/
+temp/
+*.tmp
+
+# Database
+*.sqlite
+*.sqlite3
+db/*.sqlite*
+
+# Uploads (local development)
+storage/
+
+# Documentation build
+docs/_build/
+site/
+
+# Cache
+.cache/
+.parcel-cache/
+
+# Docker
+docker-compose.override.yml
