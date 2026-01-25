@@ -858,12 +858,12 @@ export class Model {
     }
 
     if (assocType === 'hasMany') {
-      const fk = assocConfig.foreignKey || tableize(this.constructor.name).replace(/s$/, '') + '_id'
+      const fk = assocConfig.foreignKey || this.constructor.name.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '') + '_id'
       return AssociatedModel.where({ [fk]: this.id }).all()
     }
 
     if (assocType === 'hasOne') {
-      const fk = assocConfig.foreignKey || tableize(this.constructor.name).replace(/s$/, '') + '_id'
+      const fk = assocConfig.foreignKey || this.constructor.name.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '') + '_id'
       return AssociatedModel.where({ [fk]: this.id }).first()
     }
 
