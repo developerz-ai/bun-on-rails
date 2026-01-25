@@ -10,6 +10,15 @@ export { Migration, MigrationRunner, TableBuilder, ColumnBuilder } from './datab
 export { SchemaGenerator, SchemaLoader, dumpSchema, loadSchema } from './database/schema.js'
 export { Connection, ConnectionPool, getConnection, setConnection } from './database/connection.js'
 export { Validators, runValidations, addValidator, removeValidator, getValidatorNames } from './database/validations.js'
+export {
+  N1QueryDetector,
+  trackQuery,
+  configureN1Detection,
+  enableN1Detection,
+  disableN1Detection,
+  resetN1Detection,
+  getN1Stats
+} from './database/n_plus_one_detector.js'
 export { Controller } from './controller/base.js'
 export { Router } from './routing/router.js'
 export { Job } from './jobs/job.js'
