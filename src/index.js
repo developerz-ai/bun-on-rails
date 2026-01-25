@@ -25,6 +25,7 @@ export { Router } from './routing/router.js'
 export { Job } from './jobs/job.js'
 export { Mailer } from './mail/mailer.js'
 export { Channel } from './websocket/channel.js'
+export { BroadcastManager, createBroadcastManager } from './websocket/broadcast_manager.js'
 export { Cache } from './cache/cache.js'
 export { Storage } from './storage/storage.js'
 

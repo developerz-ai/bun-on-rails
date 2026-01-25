@@ -11,6 +11,7 @@ import { Router } from './routing/router.js'
 import { Cache, MemoryStore } from './cache/cache.js'
 import { MiddlewareStack, Middleware } from './controller/middleware.js'
 import { ControllerContext } from './controller/base.js'
+import { BroadcastManager } from './websocket/broadcast_manager.js'
 
 /**
  * Application - Main framework entry point
@@ -46,6 +47,7 @@ export class Application {
     this.redis = null
     this.jobs = null
     this.websocket = null
+    this.broadcastManager = null
     this.server = null
 
     // Loaded components
@@ -555,14 +557,22 @@ export class Application {
   // ==========================================
 
   async _initializeWebSocket() {
+    // Always initialize broadcast manager (it works without WebSocket too)
+    this.broadcastManager = new BroadcastManager()
+    await this.broadcastManager.initialize({
+      redis: this.redis,
+      logger: this.logger
+    })
+
     const wsConfig = this.config.section('websocket')
 
     if (!wsConfig.enabled) {
+      this.logger.debug('WebSocket disabled, broadcast manager ready for HTTP-only use')
       return
     }
 
     // WebSocket is handled by Bun.serve
-    this.logger.debug('WebSocket enabled')
+    this.logger.debug('WebSocket enabled with broadcast manager')
   }
 
   _getWebSocketHandler() {
@@ -587,8 +597,15 @@ export class Application {
 
   _handleWebSocketOpen(ws) {
     // Generate connection ID
-    ws.data = { id: crypto.randomUUID(), subscriptions: new Map() }
-    this.logger.debug(`WebSocket connected: ${ws.data.id}`)
+    const connectionId = crypto.randomUUID()
+    ws.data = { id: connectionId, subscriptions: new Map() }
+
+    // Register with broadcast manager
+    if (this.broadcastManager) {
+      this.broadcastManager.addConnection(connectionId, ws)
+    }
+
+    this.logger.debug(`WebSocket connected: ${connectionId}`)
   }
 
   async _handleWebSocketMessage(ws, message) {
@@ -651,11 +668,23 @@ export class Application {
       channel.unsubscribed().catch(() => {})
     }
     ws.data.subscriptions.clear()
+
+    // Remove from broadcast manager
+    if (this.broadcastManager) {
+      this.broadcastManager.removeConnection(ws.data.id)
+    }
+
     this.logger.debug(`WebSocket disconnected: ${ws.data.id}`)
   }
 
   async _closeWebSockets() {
-    // Bun handles this automatically when server stops
+    // Shutdown broadcast manager
+    if (this.broadcastManager) {
+      await this.broadcastManager.shutdown()
+      this.broadcastManager = null
+    }
+
+    // Bun handles WebSocket close automatically when server stops
     this.logger.debug('WebSocket connections closed')
   }
 
@@ -803,7 +832,8 @@ export class Application {
       http: { request, server },
       cache: this.cache,
       temp: new Map(),
-      db: this.database
+      db: this.database,
+      broadcastManager: this.broadcastManager
     })
   }
 
