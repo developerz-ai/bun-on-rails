@@ -228,56 +228,56 @@ describe('Model - State Checks', () => {
 
 describe('Model - Validations', () => {
   describe('presence validation', () => {
-    it('fails when field is undefined', () => {
+    it('fails when field is undefined', async () => {
       const user = new User({ email: 'test@example.com' })
 
-      expect(user.isValid()).toBe(false)
+      expect(await user.isValid()).toBe(false)
       expect(user.errors.name).toContain("can't be blank")
     })
 
-    it('fails when field is null', () => {
+    it('fails when field is null', async () => {
       const user = new User({ name: null, email: 'test@example.com' })
 
-      expect(user.isValid()).toBe(false)
+      expect(await user.isValid()).toBe(false)
       expect(user.errors.name).toContain("can't be blank")
     })
 
-    it('fails when field is empty string', () => {
+    it('fails when field is empty string', async () => {
       const user = new User({ name: '', email: 'test@example.com' })
 
-      expect(user.isValid()).toBe(false)
+      expect(await user.isValid()).toBe(false)
       expect(user.errors.name).toContain("can't be blank")
     })
 
-    it('passes when field has value', () => {
+    it('passes when field has value', async () => {
       const user = new User({ name: 'John', email: 'john@example.com', role: 'user' })
 
-      expect(user.isValid()).toBe(true)
+      expect(await user.isValid()).toBe(true)
     })
   })
 
   describe('length validation', () => {
-    it('validates minimum length', () => {
+    it('validates minimum length', async () => {
       const user = new User({ name: 'J', email: 'j@example.com', role: 'user' })
 
-      expect(user.isValid()).toBe(false)
+      expect(await user.isValid()).toBe(false)
       expect(user.errors.name).toContain('too short')
       expect(user.errors.name).toContain('minimum is 2')
     })
 
-    it('validates maximum length', () => {
+    it('validates maximum length', async () => {
       const user = new User({
         name: 'a'.repeat(51),
         email: 'test@example.com',
         role: 'user'
       })
 
-      expect(user.isValid()).toBe(false)
+      expect(await user.isValid()).toBe(false)
       expect(user.errors.name).toContain('too long')
       expect(user.errors.name).toContain('maximum is 50')
     })
 
-    it('validates exact length', () => {
+    it('validates exact length', async () => {
       class CodeModel extends Model {
         static validations = {
           code: { length: { is: 6 } }
@@ -285,41 +285,41 @@ describe('Model - Validations', () => {
       }
 
       const model = new CodeModel({ code: '12345' })
-      expect(model.isValid()).toBe(false)
+      expect(await model.isValid()).toBe(false)
       expect(model.errors.code).toContain('exactly 6 characters')
     })
 
-    it('passes when length is valid', () => {
+    it('passes when length is valid', async () => {
       const user = new User({ name: 'John Doe', email: 'john@example.com', role: 'user' })
 
-      expect(user.isValid()).toBe(true)
+      expect(await user.isValid()).toBe(true)
     })
   })
 
   describe('format validation', () => {
-    it('fails when format does not match', () => {
+    it('fails when format does not match', async () => {
       const user = new User({ name: 'John', email: 'invalid-email', role: 'user' })
 
-      expect(user.isValid()).toBe(false)
+      expect(await user.isValid()).toBe(false)
       expect(user.errors.email).toContain('invalid')
     })
 
-    it('passes when format matches', () => {
+    it('passes when format matches', async () => {
       const user = new User({ name: 'John', email: 'john@example.com', role: 'user' })
 
-      expect(user.isValid()).toBe(true)
+      expect(await user.isValid()).toBe(true)
     })
   })
 
   describe('numericality validation', () => {
-    it('fails when value is not a number', () => {
+    it('fails when value is not a number', async () => {
       const user = new User({ name: 'John', email: 'john@example.com', age: 'not-a-number', role: 'user' })
 
-      expect(user.isValid()).toBe(false)
+      expect(await user.isValid()).toBe(false)
       expect(user.errors.age).toContain('not a number')
     })
 
-    it('validates greaterThan', () => {
+    it('validates greaterThan', async () => {
       class Product extends Model {
         static validations = {
           price: { numericality: { greaterThan: 0 } }
@@ -327,11 +327,11 @@ describe('Model - Validations', () => {
       }
 
       const product = new Product({ price: 0 })
-      expect(product.isValid()).toBe(false)
+      expect(await product.isValid()).toBe(false)
       expect(product.errors.price).toContain('greater than 0')
     })
 
-    it('validates lessThan', () => {
+    it('validates lessThan', async () => {
       class Product extends Model {
         static validations = {
           discount: { numericality: { lessThan: 100 } }
@@ -339,69 +339,71 @@ describe('Model - Validations', () => {
       }
 
       const product = new Product({ discount: 100 })
-      expect(product.isValid()).toBe(false)
+      expect(await product.isValid()).toBe(false)
       expect(product.errors.discount).toContain('less than 100')
     })
 
-    it('validates greaterThanOrEqualTo', () => {
+    it('validates greaterThanOrEqualTo', async () => {
       const user = new User({ name: 'John', email: 'john@example.com', age: -1, role: 'user' })
 
-      expect(user.isValid()).toBe(false)
+      expect(await user.isValid()).toBe(false)
       expect(user.errors.age).toContain('greater than or equal to 0')
     })
 
-    it('validates lessThanOrEqualTo', () => {
+    it('validates lessThanOrEqualTo', async () => {
       const user = new User({ name: 'John', email: 'john@example.com', age: 151, role: 'user' })
 
-      expect(user.isValid()).toBe(false)
+      expect(await user.isValid()).toBe(false)
       expect(user.errors.age).toContain('less than or equal to 150')
     })
 
-    it('passes when number is valid', () => {
+    it('passes when number is valid', async () => {
       const user = new User({ name: 'John', email: 'john@example.com', age: 30, role: 'user' })
 
-      expect(user.isValid()).toBe(true)
+      expect(await user.isValid()).toBe(true)
     })
   })
 
   describe('inclusion validation', () => {
-    it('fails when value not in list', () => {
+    it('fails when value not in list', async () => {
       const user = new User({ name: 'John', email: 'john@example.com', role: 'superadmin' })
 
-      expect(user.isValid()).toBe(false)
+      expect(await user.isValid()).toBe(false)
       expect(user.errors.role).toContain('not included in the list')
     })
 
-    it('passes when value is in list', () => {
+    it('passes when value is in list', async () => {
       const user = new User({ name: 'John', email: 'john@example.com', role: 'admin' })
 
-      expect(user.isValid()).toBe(true)
+      expect(await user.isValid()).toBe(true)
     })
   })
 
   describe('exclusion validation', () => {
-    it('fails when value is in exclusion list', () => {
+    it('fails when value is in exclusion list', async () => {
       const user = new User({ name: 'John', email: 'john@example.com', role: 'user', username: 'admin' })
 
-      expect(user.isValid()).toBe(false)
+      expect(await user.isValid()).toBe(false)
       expect(user.errors.username).toContain('reserved')
     })
 
-    it('passes when value is not in exclusion list', () => {
+    it('passes when value is not in exclusion list', async () => {
       const user = new User({ name: 'John', email: 'john@example.com', role: 'user', username: 'john123' })
 
-      expect(user.isValid()).toBe(true)
+      expect(await user.isValid()).toBe(true)
     })
   })
 
   describe('custom validation', () => {
-    it('runs custom validation function', () => {
+    it('runs custom validation function', async () => {
       class CustomModel extends Model {
         static validations = {
           value: {
-            validate: (val, model) => {
-              if (val && val % 2 !== 0) {
-                return 'must be even'
+            custom: {
+              validate: (val, model) => {
+                if (val && val % 2 !== 0) {
+                  return 'must be even'
+                }
               }
             }
           }
@@ -409,17 +411,19 @@ describe('Model - Validations', () => {
       }
 
       const model = new CustomModel({ value: 5 })
-      expect(model.isValid()).toBe(false)
+      expect(await model.isValid()).toBe(false)
       expect(model.errors.value).toBe('must be even')
     })
 
-    it('passes custom validation when function returns nothing', () => {
+    it('passes custom validation when function returns nothing', async () => {
       class CustomModel extends Model {
         static validations = {
           value: {
-            validate: (val) => {
-              if (val && val % 2 !== 0) {
-                return 'must be even'
+            custom: {
+              validate: (val) => {
+                if (val && val % 2 !== 0) {
+                  return 'must be even'
+                }
               }
             }
           }
@@ -427,62 +431,98 @@ describe('Model - Validations', () => {
       }
 
       const model = new CustomModel({ value: 4 })
-      expect(model.isValid()).toBe(true)
+      expect(await model.isValid()).toBe(true)
     })
   })
 
   describe('validation edge cases', () => {
-    it('skips non-presence validations for empty values', () => {
+    it('skips non-presence validations for empty values', async () => {
       const user = new User({ name: 'John', email: 'john@example.com', role: 'user' })
       // age is optional and empty - should skip numericality check
 
-      expect(user.isValid()).toBe(true)
+      expect(await user.isValid()).toBe(true)
     })
 
-    it('validates all fields and collects all errors', () => {
+    it('validates all fields and collects all errors', async () => {
       const user = new User({ name: 'J', email: 'invalid', role: 'superadmin' })
 
-      expect(user.isValid()).toBe(false)
+      expect(await user.isValid()).toBe(false)
       expect(user.errors.name).toBeDefined()
       expect(user.errors.email).toBeDefined()
       expect(user.errors.role).toBeDefined()
     })
 
-    it('clears errors on each validation run', () => {
+    it('clears errors on each validation run', async () => {
       const user = new User({ name: 'John' })
-      user.isValid()
+      await user.isValid()
       expect(user.errors.email).toBeDefined()
 
       user.set('email', 'john@example.com')
       user.set('role', 'user')
-      user.isValid()
+      await user.isValid()
       expect(user.errors.email).toBeUndefined()
     })
   })
 
   describe('isValid() and isInvalid()', () => {
-    it('isValid() returns true when valid', () => {
+    it('isValid() returns true when valid', async () => {
       const user = new User({ name: 'John', email: 'john@example.com', role: 'user' })
 
-      expect(user.isValid()).toBe(true)
+      expect(await user.isValid()).toBe(true)
     })
 
-    it('isValid() returns false when invalid', () => {
+    it('isValid() returns false when invalid', async () => {
       const user = new User({ name: 'John' })
 
-      expect(user.isValid()).toBe(false)
+      expect(await user.isValid()).toBe(false)
     })
 
-    it('isInvalid() returns false when valid', () => {
+    it('isInvalid() returns false when valid', async () => {
       const user = new User({ name: 'John', email: 'john@example.com', role: 'user' })
 
-      expect(user.isInvalid()).toBe(false)
+      expect(await user.isInvalid()).toBe(false)
     })
 
-    it('isInvalid() returns true when invalid', () => {
+    it('isInvalid() returns true when invalid', async () => {
       const user = new User({ name: 'John' })
 
-      expect(user.isInvalid()).toBe(true)
+      expect(await user.isInvalid()).toBe(true)
+    })
+  })
+
+  describe('helper methods', () => {
+    it('errorsFor() returns all errors for a field', async () => {
+      class MultiErrorModel extends Model {
+        static validations = {
+          value: {
+            presence: true,
+            length: { min: 5 }
+          }
+        }
+      }
+
+      const model = new MultiErrorModel({ value: '' })
+      await model.validate()
+
+      const fieldErrors = model.errorsFor('value')
+      expect(fieldErrors.length).toBeGreaterThan(0)
+    })
+
+    it('fullMessages() returns all errors as array', async () => {
+      const user = new User({ name: 'J', email: 'invalid' })
+      await user.validate()
+
+      const messages = user.fullMessages()
+      expect(Array.isArray(messages)).toBe(true)
+      expect(messages.length).toBeGreaterThan(0)
+    })
+
+    it('hasError() checks if field has error', async () => {
+      const user = new User({ name: 'John' })
+      await user.validate()
+
+      expect(user.hasError('email')).toBe(true)
+      expect(user.hasError('name')).toBe(false)
     })
   })
 })

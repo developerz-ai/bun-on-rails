@@ -789,21 +789,21 @@ describe('Model Scopes', () => {
 })
 
 describe('Model Validations', () => {
-  it('validates presence', () => {
+  it('validates presence', async () => {
     const user = new User({ email: 'test@example.com' })
-    expect(user.isValid()).toBe(false)
+    expect(await user.isValid()).toBe(false)
     expect(user.errors.name).toContain("can't be blank")
   })
 
-  it('validates format', () => {
+  it('validates format', async () => {
     const user = new User({ name: 'John', email: 'invalid-email' })
-    expect(user.isValid()).toBe(false)
+    expect(await user.isValid()).toBe(false)
     expect(user.errors.email).toContain('invalid')
   })
 
-  it('passes validation with valid data', () => {
+  it('passes validation with valid data', async () => {
     const user = new User({ name: 'John', email: 'john@example.com' })
-    expect(user.isValid()).toBe(true)
+    expect(await user.isValid()).toBe(true)
     expect(Object.keys(user.errors)).toHaveLength(0)
   })
 })

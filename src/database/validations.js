@@ -148,7 +148,13 @@ export const Validators = {
    * validations = { name: { format: { without: /[0-9]/, message: 'cannot contain numbers' } } }
    */
   format: (value, options = {}) => {
-    const opts = normalizeOptions(options)
+    // Handle regex shorthand: format: /regex/ -> format: { with: /regex/ }
+    let opts
+    if (options instanceof RegExp) {
+      opts = { with: options }
+    } else {
+      opts = normalizeOptions(options)
+    }
 
     // Skip validation for blank values by default
     if (isBlank(value)) {
