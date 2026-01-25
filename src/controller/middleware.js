@@ -346,15 +346,23 @@ export class ControllerMiddleware {
   }
 }
 
+// Import the comprehensive request parser
+import { requestParserMiddleware as createRequestParser } from './request_parser.js'
+
 /**
  * Built-in middleware functions
  */
 export const Middleware = {
   /**
    * Parse request body (JSON, form data, multipart)
+   *
+   * This is the simple body parser. For full request parsing with nested params,
+   * file uploads, and strong parameters support, use Middleware.requestParser().
+   *
+   * @param {Object} options - Parser options
    * @returns {MiddlewareFunction}
    */
-  bodyParser: () => {
+  bodyParser: (_options = {}) => {
     const middleware = async (context, next) => {
       const request = context.request
       const contentType = request.headers.get('content-type') || ''
@@ -374,10 +382,11 @@ export const Middleware = {
           } else if (contentType.includes('multipart/form-data')) {
             const formData = await request.clone().formData()
             const body = {}
+            const files = {}
             for (const [key, value] of formData.entries()) {
               // Check if value is a File/Blob
               if (value && typeof value === 'object' && typeof value.arrayBuffer === 'function' && value.name !== undefined) {
-                body[key] = {
+                files[key] = {
                   name: value.name,
                   type: value.type,
                   size: value.size,
@@ -388,6 +397,7 @@ export const Middleware = {
               }
             }
             context.body = body
+            context.files = files
             context.params = { ...context.params, ...body }
           }
         } catch (error) {
@@ -395,11 +405,40 @@ export const Middleware = {
         }
       }
 
+      // Initialize defaults if not set
+      if (!context.query) context.query = {}
+      if (!context.body) context.body = {}
+      if (!context.files) context.files = {}
+
       return await next()
     }
 
     middleware._name = 'bodyParser'
     return middleware
+  },
+
+  /**
+   * Full request parser with Rails-like nested parameter support
+   *
+   * Parses query params, JSON body, form data, and file uploads.
+   * Supports bracket notation for nested params (user[name], tags[]).
+   *
+   * @param {Object} options - Parser options
+   * @param {number} options.maxBodySize - Maximum body size in bytes (default: 10MB)
+   * @param {number} options.maxFileSize - Maximum file size in bytes (default: 50MB)
+   * @param {number} options.maxFiles - Maximum number of files (default: 10)
+   * @param {string[]} options.allowedMimeTypes - Allowed MIME types for uploads
+   * @returns {MiddlewareFunction}
+   *
+   * @example
+   * app.use(Middleware.requestParser({
+   *   maxBodySize: 5 * 1024 * 1024,  // 5MB
+   *   maxFileSize: 20 * 1024 * 1024, // 20MB
+   *   allowedMimeTypes: ['image/jpeg', 'image/png', 'application/pdf']
+   * }))
+   */
+  requestParser: (options = {}) => {
+    return createRequestParser(options)
   },
 
   /**
@@ -808,6 +847,169 @@ export const Middleware = {
   },
 
   /**
+   * Controller-level rate limiting middleware
+   *
+   * Reads rate limit configuration from `static rateLimit` on controller classes.
+   * Allows per-action and default rate limits for fine-grained API protection.
+   *
+   * @param {Object} options - Rate limit options
+   * @param {Object} options.store - Store for tracking (default: in-memory Map)
+   * @param {Function} options.keyGenerator - Custom key generator (receives context, controllerName, actionName)
+   * @param {Object} options.defaultLimits - Default limits when controller doesn't specify
+   * @returns {MiddlewareFunction}
+   *
+   * @example
+   * // In controller
+   * export default class PostsController extends Controller {
+   *   static rateLimit = {
+   *     // Default for all actions
+   *     default: { max: 100, windowMs: 60000 },
+   *
+   *     // Per-action overrides
+   *     create: { max: 10, windowMs: 60000 },
+   *     update: { max: 20, windowMs: 60000 },
+   *
+   *     // Disable rate limiting for specific action
+   *     index: false
+   *   }
+   * }
+   *
+   * @example
+   * // In middleware setup
+   * app.use(Middleware.controllerRateLimit({
+   *   store: redisStore,
+   *   defaultLimits: { max: 100, windowMs: 60000 }
+   * }))
+   */
+  controllerRateLimit: (options = {}) => {
+    const {
+      store = new Map(),
+      keyGenerator = (context, controllerName, actionName) => {
+        const request = context.request
+        const ip = request.headers.get('x-forwarded-for') ||
+                   request.headers.get('x-real-ip') ||
+                   'unknown'
+        // Include controller and action in key for per-endpoint limiting
+        return `ratelimit:${controllerName}:${actionName}:${ip}`
+      },
+      defaultLimits = null
+    } = options
+
+    // Helper to clean up expired entries periodically
+    let lastCleanup = Date.now()
+    const cleanupInterval = 60000 // 1 minute
+
+    const cleanup = () => {
+      const now = Date.now()
+      if (now - lastCleanup < cleanupInterval) return
+
+      lastCleanup = now
+
+      // Clean up expired entries from Map store
+      if (store instanceof Map) {
+        for (const [key, entry] of store.entries()) {
+          if (now > entry.resetTime) {
+            store.delete(key)
+          }
+        }
+      }
+    }
+
+    const middleware = async (context, next) => {
+      const { controller, ControllerClass, actionName } = context._controllerInfo || {}
+
+      // If no controller info, skip rate limiting
+      if (!controller || !ControllerClass) {
+        return await next()
+      }
+
+      // Get rate limit configuration from controller
+      const rateLimitConfig = ControllerClass.rateLimit || {}
+      const controllerName = ControllerClass.name || 'UnknownController'
+
+      // Determine the rate limit for this action
+      let actionLimit = rateLimitConfig[actionName]
+
+      // If action-specific limit is false, skip rate limiting for this action
+      if (actionLimit === false) {
+        return await next()
+      }
+
+      // If no action-specific limit, use default from controller
+      if (actionLimit === undefined) {
+        actionLimit = rateLimitConfig.default
+      }
+
+      // If still no limit, use middleware default limits
+      if (actionLimit === undefined) {
+        actionLimit = defaultLimits
+      }
+
+      // If no limits configured at all, skip rate limiting
+      if (!actionLimit) {
+        return await next()
+      }
+
+      // Extract limit configuration
+      const { max = 100, windowMs = 60000, message = 'Too many requests' } = actionLimit
+
+      // Generate the rate limit key
+      const key = keyGenerator(context, controllerName, actionName)
+      const now = Date.now()
+
+      // Periodic cleanup
+      cleanup()
+
+      // Get or create rate limit entry
+      let entry = store.get(key)
+      if (!entry || now > entry.resetTime) {
+        entry = {
+          count: 0,
+          resetTime: now + windowMs
+        }
+      }
+
+      entry.count++
+      store.set(key, entry)
+
+      // Check if rate limit exceeded
+      if (entry.count > max) {
+        const retryAfter = Math.ceil((entry.resetTime - now) / 1000)
+        return new Response(JSON.stringify({
+          error: message,
+          retryAfter
+        }), {
+          status: 429,
+          headers: {
+            'Content-Type': 'application/json',
+            'Retry-After': String(retryAfter),
+            'X-RateLimit-Limit': String(max),
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(Math.ceil(entry.resetTime / 1000))
+          }
+        })
+      }
+
+      const response = await next()
+
+      // Add rate limit headers to response
+      const headers = new Headers(response.headers)
+      headers.set('X-RateLimit-Limit', String(max))
+      headers.set('X-RateLimit-Remaining', String(Math.max(0, max - entry.count)))
+      headers.set('X-RateLimit-Reset', String(Math.ceil(entry.resetTime / 1000)))
+
+      return new Response(response.body, {
+        status: response.status,
+        statusText: response.statusText,
+        headers
+      })
+    }
+
+    middleware._name = 'controllerRateLimit'
+    return middleware
+  },
+
+  /**
    * Request timeout middleware
    * @param {Object} options - Timeout options
    * @param {number} options.timeout - Timeout in milliseconds
@@ -973,6 +1175,84 @@ export const Middleware = {
 
     middleware._name = 'compress'
     return middleware
+  },
+
+  /**
+   * Flash messages middleware
+   *
+   * Handles flash message lifecycle - moves "next request" messages to current,
+   * and clears accessed messages after response.
+   *
+   * Flash messages are stored in session with this structure:
+   * - _flash: Current flash messages to display
+   * - _flashNext: Messages queued for next request
+   * - _flashRead: Flag indicating all messages were read
+   * - _flashAccessed: Array of specific keys that were accessed
+   *
+   * @param {Object} options - Flash options
+   * @returns {MiddlewareFunction}
+   *
+   * @example
+   * // In middleware setup
+   * app.use(Middleware.flash())
+   *
+   * // In controller
+   * this.flash('success', 'Item saved!')
+   * return this.redirect('/items')
+   *
+   * // In next request
+   * const message = this.flash('success') // 'Item saved!'
+   */
+  flash: (_options = {}) => {
+    const middleware = async (context, next) => {
+      // Ensure session exists
+      if (!context.session) {
+        context.session = {}
+      }
+
+      // Move "next request" messages to current flash
+      // This handles the transition between requests
+      if (context.session._flashNext) {
+        context.session._flash = context.session._flashNext
+        delete context.session._flashNext
+      }
+
+      // Initialize flash storage if not present
+      if (!context.session._flash) {
+        context.session._flash = {}
+      }
+
+      // Track controller for flash processing
+      const originalController = context._controllerInfo?.controller
+
+      // Execute the rest of the chain
+      const response = await next()
+
+      // Process flash messages after response
+      // If controller set new flash messages, move them to "next request"
+      const controller = context._controllerInfo?.controller || originalController
+
+      if (controller && typeof controller._processFlashAfterResponse === 'function') {
+        controller._processFlashAfterResponse()
+      } else if (context.session) {
+        // Direct session processing if no controller (e.g., static routes)
+        if (context.session._flashRead) {
+          context.session._flash = {}
+          context.session._flashRead = false
+          context.session._flashAccessed = []
+        } else if (context.session._flashAccessed?.length > 0) {
+          for (const key of context.session._flashAccessed) {
+            delete context.session._flash[key]
+          }
+          context.session._flashAccessed = []
+        }
+      }
+
+      return response
+    }
+
+    middleware._name = 'flash'
+    return middleware
   }
 }
 
@@ -1049,14 +1329,25 @@ export function createDefaultMiddlewareStack(options = {}) {
     stack.use(Middleware.session(options.session))
   }
 
+  // Flash messages (requires session)
+  if (options.flash !== false && options.session) {
+    stack.use(Middleware.flash(options.flash || {}))
+  }
+
   // CSRF
   if (options.csrf) {
     stack.use(Middleware.csrf(options.csrf))
   }
 
-  // Rate limiting
+  // Global rate limiting
   if (options.rateLimit) {
     stack.use(Middleware.rateLimit(options.rateLimit))
+  }
+
+  // Controller-level rate limiting (reads from Controller.rateLimit static property)
+  // This is applied per-controller and per-action after controller info is available
+  if (options.controllerRateLimit !== false) {
+    stack.use(Middleware.controllerRateLimit(options.controllerRateLimit || {}))
   }
 
   // Authentication

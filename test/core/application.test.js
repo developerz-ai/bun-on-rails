@@ -487,3 +487,81 @@ describe('createApplication', () => {
     expect(app.initialized).toBe(true)
   })
 })
+
+describe('broadcast integration', () => {
+  test('initializes broadcast manager on app initialize', async () => {
+    const app = new Application({
+      config: { logging: { level: 'error' } }
+    })
+
+    await app.initialize()
+
+    expect(app.broadcastManager).toBeDefined()
+    expect(app.broadcastManager.initialized).toBe(true)
+
+    await app.stop()
+  })
+
+  test('controller can broadcast when broadcast manager is available', async () => {
+    const app = new Application({
+      config: { logging: { level: 'error' }, security: { csrf: false } }
+    })
+
+    await app.initialize()
+
+    // Track broadcast calls
+    const broadcastCalls = []
+    const originalBroadcast = app.broadcastManager.broadcast.bind(app.broadcastManager)
+    app.broadcastManager.broadcast = async (channel, data) => {
+      broadcastCalls.push({ channel, data })
+      return originalBroadcast(channel, data)
+    }
+
+    // Create controller that broadcasts
+    class BroadcastController extends Controller {
+      async create() {
+        await this.broadcast('posts:new', { id: 1, title: 'Test' })
+        return this.render({ success: true }, { status: 201 })
+      }
+    }
+
+    app.controllers.set('broadcast', BroadcastController)
+    app.router.post('/broadcast', 'broadcast#create')
+
+    await app.start({ port: 0 })
+    const baseUrl = `http://localhost:${app.server.port}`
+
+    try {
+      const response = await fetch(`${baseUrl}/broadcast`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({})
+      })
+
+      expect(response.status).toBe(201)
+
+      // Verify broadcast was called
+      expect(broadcastCalls.length).toBe(1)
+      expect(broadcastCalls[0].channel).toBe('posts:new')
+      expect(broadcastCalls[0].data.id).toBe(1)
+      expect(broadcastCalls[0].data.title).toBe('Test')
+    } finally {
+      await app.stop()
+    }
+  })
+
+  test('broadcast manager is cleaned up on stop', async () => {
+    const app = new Application({
+      config: { logging: { level: 'error' } }
+    })
+
+    await app.initialize()
+    await app.start({ port: 0 })
+
+    expect(app.broadcastManager).toBeDefined()
+
+    await app.stop()
+
+    expect(app.broadcastManager).toBeNull()
+  })
+})
