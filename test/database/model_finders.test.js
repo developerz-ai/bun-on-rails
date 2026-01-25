@@ -297,6 +297,242 @@ describe('Model Finders', () => {
   })
 })
 
+describe('Model.where()', () => {
+  let mockConnection
+
+  beforeEach(() => {
+    mockConnection = new MockConnection()
+    setConnection(mockConnection)
+  })
+
+  afterEach(() => {
+    setConnection(null)
+  })
+
+  it('returns a QueryBuilder instance', () => {
+    const query = User.where({ name: 'John' })
+    expect(query).toBeInstanceOf(QueryBuilder)
+  })
+
+  it('builds simple equality conditions', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ name: 'John' }).all()
+
+    const query = mockConnection.queries[0]
+    expect(query.sql).toContain('WHERE')
+    expect(query.params).toContain('John')
+  })
+
+  it('handles null values with IS NULL', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ deleted_at: null }).all()
+
+    const query = mockConnection.queries[0]
+    expect(query.sql).toContain('IS NULL')
+  })
+
+  it('handles array values with IN', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ role: ['admin', 'moderator'] }).all()
+
+    const query = mockConnection.queries[0]
+    expect(query.sql).toContain('IN')
+    expect(query.params).toContain('admin')
+    expect(query.params).toContain('moderator')
+  })
+
+  it('handles comparison operators', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ age: { '>': 18 } }).all()
+
+    const query = mockConnection.queries[0]
+    expect(query.sql).toContain('>')
+    expect(query.params).toContain(18)
+  })
+
+  it('handles multiple comparison operators on same column', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ age: { '>=': 18, '<=': 65 } }).all()
+
+    const query = mockConnection.queries[0]
+    expect(query.sql).toContain('>=')
+    expect(query.sql).toContain('<=')
+    expect(query.params).toContain(18)
+    expect(query.params).toContain(65)
+  })
+
+  it('handles LIKE operator', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ name: { like: '%John%' } }).all()
+
+    const query = mockConnection.queries[0]
+    expect(query.sql).toContain('LIKE')
+    expect(query.params).toContain('%John%')
+  })
+
+  it('handles ILIKE operator (case-insensitive)', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ name: { ilike: '%john%' } }).all()
+
+    const query = mockConnection.queries[0]
+    expect(query.sql).toContain('ILIKE')
+    expect(query.params).toContain('%john%')
+  })
+
+  it('handles Date values', async () => {
+    mockConnection.setMockResults([[]])
+    const date = new Date('2024-01-01')
+
+    await User.where({ created_at: date }).all()
+
+    const query = mockConnection.queries[0]
+    expect(query.params).toContain(date)
+  })
+
+  it('handles boolean values', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ is_active: true }).all()
+
+    const query = mockConnection.queries[0]
+    expect(query.params).toContain(true)
+  })
+
+  it('handles empty array values (always false)', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ role: [] }).all()
+
+    const query = mockConnection.queries[0]
+    expect(query.sql).toContain('FALSE')
+  })
+
+  it('chains multiple where calls with AND', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ is_active: true }).where({ role: 'admin' }).all()
+
+    const query = mockConnection.queries[0]
+    expect(query.sql).toContain('AND')
+    expect(query.params).toContain(true)
+    expect(query.params).toContain('admin')
+  })
+
+  it('handles multiple conditions in single where call', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ is_active: true, role: 'admin', age: 25 }).all()
+
+    const query = mockConnection.queries[0]
+    expect(query.sql).toContain('AND')
+    expect(query.params).toContain(true)
+    expect(query.params).toContain('admin')
+    expect(query.params).toContain(25)
+  })
+
+  it('can chain with other QueryBuilder methods', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ is_active: true })
+      .order({ created_at: 'desc' })
+      .limit(10)
+      .offset(20)
+      .all()
+
+    const query = mockConnection.queries[0]
+    expect(query.sql).toContain('WHERE')
+    expect(query.sql).toContain('ORDER BY')
+    expect(query.sql).toContain('DESC')
+    expect(query.sql).toContain('LIMIT 10')
+    expect(query.sql).toContain('OFFSET 20')
+  })
+
+  it('supports first() after where()', async () => {
+    mockConnection.setMockResults([
+      [{ id: 1, name: 'John', email: 'john@example.com' }]
+    ])
+
+    const user = await User.where({ is_active: true }).first()
+
+    expect(user).toBeInstanceOf(User)
+    expect(user.id).toBe(1)
+    expect(mockConnection.queries[0].sql).toContain('LIMIT 1')
+  })
+
+  it('supports count() after where()', async () => {
+    mockConnection.setMockResults([
+      [{ count: '42' }]
+    ])
+
+    const count = await User.where({ is_active: true }).count()
+
+    expect(count).toBe(42)
+    expect(mockConnection.queries[0].sql).toContain('COUNT(*)')
+  })
+
+  it('supports exists() after where()', async () => {
+    mockConnection.setMockResults([
+      [{ count: '1' }]
+    ])
+
+    const exists = await User.where({ is_active: true }).exists()
+
+    expect(exists).toBe(true)
+  })
+
+  it('supports pluck() after where()', async () => {
+    mockConnection.setMockResults([
+      [{ name: 'John' }, { name: 'Jane' }, { name: 'Bob' }]
+    ])
+
+    const names = await User.where({ is_active: true }).pluck('name')
+
+    expect(names).toEqual(['John', 'Jane', 'Bob'])
+  })
+
+  it('supports updateAll() after where()', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ is_active: false }).updateAll({ role: 'inactive' })
+
+    const query = mockConnection.queries[0]
+    expect(query.sql).toContain('UPDATE')
+    expect(query.sql).toContain('SET')
+    expect(query.sql).toContain('WHERE')
+  })
+
+  it('supports deleteAll() after where()', async () => {
+    mockConnection.setMockResults([[]])
+
+    await User.where({ is_active: false }).deleteAll()
+
+    const query = mockConnection.queries[0]
+    expect(query.sql).toContain('DELETE FROM')
+    expect(query.sql).toContain('WHERE')
+  })
+
+  it('is immutable - does not modify original query', () => {
+    const q1 = User.where({ name: 'John' })
+    const q2 = q1.where({ is_active: true })
+
+    expect(q1).not.toBe(q2)
+    expect(q1.conditions).toHaveLength(1)
+    expect(q2.conditions).toHaveLength(2)
+  })
+
+  it('preserves model class reference', () => {
+    const query = User.where({ name: 'John' })
+    expect(query.model).toBe(User)
+  })
+})
+
 describe('QueryBuilder', () => {
   let mockConnection
 
