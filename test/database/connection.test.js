@@ -372,6 +372,114 @@ describe('Connection', () => {
       expect(results[0].name).toBe('John')
     })
 
+    test('executes query with multiple parameters', async () => {
+      const conn = new Connection({
+        database: 'test',
+        useBunSql: false
+      })
+
+      let capturedSql, capturedParams
+      conn._connectPostgresJs = async () => {
+        conn._client = {
+          unsafe: async (sql, params) => {
+            capturedSql = sql
+            capturedParams = params
+            return [{ id: 1, name: 'John', email: 'john@example.com' }]
+          },
+          end: async () => {}
+        }
+      }
+
+      await conn.connect()
+      const results = await conn.query(
+        'SELECT * FROM users WHERE id = $1 AND name = $2 AND active = $3',
+        [1, 'John', true]
+      )
+
+      expect(capturedSql).toContain('$1')
+      expect(capturedSql).toContain('$2')
+      expect(capturedSql).toContain('$3')
+      expect(capturedParams).toEqual([1, 'John', true])
+      expect(results).toHaveLength(1)
+    })
+
+    test('handles different parameter types', async () => {
+      const conn = new Connection({
+        database: 'test',
+        useBunSql: false
+      })
+
+      let capturedParams
+      const now = new Date()
+      conn._connectPostgresJs = async () => {
+        conn._client = {
+          unsafe: async (sql, params) => {
+            capturedParams = params
+            return []
+          },
+          end: async () => {}
+        }
+      }
+
+      await conn.connect()
+      await conn.query(
+        'INSERT INTO users (name, age, active, created_at, metadata) VALUES ($1, $2, $3, $4, $5)',
+        ['John', 30, true, now, { role: 'admin' }]
+      )
+
+      expect(capturedParams[0]).toBe('John')
+      expect(capturedParams[1]).toBe(30)
+      expect(capturedParams[2]).toBe(true)
+      expect(capturedParams[3]).toBe(now)
+      expect(capturedParams[4]).toEqual({ role: 'admin' })
+    })
+
+    test('handles null parameters', async () => {
+      const conn = new Connection({
+        database: 'test',
+        useBunSql: false
+      })
+
+      let capturedParams
+      conn._connectPostgresJs = async () => {
+        conn._client = {
+          unsafe: async (sql, params) => {
+            capturedParams = params
+            return []
+          },
+          end: async () => {}
+        }
+      }
+
+      await conn.connect()
+      await conn.query('INSERT INTO users (name, bio) VALUES ($1, $2)', ['John', null])
+
+      expect(capturedParams).toEqual(['John', null])
+    })
+
+    test('handles array parameters', async () => {
+      const conn = new Connection({
+        database: 'test',
+        useBunSql: false
+      })
+
+      let capturedParams
+      conn._connectPostgresJs = async () => {
+        conn._client = {
+          unsafe: async (sql, params) => {
+            capturedParams = params
+            return [{ id: 1 }, { id: 2 }]
+          },
+          end: async () => {}
+        }
+      }
+
+      await conn.connect()
+      await conn.query('SELECT * FROM users WHERE id = ANY($1)', [[1, 2, 3]])
+
+      expect(capturedParams).toEqual([[1, 2, 3]])
+    })
+
     test('wraps query errors in DatabaseError', async () => {
       const conn = new Connection({
         database: 'test',
@@ -469,6 +577,116 @@ describe('Connection', () => {
       })
 
       expect(result.id).toBe(1)
+    })
+
+    test('passes parameterized queries in transaction', async () => {
+      const conn = new Connection({
+        database: 'test',
+        useBunSql: false
+      })
+
+      const capturedQueries = []
+      conn._connectPostgresJs = async () => {
+        conn._client = {
+          begin: async (callback) => {
+            const txSql = {
+              unsafe: async (sql, params) => {
+                capturedQueries.push({ sql, params })
+                if (sql.includes('INSERT')) {
+                  return [{ id: 1 }]
+                }
+                return []
+              }
+            }
+            return await callback(txSql)
+          },
+          end: async () => {}
+        }
+      }
+
+      await conn.connect()
+      await conn.transaction(async (tx) => {
+        await tx.query('INSERT INTO users (name, email) VALUES ($1, $2)', ['John', 'john@example.com'])
+        await tx.query('INSERT INTO profiles (user_id, bio) VALUES ($1, $2)', [1, 'A developer'])
+      })
+
+      expect(capturedQueries).toHaveLength(2)
+      expect(capturedQueries[0].params).toEqual(['John', 'john@example.com'])
+      expect(capturedQueries[1].params).toEqual([1, 'A developer'])
+    })
+
+    test('rolls back transaction on error', async () => {
+      const conn = new Connection({
+        database: 'test',
+        useBunSql: false
+      })
+
+      let beginCalled = false
+      let callbackError = null
+
+      conn._connectPostgresJs = async () => {
+        conn._client = {
+          begin: async (callback) => {
+            beginCalled = true
+            try {
+              return await callback({
+                unsafe: async () => []
+              })
+            } catch (error) {
+              callbackError = error
+              throw error // postgres.js rolls back on throw
+            }
+          },
+          end: async () => {}
+        }
+      }
+
+      await conn.connect()
+
+      try {
+        await conn.transaction(async (tx) => {
+          await tx.query('INSERT INTO users (name) VALUES ($1)', ['John'])
+          throw new Error('Something went wrong')
+        })
+        expect.fail('Should have thrown')
+      } catch (error) {
+        expect(error).toBeInstanceOf(DatabaseError)
+        expect(error.message).toContain('Transaction failed')
+      }
+
+      expect(beginCalled).toBe(true)
+      expect(callbackError.message).toBe('Something went wrong')
+    })
+
+    test('transaction query handles empty params array', async () => {
+      const conn = new Connection({
+        database: 'test',
+        useBunSql: false
+      })
+
+      let calledWithParams = null
+      conn._connectPostgresJs = async () => {
+        conn._client = {
+          begin: async (callback) => {
+            const txSql = {
+              unsafe: async (sql, params) => {
+                calledWithParams = params
+                return [{ count: 5 }]
+              }
+            }
+            return await callback(txSql)
+          },
+          end: async () => {}
+        }
+      }
+
+      await conn.connect()
+      const result = await conn.transaction(async (tx) => {
+        return await tx.query('SELECT COUNT(*) FROM users')
+      })
+
+      expect(result).toEqual([{ count: 5 }])
+      expect(calledWithParams).toBeUndefined() // No params passed
     })
   })
 
