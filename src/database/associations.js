@@ -686,32 +686,281 @@ function defineHasAndBelongsToMany(modelClass, config) {
  * Eager loading support
  *
  * Batch loads associations for multiple records to prevent N+1 queries.
+ * This class provides a standalone API for eager loading associations
+ * without using the query builder chain.
+ *
+ * The main eager loading implementation is in QueryBuilder._eagerLoad()
+ * which is called automatically when using Model.includes().
  *
  * @example
+ * // Preferred: Use the query builder chain
+ * const posts = await Post.includes('user', 'comments').all()
+ *
+ * // Alternative: Use EagerLoader directly
  * const posts = await Post.all()
- * const loader = new EagerLoader(Post.query(), ['user', 'comments'])
+ * const loader = new EagerLoader(Post, ['user', 'comments'])
  * await loader.load(posts)
  * // Now posts[0].user and posts[0].comments are pre-loaded
  */
 export class EagerLoader {
   /**
    * Create an eager loader
-   * @param {QueryBuilder} baseQuery - The base query builder
+   * @param {typeof Model} model - The model class
    * @param {string[]} associations - Association names to load
    */
-  constructor(baseQuery, associations) {
-    this.baseQuery = baseQuery
+  constructor(model, associations) {
+    this.model = model
     this.associations = associations
   }
 
   /**
    * Load all associations for a set of records
+   *
+   * This method batch-loads associations to prevent N+1 queries:
+   * - belongsTo: Collects unique foreign keys, loads all parent records in one query
+   * - hasMany: Collects primary keys, loads all child records in one query, groups by FK
+   * - hasOne: Same as hasMany but takes first match per parent
+   *
    * @param {Model[]} records - Records to load associations for
+   * @returns {Promise<void>}
+   *
+   * @example
+   * const posts = await Post.all()
+   * const loader = new EagerLoader(Post, ['user', 'comments'])
+   * await loader.load(posts)
+   *
+   * // All posts now have user and comments attached
+   * posts.forEach(post => {
+   *   console.log(post.user.name)    // No additional query
+   *   console.log(post.comments)     // No additional query
+   * })
    */
-  async load(_records) {
-    // TODO: Parse nested associations (e.g., 'comments.author')
-    // TODO: Batch load to prevent N+1
-    // TODO: Attach loaded records to parents
+  async load(records) {
+    if (!records || records.length === 0) {
+      return
+    }
+
+    const associations = this.model.associations || {}
+
+    for (const assocName of this.associations) {
+      // Handle nested associations (e.g., 'comments.author')
+      const parts = assocName.split('.')
+      const topLevel = parts[0]
+      const nested = parts.slice(1)
+
+      // Find association config
+      let assocConfig = null
+      let assocType = null
+
+      if (this._hasAssociation(associations.belongsTo, topLevel)) {
+        assocType = 'belongsTo'
+        assocConfig = this._findAssocConfig(associations.belongsTo, topLevel)
+      } else if (this._hasAssociation(associations.hasMany, topLevel)) {
+        assocType = 'hasMany'
+        assocConfig = this._findAssocConfig(associations.hasMany, topLevel)
+      } else if (this._hasAssociation(associations.hasOne, topLevel)) {
+        assocType = 'hasOne'
+        assocConfig = this._findAssocConfig(associations.hasOne, topLevel)
+      }
+
+      if (!assocType || !assocConfig) {
+        console.warn(`Association '${topLevel}' not found on ${this.model.name}`)
+        continue
+      }
+
+      await this._loadAssociation(records, topLevel, assocType, assocConfig, nested)
+    }
+  }
+
+  /**
+   * Check if an association exists in an association list
+   * @private
+   */
+  _hasAssociation(assocs, name) {
+    if (!assocs) return false
+    return assocs.some(a => (typeof a === 'string' ? a : a.name) === name)
+  }
+
+  /**
+   * Find association config from array
+   * @private
+   */
+  _findAssocConfig(assocs, name) {
+    if (!assocs) return null
+    for (const assoc of assocs) {
+      if (assoc === name) return { name }
+      if (assoc.name === name) return assoc
+    }
+    return null
+  }
+
+  /**
+   * Load a single association for all records
+   * @private
+   */
+  async _loadAssociation(records, name, type, config, nestedParts) {
+    const foreignKey = config.foreignKey || this._inferForeignKey(name, type)
+    const AssociatedModel = this._getAssociatedModel(config, name)
+
+    if (!AssociatedModel) {
+      console.warn(`Could not resolve model for association '${name}'`)
+      return
+    }
+
+    if (type === 'belongsTo') {
+      await this._loadBelongsTo(records, name, foreignKey, AssociatedModel, nestedParts)
+    } else if (type === 'hasMany') {
+      await this._loadHasMany(records, name, foreignKey, AssociatedModel, nestedParts)
+    } else if (type === 'hasOne') {
+      await this._loadHasOne(records, name, foreignKey, AssociatedModel, nestedParts)
+    }
+  }
+
+  /**
+   * Batch load belongsTo associations
+   * @private
+   */
+  async _loadBelongsTo(records, name, foreignKey, AssociatedModel, nestedParts) {
+    // Collect unique foreign key values
+    const fkValues = [...new Set(
+      records.map(r => r.attributes[foreignKey]).filter(v => v !== null && v !== undefined)
+    )]
+
+    if (fkValues.length === 0) {
+      records.forEach(r => { r[name] = null })
+      return
+    }
+
+    // Load all associated records in one query
+    const associatedRecords = await AssociatedModel.where({
+      [AssociatedModel.primaryKey]: fkValues
+    }).all()
+
+    // Create lookup map
+    const lookup = new Map(
+      associatedRecords.map(r => [r.attributes[AssociatedModel.primaryKey], r])
+    )
+
+    // Assign to parent records
+    records.forEach(r => {
+      r[name] = lookup.get(r.attributes[foreignKey]) || null
+    })
+
+    // Handle nested associations
+    if (nestedParts.length > 0 && associatedRecords.length > 0) {
+      const nestedLoader = new EagerLoader(AssociatedModel, [nestedParts.join('.')])
+      await nestedLoader.load(associatedRecords)
+    }
+  }
+
+  /**
+   * Batch load hasMany associations
+   * @private
+   */
+  async _loadHasMany(records, name, foreignKey, AssociatedModel, nestedParts) {
+    // Collect primary key values
+    const pkValues = records.map(r => r.attributes[this.model.primaryKey])
+
+    // Load all child records in one query
+    const associatedRecords = await AssociatedModel.where({
+      [foreignKey]: pkValues
+    }).all()
+
+    // Group by foreign key
+    const groups = new Map()
+    associatedRecords.forEach(r => {
+      const fk = r.attributes[foreignKey]
+      if (!groups.has(fk)) groups.set(fk, [])
+      groups.get(fk).push(r)
+    })
+
+    // Assign to parent records
+    records.forEach(r => {
+      r[name] = groups.get(r.attributes[this.model.primaryKey]) || []
+    })
+
+    // Handle nested associations
+    if (nestedParts.length > 0 && associatedRecords.length > 0) {
+      const nestedLoader = new EagerLoader(AssociatedModel, [nestedParts.join('.')])
+      await nestedLoader.load(associatedRecords)
+    }
+  }
+
+  /**
+   * Batch load hasOne associations
+   * @private
+   */
+  async _loadHasOne(records, name, foreignKey, AssociatedModel, nestedParts) {
+    // Collect primary key values
+    const pkValues = records.map(r => r.attributes[this.model.primaryKey])
+
+    // Load all child records in one query
+    const associatedRecords = await AssociatedModel.where({
+      [foreignKey]: pkValues
+    }).all()
+
+    // Create lookup (first match wins)
+    const lookup = new Map()
+    associatedRecords.forEach(r => {
+      const fk = r.attributes[foreignKey]
+      if (!lookup.has(fk)) lookup.set(fk, r)
+    })
+
+    // Assign to parent records
+    records.forEach(r => {
+      r[name] = lookup.get(r.attributes[this.model.primaryKey]) || null
+    })
+
+    // Handle nested associations
+    if (nestedParts.length > 0 && associatedRecords.length > 0) {
+      const nestedLoader = new EagerLoader(AssociatedModel, [nestedParts.join('.')])
+      await nestedLoader.load(associatedRecords)
+    }
+  }
+
+  /**
+   * Infer foreign key name
+   * @private
+   */
+  _inferForeignKey(assocName, type) {
+    if (type === 'belongsTo') {
+      return `${assocName}_id`
+    }
+    // For hasMany/hasOne, use the model's name
+    return foreignKeyForModel(this.model.name)
+  }
+
+  /**
+   * Get the associated model class
+   * @private
+   */
+  _getAssociatedModel(config, name) {
+    // If model class is directly provided
+    if (config.model && typeof config.model !== 'string') {
+      return config.model
+    }
+
+    // Try to resolve from model name
+    const modelName = config.model || this._singularize(name)
+    const className = capitalize(modelName)
+
+    // Try global registry
+    if (globalThis._modelRegistry && globalThis._modelRegistry[className]) {
+      return globalThis._modelRegistry[className]
+    }
+
+    return null
+  }
+
+  /**
+   * Simple singularize helper
+   * @private
+   */
+  _singularize(str) {
+    if (str.endsWith('ies')) return str.slice(0, -3) + 'y'
+    if (str.endsWith('es')) return str.slice(0, -2)
+    if (str.endsWith('s')) return str.slice(0, -1)
+    return str
   }
 }
 
