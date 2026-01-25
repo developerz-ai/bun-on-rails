@@ -9,6 +9,7 @@
 
 import { getConnection } from './connection.js'
 import { PostgresAdapter } from './adapters/postgres.js'
+import { trackQuery } from './n_plus_one_detector.js'
 
 /**
  * Record not found error
@@ -537,6 +538,9 @@ export class QueryBuilder {
       throw new Error('Database connection not established')
     }
 
+    // Track query for N+1 detection (development mode only)
+    trackQuery(sql, params, { model: this.model.name })
+
     const rows = await connection.query(sql, params)
     const records = rows.map(row => this._hydrateRecord(row))
 
@@ -610,6 +614,10 @@ export class QueryBuilder {
 
     const { sql, params } = clone.toSQL()
     const connection = getConnection()
+
+    // Track query for N+1 detection (development mode only)
+    trackQuery(sql, params, { model: this.model.name })
+
     const rows = await connection.query(sql, params)
 
     return parseInt(rows[0]?.count || 0, 10)
