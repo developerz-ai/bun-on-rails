@@ -1,6 +1,13 @@
 /**
  * brails db - Database commands
+ *
+ * Provides database management commands including migrations,
+ * schema loading/dumping, and seeding.
  */
+
+import { dumpSchema, loadSchema } from '../../database/schema.js'
+// MigrationRunner is imported for CLI commands - will be used in PR 18
+// import { MigrationRunner } from '../../database/migration.js'
 
 export const dbCommand = {
   name: 'db',
@@ -110,23 +117,61 @@ const dbCommands = {
 
   /**
    * Load schema without running migrations
+   *
+   * This is faster than running all migrations and is useful for:
+   * - CI/CD pipelines
+   * - Fresh database setup
+   * - Quick test environment creation
    */
-  'schema:load': async (_args) => {
+  'schema:load': async (args) => {
     console.log('Loading schema...')
 
-    // TODO: Load schema.js and apply
+    // Get app root and database connection
+    const _appRoot = args.appRoot || process.cwd()
 
-    console.log('Schema loaded.')
+    // Note: Full implementation requires database connection
+    // This will be completed in PR 18: CLI Database Commands
+    // For now, we export the loadSchema function for use by other modules
+
+    try {
+      // Placeholder: The actual connection setup is in PR 18
+      // await loadSchema(db, appRoot)
+      console.log('Schema loading requires database connection.')
+      console.log('Run: brails db:migrate to set up your database')
+    } catch (error) {
+      console.error('Error loading schema:', error.message)
+      throw error
+    }
   },
 
   /**
    * Dump current schema
+   *
+   * Introspects the database and generates db/schema.js
+   * This file can be used to recreate the database structure
+   * without running individual migrations.
    */
-  'schema:dump': async (_args) => {
+  'schema:dump': async (args) => {
     console.log('Dumping schema...')
 
-    // TODO: Generate schema.js from database
+    // Get app root and database connection
+    const _appRoot = args.appRoot || process.cwd()
 
-    console.log('Schema dumped to db/schema.js')
+    // Note: Full implementation requires database connection
+    // This will be completed in PR 18: CLI Database Commands
+    // For now, we export the dumpSchema function for use by other modules
+
+    try {
+      // Placeholder: The actual connection setup is in PR 18
+      // await dumpSchema(db, appRoot)
+      console.log('Schema dumping requires database connection.')
+      console.log('Run: brails db:migrate to update the schema')
+    } catch (error) {
+      console.error('Error dumping schema:', error.message)
+      throw error
+    }
   }
 }
+
+// Re-export schema functions for programmatic use
+export { dumpSchema, loadSchema }
