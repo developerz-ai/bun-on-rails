@@ -10,7 +10,7 @@ export default async function seed() {
   console.log('Seeding database...')
 
   // Create admin user
-  const admin = await User.create({
+  await User.create({
     email: 'admin@example.com',
     name: 'Admin User',
     password: 'password123',

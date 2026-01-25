@@ -110,7 +110,7 @@ export const Validators = {
   /**
    * Validate uniqueness in database
    */
-  uniqueness: async (value, options = {}) => {
+  uniqueness: async (_value, _options = {}) => {
     // TODO: Query database to check uniqueness
     // TODO: Exclude current record if updating
     return null

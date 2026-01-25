@@ -2,7 +2,7 @@
  * Posts List Page Component
  */
 
-import { useResource, useChannel } from '@bun-on-rails/framework'
+import { useResource, useChannel } from '../../../../../src/index.js'
 
 export default function PostsList() {
   const { data: posts, loading, error, mutate } = useResource('posts')

@@ -27,7 +27,7 @@ export class Channel {
    * Called when message received from client
    * @param {Object} data
    */
-  async receive(data) {
+  async receive(_data) {
     // Override in subclass
   }
 
@@ -44,7 +44,7 @@ export class Channel {
    * Send data to this client
    * @param {Object} data
    */
-  send(data) {
+  send(_data) {
     // TODO: Send via WebSocket
   }
 
@@ -53,7 +53,7 @@ export class Channel {
    * @param {string} streamName
    * @param {Object} data
    */
-  broadcast(streamName, data) {
+  broadcast(_streamName, _data) {
     // TODO: Publish to Redis pub/sub
   }
 
@@ -89,7 +89,7 @@ export class WebSocketServer {
    * Start the WebSocket server
    * @param {number} port
    */
-  async start(port) {
+  async start(_port) {
     // TODO: Initialize Redis pub/sub
     // TODO: Start Bun WebSocket server
   }
@@ -98,7 +98,7 @@ export class WebSocketServer {
    * Handle new WebSocket connection
    * @param {WebSocket} ws
    */
-  handleConnection(ws) {
+  handleConnection(_ws) {
     // TODO: Generate connection ID
     // TODO: Store connection
     // TODO: Set up message handlers
@@ -109,7 +109,7 @@ export class WebSocketServer {
    * @param {WebSocket} ws
    * @param {string} message
    */
-  async handleMessage(ws, message) {
+  async handleMessage(_ws, _message) {
     // TODO: Parse message
     // TODO: Route to channel action
     // TODO: Handle subscribe/unsubscribe/message
@@ -119,7 +119,7 @@ export class WebSocketServer {
    * Handle connection close
    * @param {WebSocket} ws
    */
-  handleClose(ws) {
+  handleClose(_ws) {
     // TODO: Clean up subscriptions
     // TODO: Remove connection
   }
@@ -129,7 +129,7 @@ export class WebSocketServer {
    * @param {string} channel
    * @param {Object} data
    */
-  broadcast(channel, data) {
+  broadcast(_channel, _data) {
     // TODO: Publish to Redis
     // TODO: Will be received by all server instances
   }
@@ -159,7 +159,7 @@ export class Connection {
    * @param {string} channelName
    * @param {Object} params
    */
-  async subscribe(channelName, params) {
+  async subscribe(_channelName, _params) {
     // TODO: Instantiate channel
     // TODO: Call subscribed()
     // TODO: Store subscription
@@ -169,7 +169,7 @@ export class Connection {
    * Unsubscribe from a channel
    * @param {string} channelName
    */
-  async unsubscribe(channelName) {
+  async unsubscribe(_channelName) {
     // TODO: Call unsubscribed()
     // TODO: Remove subscription
   }
@@ -186,7 +186,7 @@ export class Connection {
    * Authenticate the connection
    * @param {Object} token
    */
-  async authenticate(token) {
+  async authenticate(_token) {
     // TODO: Verify token
     // TODO: Load user
   }

@@ -169,31 +169,31 @@ export class RedisStore {
     this.client = client
   }
 
-  async get(key) {
+  async get(_key) {
     // TODO: Get from Redis, parse JSON
   }
 
-  async set(key, value, options = {}) {
+  async set(_key, _value, _options = {}) {
     // TODO: Set in Redis with optional TTL
   }
 
-  async delete(key) {
+  async delete(_key) {
     // TODO: DEL key
   }
 
-  async deleteMatching(pattern) {
+  async deleteMatching(_pattern) {
     // TODO: SCAN and DEL matching keys
   }
 
-  async exists(key) {
+  async exists(_key) {
     // TODO: EXISTS key
   }
 
-  async increment(key, amount = 1) {
+  async increment(_key, _amount = 1) {
     // TODO: INCRBY
   }
 
-  async decrement(key, amount = 1) {
+  async decrement(_key, _amount = 1) {
     // TODO: DECRBY
   }
 

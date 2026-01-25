@@ -138,7 +138,7 @@ export const MailAdapters = {
    * SMTP adapter
    */
   smtp: {
-    async send(mail) {
+    async send(_mail) {
       // TODO: Send via SMTP
     }
   },
@@ -147,7 +147,7 @@ export const MailAdapters = {
    * SendGrid adapter
    */
   sendgrid: {
-    async send(mail) {
+    async send(_mail) {
       // TODO: Send via SendGrid API
     }
   },
@@ -156,7 +156,7 @@ export const MailAdapters = {
    * Postmark adapter
    */
   postmark: {
-    async send(mail) {
+    async send(_mail) {
       // TODO: Send via Postmark API
     }
   },
@@ -165,7 +165,7 @@ export const MailAdapters = {
    * AWS SES adapter
    */
   ses: {
-    async send(mail) {
+    async send(_mail) {
       // TODO: Send via AWS SES
     }
   },
@@ -198,7 +198,7 @@ export class MailRenderer {
    * @param {Object} data
    * @returns {Promise<string>}
    */
-  async render(name, data) {
+  async render(_name, _data) {
     // TODO: Load React component
     // TODO: Render to static HTML
     // TODO: Apply email layout

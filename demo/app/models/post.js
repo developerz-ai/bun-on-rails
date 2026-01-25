@@ -23,7 +23,7 @@
  *  fk_posts_user_id  (user_id => users.id) ON DELETE CASCADE
  */
 
-import { Model } from '@bun-on-rails/framework'
+import { Model } from '../../../src/index.js'
 
 export default class Post extends Model {
   static associations = {

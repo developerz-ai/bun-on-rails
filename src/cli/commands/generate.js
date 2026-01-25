@@ -30,7 +30,7 @@ const generators = {
   /**
    * Generate full scaffold
    */
-  scaffold: async (name, fields, args) => {
+  scaffold: async (name, _fields, _args) => {
     console.log(`Generating scaffold for: ${name}`)
 
     // TODO: Generate:
@@ -54,7 +54,7 @@ const generators = {
   /**
    * Generate model
    */
-  model: async (name, fields, args) => {
+  model: async (name, _fields, _args) => {
     console.log(`Generating model: ${name}`)
 
     // TODO: Generate:
@@ -70,7 +70,7 @@ const generators = {
   /**
    * Generate controller
    */
-  controller: async (name, fields, args) => {
+  controller: async (name, _fields, _args) => {
     console.log(`Generating controller: ${name}`)
 
     // TODO: Generate:
@@ -81,7 +81,7 @@ const generators = {
   /**
    * Generate migration
    */
-  migration: async (name, fields, args) => {
+  migration: async (name, _fields, _args) => {
     const timestamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14)
     const filename = `${timestamp}_${toSnakeCase(name)}.js`
 
@@ -93,7 +93,7 @@ const generators = {
   /**
    * Generate job
    */
-  job: async (name, fields, args) => {
+  job: async (name, _fields, _args) => {
     console.log(`Generating job: ${name}`)
 
     // TODO: Generate:
@@ -104,7 +104,7 @@ const generators = {
   /**
    * Generate mailer
    */
-  mailer: async (name, fields, args) => {
+  mailer: async (name, _fields, _args) => {
     console.log(`Generating mailer: ${name}`)
 
     // TODO: Generate:
@@ -116,7 +116,7 @@ const generators = {
   /**
    * Generate channel
    */
-  channel: async (name, fields, args) => {
+  channel: async (name, _fields, _args) => {
     console.log(`Generating channel: ${name}`)
 
     // TODO: Generate:
@@ -127,7 +127,7 @@ const generators = {
   /**
    * Generate React component
    */
-  component: async (name, fields, args) => {
+  component: async (name, _fields, _args) => {
     console.log(`Generating component: ${name}`)
 
     // TODO: Generate:
@@ -139,7 +139,7 @@ const generators = {
   /**
    * Generate authentication system
    */
-  auth: async (name, fields, args) => {
+  auth: async (_name, _fields, _args) => {
     console.log('Generating authentication system...')
 
     // TODO: Generate:
@@ -165,7 +165,7 @@ const generators = {
   /**
    * Generate admin panel
    */
-  admin: async (name, fields, args) => {
+  admin: async (name, _fields, _args) => {
     console.log(`Generating admin panel for: ${name || 'all models'}`)
 
     // TODO: Generate:

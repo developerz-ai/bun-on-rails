@@ -24,7 +24,7 @@ export class Model {
    * @param {number|string} id
    * @returns {Promise<Model>}
    */
-  static async find(id) {
+  static async find(_id) {
     // TODO: Implement
   }
 
@@ -33,7 +33,7 @@ export class Model {
    * @param {Object} conditions
    * @returns {Promise<Model|null>}
    */
-  static async findBy(conditions) {
+  static async findBy(_conditions) {
     // TODO: Implement
   }
 
@@ -42,7 +42,7 @@ export class Model {
    * @param {Object} options
    * @returns {Promise<Model[]>}
    */
-  static async findAll(options = {}) {
+  static async findAll(_options = {}) {
     // TODO: Implement
   }
 
@@ -51,7 +51,7 @@ export class Model {
    * @param {Object} conditions
    * @returns {QueryBuilder}
    */
-  static where(conditions) {
+  static where(_conditions) {
     // TODO: Implement
   }
 
@@ -64,7 +64,7 @@ export class Model {
    * @param {Object} attributes
    * @returns {Promise<Model>}
    */
-  static async create(attributes) {
+  static async create(_attributes) {
     // TODO: Implement
   }
 
@@ -83,7 +83,7 @@ export class Model {
    * @param {Object} attributes
    * @returns {Promise<boolean>}
    */
-  async update(attributes) {
+  async update(_attributes) {
     // TODO: Implement
   }
 
@@ -124,7 +124,7 @@ export class Model {
    * @param {string} name
    * @returns {Promise<Model|Model[]>}
    */
-  async loadAssociation(name) {
+  async loadAssociation(_name) {
     // TODO: Implement
   }
 
@@ -138,7 +138,7 @@ export class Model {
    * @param {...any} args
    * @returns {QueryBuilder}
    */
-  static scope(name, ...args) {
+  static scope(_name, ..._args) {
     // TODO: Implement
   }
 

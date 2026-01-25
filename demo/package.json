@@ -5,13 +5,13 @@
   "scripts": {
     "dev": "brails dev",
     "start": "brails start",
-    "test": "brails test",
+    "test": "bun test test/",
+    "test:integration": "bun test --filter integration test/",
+    "lint": "bunx eslint --max-warnings=0 app/ config/ test/ db/",
     "setup": "brails setup",
     "db:migrate": "brails db:migrate",
     "db:seed": "brails db:seed",
     "console": "brails console"
   },
-  "dependencies": {
-    "@bun-on-rails/framework": "workspace:*"
-  }
+  "dependencies": {}
 }

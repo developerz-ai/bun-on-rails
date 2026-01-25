@@ -15,7 +15,7 @@ export class Job {
    * Perform the job - override in subclass
    * @param {Object} data
    */
-  async perform(data) {
+  async perform(_data) {
     throw new Error('Subclass must implement perform()')
   }
 
@@ -25,7 +25,7 @@ export class Job {
    * @param {Object} options
    * @returns {Promise<string>} Job ID
    */
-  static async performLater(data, options = {}) {
+  static async performLater(_data, _options = {}) {
     // TODO: Add to BullMQ queue
   }
 
@@ -35,7 +35,7 @@ export class Job {
    * @param {Object} data
    * @returns {Promise<string>} Job ID
    */
-  static async performAt(at, data) {
+  static async performAt(_at, _data) {
     // TODO: Add to BullMQ with delay
   }
 
@@ -45,7 +45,7 @@ export class Job {
    * @param {Object} data
    * @returns {Promise<string>} Job ID
    */
-  static async performIn(ms, data) {
+  static async performIn(_ms, _data) {
     // TODO: Add to BullMQ with delay
   }
 
@@ -61,8 +61,8 @@ export class Job {
   // Callbacks - override as needed
   async beforePerform() {}
   async afterPerform() {}
-  async onError(error) {}
-  async onRetry(error, attemptNumber) {}
+  async onError(_error) {}
+  async onRetry(_error, _attemptNumber) {}
 }
 
 /**
@@ -89,7 +89,7 @@ export class JobQueue {
    * @param {Object} options
    * @returns {Promise<string>}
    */
-  async add(jobName, data, options = {}) {
+  async add(_jobName, _data, _options = {}) {
     // TODO: Add job to BullMQ
   }
 
@@ -97,7 +97,7 @@ export class JobQueue {
    * Get job by ID
    * @param {string} jobId
    */
-  async getJob(jobId) {
+  async getJob(_jobId) {
     // TODO: Get job from BullMQ
   }
 
@@ -159,7 +159,7 @@ export class JobWorker {
    * Process a job
    * @param {Object} bullJob
    */
-  async processJob(bullJob) {
+  async processJob(_bullJob) {
     // TODO: Load job class
     // TODO: Run perform with callbacks
     // TODO: Handle errors and retries

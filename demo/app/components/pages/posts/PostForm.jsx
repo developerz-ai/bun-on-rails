@@ -2,7 +2,7 @@
  * Post Form Component
  */
 
-import { useAction, Form, Field, Submit } from '@bun-on-rails/framework'
+import { useAction, Form, Field, Submit } from '../../../../../src/index.js'
 
 export default function PostForm({ post = null }) {
   const isEditing = !!post?.id

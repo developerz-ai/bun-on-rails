@@ -128,7 +128,7 @@ export class TableBuilder {
     return this
   }
 
-  index(columns, options = {}) {
+  index(_columns, _options = {}) {
     // TODO: Add index
     return this
   }

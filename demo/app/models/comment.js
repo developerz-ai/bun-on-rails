@@ -21,7 +21,7 @@
  *  fk_comments_user_id  (user_id => users.id) ON DELETE CASCADE
  */
 
-import { Model } from '@bun-on-rails/framework'
+import { Model } from '../../../src/index.js'
 
 export default class Comment extends Model {
   static associations = {

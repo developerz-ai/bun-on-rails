@@ -8,7 +8,7 @@
  * @param {Object} options
  * @returns {Object}
  */
-export function useResource(resource, options = {}) {
+export function useResource(_resource, _options = {}) {
   // TODO: Implement
   // - Fetch data from /resource endpoint
   // - Handle loading, error states
@@ -31,7 +31,7 @@ export function useResource(resource, options = {}) {
  * @param {Object} options
  * @returns {Object}
  */
-export function useAction(action, options = {}) {
+export function useAction(_action, _options = {}) {
   // TODO: Implement
   // - Generate URL from route name
   // - Handle CSRF token
@@ -40,7 +40,7 @@ export function useAction(action, options = {}) {
   // - Support optimistic updates
 
   return {
-    submit: async (data) => {},
+    submit: async (_data) => {},
     submitting: false,
     error: null
   }
@@ -52,7 +52,7 @@ export function useAction(action, options = {}) {
  * @param {Function} callback
  * @param {Object} options
  */
-export function useChannel(channel, callback, options = {}) {
+export function useChannel(_channel, _callback, _options = {}) {
   // TODO: Implement
   // - Connect to WebSocket server
   // - Subscribe to channel
@@ -119,7 +119,7 @@ export function useQuery() {
  * @param {Object} options
  * @returns {Object}
  */
-export function usePagination(options = {}) {
+export function usePagination(_options = {}) {
   // TODO: Implement
   // - Track current page
   // - Provide navigation functions
@@ -131,7 +131,7 @@ export function usePagination(options = {}) {
     totalPages: 0,
     nextPage: () => {},
     prevPage: () => {},
-    goToPage: (page) => {},
+    goToPage: (_page) => {},
     hasNext: false,
     hasPrev: false
   }
@@ -143,7 +143,7 @@ export function usePagination(options = {}) {
  * @param {number} delay
  * @returns {any}
  */
-export function useDebounce(value, delay = 300) {
+export function useDebounce(value, _delay = 300) {
   // TODO: Implement
   return value
 }
@@ -154,7 +154,7 @@ export function useDebounce(value, delay = 300) {
  * @param {Object} options
  * @returns {Object}
  */
-export function useFetch(url, options = {}) {
+export function useFetch(_url, _options = {}) {
   // TODO: Implement
   // - Fetch with proper headers
   // - Handle CSRF

@@ -2,7 +2,7 @@
  * Send Welcome Email Job
  */
 
-import { Job } from '@bun-on-rails/framework'
+import { Job } from '../../../src/index.js'
 import User from '../models/user.js'
 import UserMailer from '../mailers/user_mailer.js'
 

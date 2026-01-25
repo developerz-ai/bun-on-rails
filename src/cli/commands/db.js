@@ -30,7 +30,7 @@ const dbCommands = {
   /**
    * Create database
    */
-  create: async (args) => {
+  create: async (_args) => {
     console.log('Creating database...')
     // TODO: Create database based on config
     console.log('Database created.')
@@ -39,7 +39,7 @@ const dbCommands = {
   /**
    * Drop database
    */
-  drop: async (args) => {
+  drop: async (_args) => {
     console.log('Dropping database...')
     // TODO: Drop database
     console.log('Database dropped.')
@@ -48,7 +48,7 @@ const dbCommands = {
   /**
    * Run pending migrations
    */
-  migrate: async (args) => {
+  migrate: async (_args) => {
     console.log('Running migrations...')
 
     // TODO: Load migration runner
@@ -87,7 +87,7 @@ const dbCommands = {
   /**
    * Load seed data
    */
-  seed: async (args) => {
+  seed: async (_args) => {
     console.log('Loading seed data...')
 
     // TODO: Load and run db/seeds.js
@@ -111,7 +111,7 @@ const dbCommands = {
   /**
    * Load schema without running migrations
    */
-  'schema:load': async (args) => {
+  'schema:load': async (_args) => {
     console.log('Loading schema...')
 
     // TODO: Load schema.js and apply
@@ -122,7 +122,7 @@ const dbCommands = {
   /**
    * Dump current schema
    */
-  'schema:dump': async (args) => {
+  'schema:dump': async (_args) => {
     console.log('Dumping schema...')
 
     // TODO: Generate schema.js from database

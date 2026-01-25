@@ -29,7 +29,7 @@ export class Connection {
    * @param {any[]} params
    * @returns {Promise<any[]>}
    */
-  async query(sql, params = []) {
+  async query(_sql, _params = []) {
     // TODO: Get connection from pool
     // TODO: Execute query
     // TODO: Return connection to pool
@@ -40,7 +40,7 @@ export class Connection {
    * @param {Function} callback
    * @returns {Promise<any>}
    */
-  async transaction(callback) {
+  async transaction(_callback) {
     // TODO: Begin transaction
     // TODO: Execute callback
     // TODO: Commit or rollback
@@ -51,7 +51,7 @@ export class Connection {
    * @param {string} name
    * @param {Function} callback
    */
-  async createTable(name, callback) {
+  async createTable(_name, _callback) {
     // TODO: Use TableBuilder
     // TODO: Execute CREATE TABLE
   }
@@ -60,7 +60,7 @@ export class Connection {
    * Drop a table
    * @param {string} name
    */
-  async dropTable(name) {
+  async dropTable(_name) {
     // TODO: Execute DROP TABLE
   }
 
@@ -71,7 +71,7 @@ export class Connection {
    * @param {string} type
    * @param {Object} options
    */
-  async addColumn(table, column, type, options = {}) {
+  async addColumn(_table, _column, _type, _options = {}) {
     // TODO: Execute ALTER TABLE ADD COLUMN
   }
 
@@ -80,7 +80,7 @@ export class Connection {
    * @param {string} table
    * @param {string} column
    */
-  async removeColumn(table, column) {
+  async removeColumn(_table, _column) {
     // TODO: Execute ALTER TABLE DROP COLUMN
   }
 
@@ -90,7 +90,7 @@ export class Connection {
    * @param {string[]} columns
    * @param {Object} options
    */
-  async addIndex(table, columns, options = {}) {
+  async addIndex(_table, _columns, _options = {}) {
     // TODO: Execute CREATE INDEX
   }
 
@@ -99,7 +99,7 @@ export class Connection {
    * @param {string} table
    * @param {string} indexName
    */
-  async removeIndex(table, indexName) {
+  async removeIndex(_table, _indexName) {
     // TODO: Execute DROP INDEX
   }
 }
@@ -128,7 +128,7 @@ export class ConnectionPool {
    * Return a connection to the pool
    * @param {any} connection
    */
-  release(connection) {
+  release(_connection) {
     // TODO: Return to available pool
     // TODO: Fulfill waiting requests
   }

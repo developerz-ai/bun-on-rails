@@ -2,7 +2,7 @@
  * Test Factories
  */
 
-import { factory } from '@bun-on-rails/framework'
+import { factory } from '../../../src/index.js'
 
 // User factory
 factory.define('user', {

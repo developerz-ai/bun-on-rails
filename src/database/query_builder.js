@@ -20,7 +20,7 @@ export class QueryBuilder {
    * @param {...any} values
    * @returns {QueryBuilder}
    */
-  where(conditions, ...values) {
+  where(_conditions, ..._values) {
     // TODO: Implement
     return this
   }
@@ -30,7 +30,7 @@ export class QueryBuilder {
    * @param {Object|string} order
    * @returns {QueryBuilder}
    */
-  order(order) {
+  order(_order) {
     // TODO: Implement
     return this
   }
@@ -60,7 +60,7 @@ export class QueryBuilder {
    * @param {...string} associations
    * @returns {QueryBuilder}
    */
-  includes(...associations) {
+  includes(..._associations) {
     // TODO: Implement
     return this
   }
@@ -80,7 +80,7 @@ export class QueryBuilder {
    * @param {...string} columns
    * @returns {QueryBuilder}
    */
-  group(...columns) {
+  group(..._columns) {
     // TODO: Implement
     return this
   }
@@ -130,7 +130,7 @@ export class QueryBuilder {
    * @param {number} page
    * @returns {QueryBuilder}
    */
-  page(page) {
+  page(_page) {
     // TODO: Implement
     return this
   }
@@ -140,7 +140,7 @@ export class QueryBuilder {
    * @param {number} perPage
    * @returns {QueryBuilder}
    */
-  per(perPage) {
+  per(_perPage) {
     // TODO: Implement
     return this
   }

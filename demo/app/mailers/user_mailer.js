@@ -2,7 +2,7 @@
  * User Mailer
  */
 
-import { Mailer } from '@bun-on-rails/framework'
+import { Mailer } from '../../../src/index.js'
 
 export default class UserMailer extends Mailer {
   static defaults = {

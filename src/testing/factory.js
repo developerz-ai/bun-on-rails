@@ -115,8 +115,11 @@ export class Factory {
   /**
    * Get model class by name
    */
-  async getModelClass(name) {
+  async getModelClass(_name) {
     // TODO: Load model from app/models
+    // For now, return the base Model class
+    const { Model } = await import('../database/model.js')
+    return Model
   }
 }
 

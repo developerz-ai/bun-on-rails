@@ -3,7 +3,7 @@
  */
 
 import { test, expect, describe, beforeEach } from 'bun:test'
-import { factory, cleanDatabase } from '@bun-on-rails/framework'
+import { factory, cleanDatabase } from '../../../src/index.js'
 import Post from '../../app/models/post.js'
 
 describe('Post', () => {

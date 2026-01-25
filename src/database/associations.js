@@ -57,8 +57,8 @@ function normalizeAssociation(assoc) {
  */
 function defineBelongsTo(modelClass, config) {
   const { name, model, foreignKey } = config
-  const associatedModel = model || capitalize(name)
-  const fk = foreignKey || `${name}_id`
+  const _associatedModel = model || capitalize(name)
+  const _fk = foreignKey || `${name}_id`
 
   modelClass.prototype[name] = async function () {
     // TODO: Load and cache associated model
@@ -71,8 +71,8 @@ function defineBelongsTo(modelClass, config) {
  */
 function defineHasMany(modelClass, config) {
   const { name, model, foreignKey } = config
-  const associatedModel = model || capitalize(singularize(name))
-  const fk = foreignKey || `${modelClass.name.toLowerCase()}_id`
+  const _associatedModel = model || capitalize(singularize(name))
+  const _fk = foreignKey || `${modelClass.name.toLowerCase()}_id`
 
   modelClass.prototype[name] = async function () {
     // TODO: Query for associated records
@@ -85,8 +85,8 @@ function defineHasMany(modelClass, config) {
  */
 function defineHasOne(modelClass, config) {
   const { name, model, foreignKey } = config
-  const associatedModel = model || capitalize(name)
-  const fk = foreignKey || `${modelClass.name.toLowerCase()}_id`
+  const _associatedModel = model || capitalize(name)
+  const _fk = foreignKey || `${modelClass.name.toLowerCase()}_id`
 
   modelClass.prototype[name] = async function () {
     // TODO: Query for single associated record
@@ -97,8 +97,8 @@ function defineHasOne(modelClass, config) {
  * Define hasAndBelongsToMany association
  */
 function defineHasAndBelongsToMany(modelClass, config) {
-  const { name, model, joinTable } = config
-  const associatedModel = model || capitalize(singularize(name))
+  const { name, model, joinTable: _joinTable } = config
+  const _associatedModel = model || capitalize(singularize(name))
 
   modelClass.prototype[name] = async function () {
     // TODO: Query through join table
@@ -118,7 +118,7 @@ export class EagerLoader {
    * Load all associations for a set of records
    * @param {Model[]} records
    */
-  async load(records) {
+  async load(_records) {
     // TODO: Parse nested associations (e.g., 'comments.author')
     // TODO: Batch load to prevent N+1
     // TODO: Attach loaded records to parents

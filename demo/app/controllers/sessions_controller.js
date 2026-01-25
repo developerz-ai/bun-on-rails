@@ -2,7 +2,7 @@
  * Sessions Controller - Authentication
  */
 
-import { Controller } from '@bun-on-rails/framework'
+import { Controller } from '../../../src/index.js'
 import User from '../models/user.js'
 
 export default class SessionsController extends Controller {

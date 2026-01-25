@@ -18,4 +18,4 @@ export { useResource, useAction, useChannel } from './react/hooks.js'
 export { Form, Field } from './react/forms.js'
 
 // Testing utilities
-export { factory, request } from './testing/index.js'
+export { factory, request, cleanDatabase, setupDatabase, withinTransaction } from './testing/index.js'

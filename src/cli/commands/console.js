@@ -6,7 +6,7 @@ export const consoleCommand = {
   name: 'console',
   description: 'Start interactive console with models loaded',
 
-  async run(args) {
+  async run(_args) {
     console.log('Loading BunOnRails console...')
 
     // TODO: Load application

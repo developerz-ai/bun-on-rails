@@ -2,7 +2,7 @@
  * Posts Channel - Real-time post updates
  */
 
-import { Channel } from '@bun-on-rails/framework'
+import { Channel } from '../../../src/index.js'
 
 export default class PostsChannel extends Channel {
   async subscribed() {

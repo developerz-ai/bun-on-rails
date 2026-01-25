@@ -102,7 +102,7 @@ export class Controller {
    * @param {string} channel
    * @param {Object} data
    */
-  broadcast(channel, data) {
+  broadcast(_channel, _data) {
     // TODO: Send to WebSocket server
   }
 
@@ -111,7 +111,7 @@ export class Controller {
    * @param {string} type
    * @param {string} message
    */
-  flash(type, message) {
+  flash(_type, _message) {
     // TODO: Store in session
   }
 
@@ -120,7 +120,7 @@ export class Controller {
    * @param {string} name
    * @param {string} value
    */
-  setHeader(name, value) {
+  setHeader(_name, _value) {
     // TODO: Store for response
   }
 
@@ -130,7 +130,7 @@ export class Controller {
    * @param {string} value
    * @param {Object} options
    */
-  setCookie(name, value, options = {}) {
+  setCookie(_name, _value, _options = {}) {
     // TODO: Store for response
   }
 
@@ -138,7 +138,7 @@ export class Controller {
    * Delete response cookie
    * @param {string} name
    */
-  deleteCookie(name) {
+  deleteCookie(_name) {
     // TODO: Set cookie with expiry
   }
 }

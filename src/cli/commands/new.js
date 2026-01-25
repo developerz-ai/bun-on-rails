@@ -53,8 +53,8 @@ Happy coding!
 /**
  * Generate application directory structure
  */
-async function createDirectoryStructure(appName) {
-  const directories = [
+async function _createDirectoryStructure(_appName) {
+  const _directories = [
     'app/models',
     'app/controllers',
     'app/components/layouts',
@@ -83,7 +83,7 @@ async function createDirectoryStructure(appName) {
 /**
  * Generate base application files
  */
-async function generateBaseFiles(appName, options) {
+async function _generateBaseFiles(_appName, _options) {
   // TODO: Generate from templates:
   // - package.json
   // - bunfig.toml
@@ -101,7 +101,7 @@ async function generateBaseFiles(appName, options) {
 /**
  * Generate Docker configuration
  */
-async function generateDockerConfig(appName, options) {
+async function _generateDockerConfig(_appName, _options) {
   // TODO: Generate:
   // - docker-compose.yml
   // - Dockerfile

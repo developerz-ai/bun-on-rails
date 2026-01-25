@@ -196,7 +196,7 @@ export class Router {
    * @param {string} path
    * @returns {Object|null}
    */
-  match(method, path) {
+  match(_method, _path) {
     // TODO: Match path with params extraction
     // TODO: Return matched route with params
   }
@@ -207,7 +207,7 @@ export class Router {
    * @param {Object} params
    * @returns {string}
    */
-  urlFor(name, params = {}) {
+  urlFor(_name, _params = {}) {
     // TODO: Generate URL from named route with params
   }
 
@@ -216,7 +216,7 @@ export class Router {
    * @param {Request} request
    * @returns {Promise<Response>}
    */
-  async handle(request) {
+  async handle(_request) {
     // TODO: Match route
     // TODO: Load controller
     // TODO: Run middleware

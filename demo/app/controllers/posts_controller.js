@@ -2,7 +2,7 @@
  * Posts Controller
  */
 
-import { Controller } from '@bun-on-rails/framework'
+import { Controller } from '../../../src/index.js'
 import Post from '../models/post.js'
 
 export default class PostsController extends Controller {

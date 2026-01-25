@@ -17,7 +17,7 @@
  *  index_users_on_email  (email) UNIQUE
  */
 
-import { Model } from '@bun-on-rails/framework'
+import { Model } from '../../../src/index.js'
 
 export default class User extends Model {
   static associations = {
@@ -52,7 +52,7 @@ export default class User extends Model {
     return this.role === 'admin'
   }
 
-  async authenticate(password) {
+  async authenticate(_password) {
     // TODO: Verify password with bcrypt
   }
 }

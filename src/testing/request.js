@@ -25,7 +25,7 @@ export class TestRequest {
    * @param {Object} user
    * @returns {TestRequest}
    */
-  as(user) {
+  as(_user) {
     // TODO: Set auth headers/cookies
     return this
   }
@@ -86,7 +86,7 @@ export class TestRequest {
    * @param {Object} options
    * @returns {Promise<TestResponse>}
    */
-  async request(method, path, options = {}) {
+  async request(_method, _path, _options = {}) {
     // TODO: Build Request object
     // TODO: Send to app.handle()
     // TODO: Return TestResponse
@@ -186,8 +186,8 @@ export class TestResponse {
    * @param {Object} expected
    * @returns {Promise<TestResponse>}
    */
-  async assertJson(expected) {
-    const json = await this.json()
+  async assertJson(_expected) {
+    const _json = await this.json()
     // TODO: Deep compare
     return this
   }
@@ -197,8 +197,8 @@ export class TestResponse {
    * @param {string} key
    * @returns {Promise<TestResponse>}
    */
-  async assertJsonHas(key) {
-    const json = await this.json()
+  async assertJsonHas(_key) {
+    const _json = await this.json()
     // TODO: Check nested keys
     return this
   }

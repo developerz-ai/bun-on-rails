@@ -71,7 +71,7 @@ export const Middleware = {
   /**
    * CORS headers
    */
-  cors: (options = {}) => async (context, next) => {
+  cors: (_options = {}) => async (context, next) => {
     // TODO: Set CORS headers based on config
     return await next()
   },
@@ -100,7 +100,7 @@ export const Middleware = {
   /**
    * Rate limiting
    */
-  rateLimit: (options = {}) => async (context, next) => {
+  rateLimit: (_options = {}) => async (context, next) => {
     // TODO: Check rate limit in Redis
     // TODO: Return 429 if exceeded
     return await next()

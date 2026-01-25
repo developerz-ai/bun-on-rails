@@ -23,7 +23,7 @@ export async function cleanDatabase() {
  * Run a test within a transaction that rolls back
  * @param {Function} callback
  */
-export async function withinTransaction(callback) {
+export async function withinTransaction(_callback) {
   // TODO: Begin transaction
   // TODO: Run callback
   // TODO: Rollback transaction
@@ -33,7 +33,7 @@ export async function withinTransaction(callback) {
  * Create multiple parallel test databases
  * @param {number} count
  */
-export async function createTestDatabases(count) {
+export async function createTestDatabases(_count) {
   // TODO: Create myapp_test_0, myapp_test_1, etc.
 }
 
@@ -54,21 +54,21 @@ export const CleaningStrategies = {
   /**
    * Truncate tables (fast but doesn't reset auto-increment)
    */
-  truncation: async (tables) => {
+  truncation: async (_tables) => {
     // TODO: TRUNCATE each table
   },
 
   /**
    * Delete all rows (slower but resets state)
    */
-  deletion: async (tables) => {
+  deletion: async (_tables) => {
     // TODO: DELETE FROM each table
   },
 
   /**
    * Transaction rollback (fastest, used per-test)
    */
-  transaction: async (callback) => {
+  transaction: async (_callback) => {
     // TODO: Wrap in transaction, rollback after
   }
 }
