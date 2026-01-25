@@ -1095,6 +1095,15 @@ export class PostgresAdapter {
         continue
       }
 
+      // Handle object with raw property
+      if (condition.raw) {
+        clauses.push(condition.raw)
+        if (condition.values) {
+          params.push(...condition.values)
+        }
+        continue
+      }
+
       const { column, operator = '=', value, or = false } = condition
 
       // Handle different operators

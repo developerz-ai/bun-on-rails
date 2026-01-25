@@ -314,6 +314,207 @@ export class QueryBuilder {
   }
 
   /**
+   * Add RIGHT JOIN clause
+   * @param {string} table
+   * @param {string} on
+   * @returns {QueryBuilder}
+   */
+  rightJoin(table, on) {
+    return this.join(table, on, 'RIGHT')
+  }
+
+  /**
+   * Add FULL OUTER JOIN clause
+   * @param {string} table
+   * @param {string} on
+   * @returns {QueryBuilder}
+   */
+  fullJoin(table, on) {
+    return this.join(table, on, 'FULL')
+  }
+
+  /**
+   * Clear existing order and apply new ordering
+   * @param {Object|string} order - New order specification
+   * @returns {QueryBuilder}
+   *
+   * @example
+   * // Override previous ordering
+   * User.order({ name: 'asc' }).reorder({ created_at: 'desc' })
+   */
+  reorder(order) {
+    const clone = this._clone()
+    clone.orders = []
+
+    if (typeof order === 'string') {
+      clone.orders.push({ column: order, direction: 'ASC' })
+    } else if (typeof order === 'object') {
+      for (const [column, direction] of Object.entries(order)) {
+        clone.orders.push({
+          column,
+          direction: (direction || 'ASC').toUpperCase()
+        })
+      }
+    }
+
+    return clone
+  }
+
+  /**
+   * Remove all conditions, returning unscoped query
+   * @returns {QueryBuilder}
+   */
+  unscoped() {
+    const clone = new QueryBuilder(this.model)
+    return clone
+  }
+
+  /**
+   * Return a relation that returns no records
+   * Useful for short-circuiting queries
+   * @returns {QueryBuilder}
+   */
+  none() {
+    const clone = this._clone()
+    // Add an impossible condition using a valid column-based condition
+    // We use 1=0 which always evaluates to false
+    clone.conditions.push({ raw: '1 = 0', values: [] })
+    return clone
+  }
+
+  /**
+   * Merge another query's conditions into this one
+   * @param {QueryBuilder} other - Another query builder
+   * @returns {QueryBuilder}
+   */
+  merge(other) {
+    const clone = this._clone()
+
+    // Merge conditions
+    clone.conditions.push(...other.conditions)
+
+    // Merge includes
+    clone.includesList.push(...other.includesList)
+
+    // Merge orders (other's orders take precedence)
+    if (other.orders.length > 0) {
+      clone.orders = [...other.orders]
+    }
+
+    // Merge limit/offset (other's values take precedence)
+    if (other.limitValue !== null) {
+      clone.limitValue = other.limitValue
+    }
+    if (other.offsetValue !== null) {
+      clone.offsetValue = other.offsetValue
+    }
+
+    // Merge joins
+    clone.joinClauses.push(...other.joinClauses)
+
+    // Merge group by
+    clone.groupColumns.push(...other.groupColumns)
+
+    // Merge having
+    clone.havingConditions.push(...other.havingConditions)
+
+    // Merge distinct
+    if (other.distinctValue) {
+      clone.distinctValue = true
+    }
+
+    // Merge lock
+    if (other.lockMode) {
+      clone.lockMode = other.lockMode
+    }
+
+    return clone
+  }
+
+  /**
+   * Iterate over records in batches
+   * Useful for processing large datasets without loading all into memory
+   *
+   * @param {Function} callback - Async function to process each record
+   * @param {Object} options - Batch options
+   * @param {number} options.batchSize - Number of records per batch (default: 1000)
+   * @param {string} options.orderColumn - Column to order by (default: primary key)
+   * @returns {Promise<void>}
+   *
+   * @example
+   * await User.where({ active: true }).findEach(async (user) => {
+   *   await user.sendNewsletter()
+   * }, { batchSize: 100 })
+   */
+  async findEach(callback, options = {}) {
+    const { batchSize = 1000, orderColumn } = options
+    const pkColumn = orderColumn || this.model.primaryKey
+
+    let lastId = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const batch = await this
+        .where({ [pkColumn]: { '>': lastId } })
+        .order({ [pkColumn]: 'asc' })
+        .limit(batchSize)
+        .all()
+
+      if (batch.length === 0) {
+        hasMore = false
+        break
+      }
+
+      for (const record of batch) {
+        await callback(record)
+      }
+
+      lastId = batch[batch.length - 1].attributes[pkColumn]
+      hasMore = batch.length === batchSize
+    }
+  }
+
+  /**
+   * Iterate over records in batches, yielding each batch
+   *
+   * @param {Function} callback - Async function to process each batch
+   * @param {Object} options - Batch options
+   * @param {number} options.batchSize - Number of records per batch (default: 1000)
+   * @param {string} options.orderColumn - Column to order by (default: primary key)
+   * @returns {Promise<void>}
+   *
+   * @example
+   * await User.where({ active: true }).findInBatches(async (batch) => {
+   *   await processBatch(batch)
+   * }, { batchSize: 500 })
+   */
+  async findInBatches(callback, options = {}) {
+    const { batchSize = 1000, orderColumn } = options
+    const pkColumn = orderColumn || this.model.primaryKey
+
+    let lastId = 0
+    let hasMore = true
+
+    while (hasMore) {
+      const batch = await this
+        .where({ [pkColumn]: { '>': lastId } })
+        .order({ [pkColumn]: 'asc' })
+        .limit(batchSize)
+        .all()
+
+      if (batch.length === 0) {
+        hasMore = false
+        break
+      }
+
+      await callback(batch)
+
+      lastId = batch[batch.length - 1].attributes[pkColumn]
+      hasMore = batch.length === batchSize
+    }
+  }
+
+  /**
    * Set lock mode for SELECT
    * @param {string} mode - 'UPDATE', 'SHARE', etc.
    * @returns {QueryBuilder}
