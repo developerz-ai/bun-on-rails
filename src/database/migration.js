@@ -8,6 +8,7 @@
  */
 
 import { PostgresAdapter } from './adapters/postgres.js'
+import { singularize } from '../support/inflector.js'
 
 // Default adapter instance
 const defaultAdapter = new PostgresAdapter()
@@ -208,7 +209,7 @@ export class Migration {
    * @returns {Promise<void>}
    */
   async addForeignKey(fromTable, toTable, options = {}) {
-    const column = options.column || `${toTable.replace(/s$/, '')}_id`
+    const column = options.column || `${singularize(toTable)}_id`
     const primaryKey = options.primaryKey || 'id'
     const constraintName = options.name || `fk_${fromTable}_${column}`
     const onDelete = options.onDelete || 'NO ACTION'
@@ -232,7 +233,7 @@ export class Migration {
   async removeForeignKey(fromTable, options = {}) {
     let constraintName = options.name
     if (!constraintName && options.toTable) {
-      const column = options.column || `${options.toTable.replace(/s$/, '')}_id`
+      const column = options.column || `${singularize(options.toTable)}_id`
       constraintName = `fk_${fromTable}_${column}`
     }
 
