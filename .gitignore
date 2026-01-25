@@ -51,7 +51,8 @@ temp/
 db/*.sqlite*
 
 # Uploads (local development)
-storage/
+/storage/
+/demo/storage/
 
 # Documentation build
 docs/_build/
