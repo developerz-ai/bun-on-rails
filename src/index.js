@@ -5,6 +5,9 @@
 
 export { Application, createApplication } from './application.js'
 export { Model } from './database/model.js'
+export { Migration, MigrationRunner, TableBuilder, ColumnBuilder } from './database/migration.js'
+export { SchemaGenerator, SchemaLoader, dumpSchema, loadSchema } from './database/schema.js'
+export { Connection, ConnectionPool, getConnection, setConnection } from './database/connection.js'
 export { Controller } from './controller/base.js'
 export { Router } from './routing/router.js'
 export { Job } from './jobs/job.js'
