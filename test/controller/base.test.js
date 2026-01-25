@@ -926,11 +926,176 @@ describe('Controller', () => {
   })
 })
 
+describe('Controller - Request Parameter Access', () => {
+  let controller
+
+  beforeEach(() => {
+    const context = new ControllerContext({
+      request: new Request('http://localhost/test'),
+      params: { id: '123', title: 'Hello', user: { name: 'John', email: 'john@example.com' } },
+      query: { page: '1', sort: 'name' },
+      body: { title: 'Hello', body: 'World' },
+      files: {
+        avatar: { name: 'photo.jpg', type: 'image/jpeg', size: 1024, file: {} }
+      },
+      session: {},
+      currentUser: null,
+      http: {},
+      cache: null,
+      temp: new Map(),
+      db: null
+    })
+    controller = new Controller(context)
+  })
+
+  describe('requestParams', () => {
+    test('returns RequestParams instance', () => {
+      const params = controller.requestParams
+      expect(params).toBeDefined()
+      expect(typeof params.get).toBe('function')
+      expect(typeof params.require).toBe('function')
+      expect(typeof params.permit).toBe('function')
+    })
+
+    test('caches the RequestParams instance', () => {
+      const params1 = controller.requestParams
+      const params2 = controller.requestParams
+      expect(params1).toBe(params2)
+    })
+  })
+
+  describe('param()', () => {
+    test('gets a simple parameter', () => {
+      expect(controller.param('id')).toBe('123')
+      expect(controller.param('title')).toBe('Hello')
+    })
+
+    test('gets nested parameter with dot notation', () => {
+      expect(controller.param('user.name')).toBe('John')
+      expect(controller.param('user.email')).toBe('john@example.com')
+    })
+
+    test('returns default value for missing parameter', () => {
+      expect(controller.param('missing', 'default')).toBe('default')
+      expect(controller.param('also.missing', 42)).toBe(42)
+    })
+
+    test('returns undefined for missing parameter without default', () => {
+      expect(controller.param('nonexistent')).toBeUndefined()
+    })
+  })
+
+  describe('requireParam()', () => {
+    test('returns value for existing parameter', () => {
+      expect(controller.requireParam('id')).toBe('123')
+    })
+
+    test('throws for missing parameter', () => {
+      expect(() => controller.requireParam('missing')).toThrow(/Missing required parameter/)
+    })
+  })
+
+  describe('permitParams()', () => {
+    test('returns only permitted parameters', () => {
+      const permitted = controller.permitParams('id', 'title')
+
+      expect(permitted.id).toBe('123')
+      expect(permitted.title).toBe('Hello')
+      expect(permitted.user).toBeUndefined()
+    })
+
+    test('permits nested parameters', () => {
+      const permitted = controller.permitParams({ user: ['name'] })
+
+      expect(permitted.user.name).toBe('John')
+      expect(permitted.user.email).toBeUndefined()
+    })
+  })
+
+  describe('hasFile()', () => {
+    test('returns true for existing file', () => {
+      expect(controller.hasFile('avatar')).toBe(true)
+    })
+
+    test('returns false for non-existing file', () => {
+      expect(controller.hasFile('document')).toBe(false)
+    })
+  })
+
+  describe('getFile()', () => {
+    test('returns file object for existing file', () => {
+      const file = controller.getFile('avatar')
+
+      expect(file).toBeDefined()
+      expect(file.name).toBe('photo.jpg')
+      expect(file.type).toBe('image/jpeg')
+      expect(file.size).toBe(1024)
+    })
+
+    test('returns undefined for non-existing file', () => {
+      expect(controller.getFile('document')).toBeUndefined()
+    })
+  })
+
+  describe('getAllFiles()', () => {
+    test('returns all files as object', () => {
+      const files = controller.getAllFiles()
+
+      expect(files.avatar).toBeDefined()
+      expect(files.avatar.name).toBe('photo.jpg')
+    })
+
+    test('returns a copy, not the original', () => {
+      const files = controller.getAllFiles()
+      files.newFile = {}
+
+      expect(controller.files.newFile).toBeUndefined()
+    })
+  })
+
+  describe('getQuery()', () => {
+    test('returns query parameters only', () => {
+      const query = controller.getQuery()
+
+      expect(query.page).toBe('1')
+      expect(query.sort).toBe('name')
+      expect(query.title).toBeUndefined() // body param, not query
+    })
+
+    test('returns a copy', () => {
+      const query = controller.getQuery()
+      query.newParam = 'test'
+
+      expect(controller.query.newParam).toBeUndefined()
+    })
+  })
+
+  describe('getBody()', () => {
+    test('returns body parameters only', () => {
+      const body = controller.getBody()
+
+      expect(body.title).toBe('Hello')
+      expect(body.body).toBe('World')
+      expect(body.page).toBeUndefined() // query param, not body
+    })
+
+    test('returns a copy', () => {
+      const body = controller.getBody()
+      body.newParam = 'test'
+
+      expect(controller.body.newParam).toBeUndefined()
+    })
+  })
+})
+
 describe('ControllerContext', () => {
   test('stores all provided options', () => {
     const options = {
       request: new Request('http://localhost/test'),
       params: { id: '1' },
+      query: { page: '1' },
+      body: { title: 'Hello' },
+      files: { avatar: {} },
       session: { token: 'abc' },
       currentUser: { id: 1 },
       http: { server: {} },
@@ -944,6 +1109,9 @@ describe('ControllerContext', () => {
 
     expect(context.request).toBe(options.request)
     expect(context.params).toBe(options.params)
+    expect(context.query).toBe(options.query)
+    expect(context.body).toBe(options.body)
+    expect(context.files).toBe(options.files)
     expect(context.session).toBe(options.session)
     expect(context.currentUser).toBe(options.currentUser)
     expect(context.http).toBe(options.http)
@@ -951,5 +1119,22 @@ describe('ControllerContext', () => {
     expect(context.temp).toBe(options.temp)
     expect(context.db).toBe(options.db)
     expect(context.broadcastManager).toBe(options.broadcastManager)
+  })
+
+  test('defaults query, body, files, params to empty objects', () => {
+    const context = new ControllerContext({
+      request: new Request('http://localhost/test'),
+      session: {},
+      currentUser: null,
+      http: {},
+      cache: null,
+      temp: new Map(),
+      db: null
+    })
+
+    expect(context.params).toEqual({})
+    expect(context.query).toEqual({})
+    expect(context.body).toEqual({})
+    expect(context.files).toEqual({})
   })
 })

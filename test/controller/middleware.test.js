@@ -646,7 +646,10 @@ describe('Middleware.bodyParser()', () => {
 
     await middleware(context, async () => new Response('OK'))
 
-    expect(context.body).toBeUndefined()
+    // Body is initialized to empty object for consistency
+    expect(context.body).toEqual({})
+    expect(context.query).toEqual({})
+    expect(context.files).toEqual({})
   })
 })
 

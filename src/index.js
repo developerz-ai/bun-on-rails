@@ -19,8 +19,15 @@ export {
   resetN1Detection,
   getN1Stats
 } from './database/n_plus_one_detector.js'
-export { Controller } from './controller/base.js'
+export { Controller, ControllerContext, RequestParams } from './controller/base.js'
 export { MiddlewareStack, ControllerMiddleware, Middleware, createDefaultMiddlewareStack } from './controller/middleware.js'
+export {
+  parseRequest,
+  parseQueryString,
+  parseBody,
+  requestParserMiddleware,
+  RequestParams as StrongParams
+} from './controller/request_parser.js'
 export { Router } from './routing/router.js'
 export { Job } from './jobs/job.js'
 export { Mailer } from './mail/mailer.js'

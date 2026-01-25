@@ -346,15 +346,23 @@ export class ControllerMiddleware {
   }
 }
 
+// Import the comprehensive request parser
+import { requestParserMiddleware as createRequestParser } from './request_parser.js'
+
 /**
  * Built-in middleware functions
  */
 export const Middleware = {
   /**
    * Parse request body (JSON, form data, multipart)
+   *
+   * This is the simple body parser. For full request parsing with nested params,
+   * file uploads, and strong parameters support, use Middleware.requestParser().
+   *
+   * @param {Object} options - Parser options
    * @returns {MiddlewareFunction}
    */
-  bodyParser: () => {
+  bodyParser: (options = {}) => {
     const middleware = async (context, next) => {
       const request = context.request
       const contentType = request.headers.get('content-type') || ''
@@ -374,10 +382,11 @@ export const Middleware = {
           } else if (contentType.includes('multipart/form-data')) {
             const formData = await request.clone().formData()
             const body = {}
+            const files = {}
             for (const [key, value] of formData.entries()) {
               // Check if value is a File/Blob
               if (value && typeof value === 'object' && typeof value.arrayBuffer === 'function' && value.name !== undefined) {
-                body[key] = {
+                files[key] = {
                   name: value.name,
                   type: value.type,
                   size: value.size,
@@ -388,6 +397,7 @@ export const Middleware = {
               }
             }
             context.body = body
+            context.files = files
             context.params = { ...context.params, ...body }
           }
         } catch (error) {
@@ -395,11 +405,40 @@ export const Middleware = {
         }
       }
 
+      // Initialize defaults if not set
+      if (!context.query) context.query = {}
+      if (!context.body) context.body = {}
+      if (!context.files) context.files = {}
+
       return await next()
     }
 
     middleware._name = 'bodyParser'
     return middleware
+  },
+
+  /**
+   * Full request parser with Rails-like nested parameter support
+   *
+   * Parses query params, JSON body, form data, and file uploads.
+   * Supports bracket notation for nested params (user[name], tags[]).
+   *
+   * @param {Object} options - Parser options
+   * @param {number} options.maxBodySize - Maximum body size in bytes (default: 10MB)
+   * @param {number} options.maxFileSize - Maximum file size in bytes (default: 50MB)
+   * @param {number} options.maxFiles - Maximum number of files (default: 10)
+   * @param {string[]} options.allowedMimeTypes - Allowed MIME types for uploads
+   * @returns {MiddlewareFunction}
+   *
+   * @example
+   * app.use(Middleware.requestParser({
+   *   maxBodySize: 5 * 1024 * 1024,  // 5MB
+   *   maxFileSize: 20 * 1024 * 1024, // 20MB
+   *   allowedMimeTypes: ['image/jpeg', 'image/png', 'application/pdf']
+   * }))
+   */
+  requestParser: (options = {}) => {
+    return createRequestParser(options)
   },
 
   /**

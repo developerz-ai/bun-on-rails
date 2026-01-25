@@ -27,6 +27,8 @@
  * @module @bun-on-rails/controller/base
  */
 
+import { RequestParams } from './request_parser.js'
+
 export class Controller {
   static beforeAction = []
   static afterAction = []
@@ -35,7 +37,7 @@ export class Controller {
   constructor(context) {
     this.context = context
     this.request = context.request
-    this.params = context.params
+    this.params = context.params || {}
     this.session = context.session
     this.currentUser = context.currentUser
     this.http = context.http
@@ -44,9 +46,17 @@ export class Controller {
     this.db = context.db
     this.broadcastManager = context.broadcastManager
 
+    // Parsed request components from request parser middleware
+    this.query = context.query || {}
+    this.body = context.body || {}
+    this.files = context.files || {}
+
     // Storage for response cookies and headers
     this._responseCookies = []
     this._responseHeaders = new Map()
+
+    // Lazy-loaded RequestParams wrapper
+    this._requestParams = null
   }
 
   /**
@@ -131,6 +141,153 @@ export class Controller {
   unprocessableEntity(errors) {
     return this.render({ errors }, { status: 422 })
   }
+
+  // ==========================================
+  // Request Parameter Access
+  // ==========================================
+
+  /**
+   * Get a RequestParams wrapper for strong parameters support
+   *
+   * Provides Rails-like permit/require functionality for parameter whitelisting.
+   *
+   * @returns {RequestParams} RequestParams instance wrapping this.params
+   *
+   * @example
+   * // Require and permit specific parameters
+   * async create() {
+   *   const postParams = this.requestParams.require('post')
+   *   const permitted = new RequestParams(postParams).permit('title', 'body')
+   *   const post = await Post.create(permitted.toObject())
+   * }
+   */
+  get requestParams() {
+    if (!this._requestParams) {
+      this._requestParams = new RequestParams(this.params)
+    }
+    return this._requestParams
+  }
+
+  /**
+   * Get a specific parameter value
+   *
+   * Convenience method for accessing params with a default value.
+   * Supports dot notation for nested access.
+   *
+   * @param {string} key - Parameter key (supports dot notation: 'user.name')
+   * @param {*} [defaultValue] - Default value if parameter is not found
+   * @returns {*} Parameter value or default
+   *
+   * @example
+   * const page = this.param('page', 1)
+   * const userName = this.param('user.name')
+   */
+  param(key, defaultValue = undefined) {
+    return this.requestParams.get(key, defaultValue)
+  }
+
+  /**
+   * Require a parameter (throws if missing)
+   *
+   * @param {string} key - Required parameter key
+   * @returns {*} Parameter value
+   * @throws {Error} If parameter is missing (400 status)
+   *
+   * @example
+   * async show() {
+   *   const id = this.requireParam('id')
+   *   const post = await Post.find(id)
+   * }
+   */
+  requireParam(key) {
+    return this.requestParams.require(key)
+  }
+
+  /**
+   * Permit only specified parameters (strong parameters)
+   *
+   * Returns a new object containing only the permitted parameters.
+   * Useful for mass-assignment protection.
+   *
+   * @param {...string|Object} keys - Keys to permit
+   * @returns {Object} Object with only permitted keys
+   *
+   * @example
+   * async create() {
+   *   const permitted = this.permitParams('title', 'body', { tags: [] })
+   *   const post = await Post.create(permitted)
+   * }
+   *
+   * @example
+   * // Nested parameters
+   * const userParams = this.permitParams({ user: ['name', 'email', 'password'] })
+   */
+  permitParams(...keys) {
+    return this.requestParams.permit(...keys).toObject()
+  }
+
+  /**
+   * Check if a file was uploaded with the given key
+   *
+   * @param {string} key - File parameter key
+   * @returns {boolean} True if file exists
+   *
+   * @example
+   * if (this.hasFile('avatar')) {
+   *   await this.processUpload('avatar')
+   * }
+   */
+  hasFile(key) {
+    return key in this.files
+  }
+
+  /**
+   * Get an uploaded file by key
+   *
+   * @param {string} key - File parameter key
+   * @returns {Object|Object[]|undefined} Parsed file object(s) or undefined
+   *
+   * @example
+   * const avatar = this.getFile('avatar')
+   * if (avatar) {
+   *   const buffer = await avatar.buffer()
+   *   await avatar.saveTo('/uploads/' + avatar.name)
+   * }
+   */
+  getFile(key) {
+    return this.files[key]
+  }
+
+  /**
+   * Get all uploaded files
+   *
+   * @returns {Object} Object mapping keys to file objects
+   */
+  getAllFiles() {
+    return { ...this.files }
+  }
+
+  /**
+   * Get query parameters only (without body or route params)
+   *
+   * @returns {Object} Query parameters
+   */
+  getQuery() {
+    return { ...this.query }
+  }
+
+  /**
+   * Get body parameters only (without query or route params)
+   *
+   * @returns {Object} Body parameters
+   */
+  getBody() {
+    return { ...this.body }
+  }
+
+  // ==========================================
+  // WebSocket Broadcasting
+  // ==========================================
 
   /**
    * Broadcast data to WebSocket subscribers
@@ -513,6 +670,9 @@ export class Controller {
  * const context = new ControllerContext({
  *   request: new Request('http://localhost/posts'),
  *   params: { id: '123' },
+ *   query: { page: '1' },
+ *   body: { title: 'Hello' },
+ *   files: {},
  *   session: { userId: 1 },
  *   currentUser: { id: 1, name: 'John' },
  *   cache: cacheInstance,
@@ -523,7 +683,10 @@ export class Controller {
 export class ControllerContext {
   constructor(options) {
     this.request = options.request
-    this.params = options.params
+    this.params = options.params || {}
+    this.query = options.query || {}
+    this.body = options.body || {}
+    this.files = options.files || {}
     this.session = options.session
     this.currentUser = options.currentUser
     this.http = options.http
@@ -533,3 +696,6 @@ export class ControllerContext {
     this.broadcastManager = options.broadcastManager
   }
 }
+
+// Re-export RequestParams for convenience
+export { RequestParams } from './request_parser.js'
