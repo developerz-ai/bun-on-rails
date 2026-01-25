@@ -74,6 +74,13 @@ export class Model {
   static scopes = {}
 
   /**
+   * Track whether scopes have been initialized as methods
+   * @private
+   * @type {boolean}
+   */
+  static _scopesInitialized = false
+
+  /**
    * Create a new model instance
    * @param {Object} attributes - Initial attributes
    */
@@ -302,9 +309,12 @@ export class Model {
 
   /**
    * Start a new query builder
+   * Also ensures scope methods are initialized
    * @returns {QueryBuilder}
    */
   static query() {
+    // Ensure scope methods are available
+    this._initializeScopes()
     return new QueryBuilder(this)
   }
 
@@ -437,6 +447,60 @@ export class Model {
   // ============================================
   // Scopes
   // ============================================
+
+  /**
+   * Initialize scope methods on the model class
+   *
+   * This method creates static methods for each scope defined in `static scopes`.
+   * It's called automatically when accessing scopes for the first time.
+   *
+   * @private
+   * @returns {void}
+   *
+   * @example
+   * class Post extends Model {
+   *   static scopes = {
+   *     published: (q) => q.where({ published: true }),
+   *     byAuthor: (q, authorId) => q.where({ author_id: authorId })
+   *   }
+   * }
+   *
+   * // After initialization, these work directly:
+   * Post.published().all()
+   * Post.byAuthor(userId).all()
+   */
+  static _initializeScopes() {
+    // Only initialize once per class
+    if (this.hasOwnProperty('_scopesInitialized') && this._scopesInitialized) {
+      return
+    }
+
+    // Mark as initialized for this specific class
+    Object.defineProperty(this, '_scopesInitialized', {
+      value: true,
+      writable: false,
+      configurable: false
+    })
+
+    // Create a method for each scope
+    const scopeNames = Object.keys(this.scopes)
+    for (const scopeName of scopeNames) {
+      // Skip if method already exists (don't override existing methods)
+      if (typeof this[scopeName] === 'function') {
+        continue
+      }
+
+      // Define the scope method on the class
+      Object.defineProperty(this, scopeName, {
+        value: function(...args) {
+          return this.scope(scopeName, ...args)
+        },
+        writable: false,
+        configurable: true,
+        enumerable: false
+      })
+    }
+  }
 
   /**
    * Apply a named scope
@@ -1061,12 +1125,16 @@ export class Model {
 
   /**
    * Register model in global registry (for eager loading)
+   * Also initializes scope methods on the model
    */
   static register() {
     if (!globalThis._modelRegistry) {
       globalThis._modelRegistry = {}
     }
     globalThis._modelRegistry[this.name] = this
+
+    // Initialize scope methods
+    this._initializeScopes()
   }
 }
 

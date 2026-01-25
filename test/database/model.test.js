@@ -887,6 +887,216 @@ describe('Model - Scopes', () => {
       expect(query.params).toContain(end)
     })
   })
+
+  describe('Automatic scope methods', () => {
+    it('creates static methods for scopes after register()', async () => {
+      class AutoScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true }),
+          featured: (q) => q.where({ featured: true })
+        }
+      }
+
+      // Register the model to initialize scopes
+      AutoScopedPost.register()
+
+      // Check that scope methods exist
+      expect(typeof AutoScopedPost.published).toBe('function')
+      expect(typeof AutoScopedPost.featured).toBe('function')
+    })
+
+    it('creates static methods for scopes on first query()', async () => {
+      class LazyInitPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+
+      // Without calling register(), just call query() to trigger init
+      mockConnection.setMockResults([[]])
+
+      // scope method should be available now
+      LazyInitPost.query()
+      expect(typeof LazyInitPost.published).toBe('function')
+    })
+
+    it('automatic scope methods return QueryBuilder', async () => {
+      class QueryScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+      QueryScopedPost.register()
+
+      const query = QueryScopedPost.published()
+      expect(query).toBeInstanceOf(QueryBuilder)
+    })
+
+    it('automatic scope methods execute correct query', async () => {
+      class ExecScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+      ExecScopedPost.register()
+
+      mockConnection.setMockResults([[]])
+
+      await ExecScopedPost.published().all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('published')
+    })
+
+    it('automatic scope methods accept arguments', async () => {
+      class ArgScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          byAuthor: (q, authorId) => q.where({ author_id: authorId })
+        }
+      }
+      ArgScopedPost.register()
+
+      mockConnection.setMockResults([[]])
+
+      await ArgScopedPost.byAuthor(123).all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.params).toContain(123)
+    })
+
+    it('automatic scope methods can be chained', async () => {
+      class ChainScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true }),
+          featured: (q) => q.where({ featured: true })
+        }
+      }
+      ChainScopedPost.register()
+
+      mockConnection.setMockResults([[]])
+
+      await ChainScopedPost.published().where({ featured: true }).limit(5).all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('published')
+      expect(query.sql).toContain('featured')
+      expect(query.sql).toContain('LIMIT 5')
+    })
+
+    it('automatic scope methods work with count()', async () => {
+      class CountScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+      CountScopedPost.register()
+
+      mockConnection.setMockResults([[{ count: '10' }]])
+
+      const count = await CountScopedPost.published().count()
+
+      expect(count).toBe(10)
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('published')
+    })
+
+    it('automatic scope methods work with first()', async () => {
+      class FirstScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+      FirstScopedPost.register()
+
+      mockConnection.setMockResults([[{ id: 1, title: 'Test', published: true }]])
+
+      const post = await FirstScopedPost.published().first()
+
+      expect(post).toBeInstanceOf(FirstScopedPost)
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('published')
+    })
+
+    it('does not override existing static methods', async () => {
+      class MethodConflictModel extends Model {
+        static tableName = 'items'
+        static scopes = {
+          where: (q) => q.where({ hidden: true }) // 'where' is already a method
+        }
+
+        static customMethod() {
+          return 'custom'
+        }
+      }
+      MethodConflictModel.register()
+
+      // The original where method should still work
+      mockConnection.setMockResults([[]])
+      const query = MethodConflictModel.where({ name: 'test' })
+
+      expect(query).toBeInstanceOf(QueryBuilder)
+    })
+
+    it('only initializes scopes once per class', async () => {
+      class MultiInitPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+
+      // First call initializes
+      MultiInitPost.register()
+      expect(MultiInitPost._scopesInitialized).toBe(true)
+
+      // Store the published method reference
+      const publishedMethod = MultiInitPost.published
+
+      // Call again - should not re-initialize or change method
+      MultiInitPost.register()
+      MultiInitPost.query()
+
+      // Method reference should be the same (not re-created)
+      expect(MultiInitPost.published).toBe(publishedMethod)
+      expect(typeof MultiInitPost.published).toBe('function')
+    })
+
+    it('each subclass gets its own scopes', async () => {
+      class BasePost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+
+      class SpecialPost extends BasePost {
+        static tableName = 'special_posts'
+        static scopes = {
+          ...BasePost.scopes,
+          featured: (q) => q.where({ featured: true })
+        }
+      }
+
+      BasePost.register()
+      SpecialPost.register()
+
+      // BasePost should have published but not featured
+      expect(typeof BasePost.published).toBe('function')
+      expect(typeof BasePost.featured).toBe('undefined')
+
+      // SpecialPost should have both
+      expect(typeof SpecialPost.published).toBe('function')
+      expect(typeof SpecialPost.featured).toBe('function')
+    })
+  })
 })
 
 describe('Model - Associations', () => {
