@@ -192,13 +192,157 @@ export class Router {
 
   /**
    * Match a request to a route
-   * @param {string} method
-   * @param {string} path
-   * @returns {Object|null}
+   * @param {string} method - HTTP method (GET, POST, etc.)
+   * @param {string} path - Request path to match
+   * @returns {Object|null} - Matched route with params, or null if no match
    */
-  match(_method, _path) {
-    // TODO: Match path with params extraction
-    // TODO: Return matched route with params
+  match(method, path) {
+    // Normalize the path (remove trailing slash, handle empty path)
+    const normalizedPath = this.normalizePath(path)
+    const upperMethod = method.toUpperCase()
+
+    for (const route of this.routes) {
+      // Check method match
+      if (route.method !== upperMethod) {
+        continue
+      }
+
+      // Try to match the path
+      const params = this.matchPath(route.path, normalizedPath)
+      if (params !== null) {
+        return {
+          route,
+          params,
+          controller: route.controller,
+          action: route.action,
+          middleware: route.middleware
+        }
+      }
+    }
+
+    return null
+  }
+
+  /**
+   * Normalize a path for matching
+   * @param {string} path - Path to normalize
+   * @returns {string} - Normalized path
+   */
+  normalizePath(path) {
+    // Handle empty or root path
+    if (!path || path === '/') {
+      return '/'
+    }
+
+    // Remove trailing slash (unless it's the root path)
+    let normalized = path.endsWith('/') && path.length > 1
+      ? path.slice(0, -1)
+      : path
+
+    // Ensure leading slash
+    if (!normalized.startsWith('/')) {
+      normalized = '/' + normalized
+    }
+
+    // Remove query string if present
+    const queryIndex = normalized.indexOf('?')
+    if (queryIndex !== -1) {
+      normalized = normalized.slice(0, queryIndex)
+    }
+
+    return normalized
+  }
+
+  /**
+   * Match a path against a route pattern and extract params
+   * @param {string} pattern - Route pattern (e.g., '/posts/:id')
+   * @param {string} path - Actual request path (e.g., '/posts/123')
+   * @returns {Object|null} - Extracted params or null if no match
+   */
+  matchPath(pattern, path) {
+    const patternParts = pattern.split('/').filter(Boolean)
+    const pathParts = path.split('/').filter(Boolean)
+
+    // Handle root path
+    if (patternParts.length === 0 && pathParts.length === 0) {
+      return {}
+    }
+
+    // Must have same number of segments
+    if (patternParts.length !== pathParts.length) {
+      return null
+    }
+
+    const params = {}
+
+    for (let i = 0; i < patternParts.length; i++) {
+      const patternPart = patternParts[i]
+      const pathPart = pathParts[i]
+
+      if (patternPart.startsWith(':')) {
+        // Dynamic segment - extract param name and value
+        const paramName = patternPart.slice(1)
+
+        // Handle optional format constraints (e.g., :id would match numbers)
+        // Decode URI component to handle URL-encoded values
+        try {
+          params[paramName] = decodeURIComponent(pathPart)
+        } catch {
+          // If decoding fails, use the raw value
+          params[paramName] = pathPart
+        }
+      } else if (patternPart === '*') {
+        // Wildcard - match anything (glob pattern)
+        // Store as splat param
+        params.splat = pathPart
+      } else if (patternPart.toLowerCase() !== pathPart.toLowerCase()) {
+        // Static segment mismatch (case-insensitive for flexibility)
+        // Actually, let's be case-sensitive for paths
+        if (patternPart !== pathPart) {
+          return null
+        }
+      }
+    }
+
+    return params
+  }
+
+  /**
+   * Convert a route pattern to a regex (alternative matching strategy)
+   * @param {string} pattern - Route pattern
+   * @returns {Object} - Regex and param names
+   */
+  patternToRegex(pattern) {
+    const paramNames = []
+    let regexStr = '^'
+
+    const parts = pattern.split('/')
+    for (let i = 0; i < parts.length; i++) {
+      const part = parts[i]
+      if (!part) continue
+
+      regexStr += '\\/'
+
+      if (part.startsWith(':')) {
+        // Named param - capture any non-slash characters
+        paramNames.push(part.slice(1))
+        regexStr += '([^\\/]+)'
+      } else if (part === '*') {
+        // Wildcard - capture anything
+        paramNames.push('splat')
+        regexStr += '(.+)'
+      } else {
+        // Static segment - escape special regex chars
+        regexStr += part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+      }
+    }
+
+    regexStr += '$'
+
+    return {
+      regex: new RegExp(regexStr),
+      paramNames
+    }
   }
 
   /**
