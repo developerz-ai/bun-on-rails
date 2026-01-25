@@ -327,7 +327,8 @@ export const defaultConfig = {
   },
 
   redis: {
-    host: 'localhost',
+    // Redis is not configured by default - set host or url to enable
+    host: null,
     port: 6379,
     db: 0,
     password: null

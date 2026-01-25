@@ -3,7 +3,7 @@
  * @module @bun-on-rails
  */
 
-export { Application } from './application.js'
+export { Application, createApplication } from './application.js'
 export { Model } from './database/model.js'
 export { Controller } from './controller/base.js'
 export { Router } from './routing/router.js'

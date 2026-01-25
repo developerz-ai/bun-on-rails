@@ -304,7 +304,8 @@ describe('defaultConfig', () => {
   })
 
   test('has redis configuration', () => {
-    expect(defaultConfig.redis.host).toBe('localhost')
+    // Redis host is null by default (disabled)
+    expect(defaultConfig.redis.host).toBeNull()
     expect(defaultConfig.redis.port).toBe(6379)
   })
 
