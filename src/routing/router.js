@@ -641,7 +641,7 @@ export class Router {
     }
 
     // 4. Run before filters
-    const beforeResult = await this._runBeforeFilters(controller, ControllerClass)
+    const beforeResult = await this._runBeforeFilters(controller, ControllerClass, actionName)
     if (beforeResult instanceof Response) {
       return beforeResult // Filter returned a response (e.g., unauthorized)
     }
@@ -650,7 +650,7 @@ export class Router {
     const response = await action.call(controller)
 
     // 6. Run after filters
-    await this._runAfterFilters(controller, ControllerClass)
+    await this._runAfterFilters(controller, ControllerClass, actionName)
 
     // 7. Return response (or create one if action returned data)
     return this._ensureResponse(response)
@@ -674,7 +674,7 @@ export class Router {
    * Run before action filters
    * @private
    */
-  async _runBeforeFilters(controller, ControllerClass) {
+  async _runBeforeFilters(controller, ControllerClass, actionName) {
     const beforeFilters = ControllerClass.beforeAction || []
 
     for (const filter of beforeFilters) {
@@ -683,10 +683,10 @@ export class Router {
       const filterOptions = typeof filter === 'object' ? filter : {}
 
       // Check :only and :except options
-      if (filterOptions.only && !filterOptions.only.includes(controller._match?.action)) {
+      if (filterOptions.only && !filterOptions.only.includes(actionName)) {
         continue
       }
-      if (filterOptions.except && filterOptions.except.includes(controller._match?.action)) {
+      if (filterOptions.except && filterOptions.except.includes(actionName)) {
         continue
       }
 
@@ -705,7 +705,7 @@ export class Router {
    * Run after action filters
    * @private
    */
-  async _runAfterFilters(controller, ControllerClass) {
+  async _runAfterFilters(controller, ControllerClass, actionName) {
     const afterFilters = ControllerClass.afterAction || []
 
     for (const filter of afterFilters) {
@@ -713,10 +713,10 @@ export class Router {
       const filterOptions = typeof filter === 'object' ? filter : {}
 
       // Check :only and :except options
-      if (filterOptions.only && !filterOptions.only.includes(controller._match?.action)) {
+      if (filterOptions.only && !filterOptions.only.includes(actionName)) {
         continue
       }
-      if (filterOptions.except && filterOptions.except.includes(controller._match?.action)) {
+      if (filterOptions.except && filterOptions.except.includes(actionName)) {
         continue
       }
 
