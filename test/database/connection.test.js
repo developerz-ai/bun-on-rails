@@ -11,6 +11,7 @@ import {
   ConnectionPool,
   ConnectionNotEstablishedError,
   DatabaseError,
+  PoolExhaustedError,
   ADAPTERS,
   parseDatabaseUrl,
   buildConnectionString,
@@ -684,39 +685,110 @@ describe('Connection', () => {
 })
 
 describe('ConnectionPool', () => {
+  // Store original methods
+  let originalConnect
+  let originalDisconnect
+  let originalQuery
+
+  beforeEach(() => {
+    originalConnect = Connection.prototype.connect
+    originalDisconnect = Connection.prototype.disconnect
+    originalQuery = Connection.prototype.query
+  })
+
+  afterEach(() => {
+    Connection.prototype.connect = originalConnect
+    Connection.prototype.disconnect = originalDisconnect
+    Connection.prototype.query = originalQuery
+  })
+
+  // Helper to mock Connection.prototype methods
+  const mockConnection = (options = {}) => {
+    Connection.prototype.connect = async function() {
+      this._connected = true
+      this._adapter = 'postgres'
+      this._client = {
+        unsafe: async (sql, params) => {
+          if (options.onQuery) options.onQuery(sql, params)
+          return []
+        },
+        end: async () => {}
+      }
+      return this
+    }
+    Connection.prototype.disconnect = async function() {
+      this._connected = false
+      this._client = null
+      if (options.onDisconnect) options.onDisconnect()
+    }
+    Connection.prototype.query = async function(sql, params) {
+      if (options.onQuery) options.onQuery(sql, params)
+      return []
+    }
+
+    return () => {
+      Connection.prototype.connect = originalConnect
+      Connection.prototype.disconnect = originalDisconnect
+      Connection.prototype.query = originalQuery
+    }
+  }
+
   describe('constructor', () => {
-    test('creates pool with config', () => {
+    test('creates pool with default config', () => {
       const pool = new ConnectionPool({
-        database: 'test',
-        pool: { max: 20 }
+        database: 'test'
       })
 
       expect(pool.config.database).toBe('test')
+      expect(pool.config.pool.min).toBe(2)
+      expect(pool.config.pool.max).toBe(10)
+      expect(pool.config.pool.idleTimeout).toBe(30)
+      expect(pool.config.pool.acquireTimeout).toBe(10000)
+      expect(pool.config.pool.validateOnAcquire).toBe(true)
       expect(pool.initialized).toBe(false)
+      expect(pool.draining).toBe(false)
+    })
+
+    test('creates pool with custom config', () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        pool: {
+          min: 5,
+          max: 20,
+          idleTimeout: 60,
+          acquireTimeout: 5000,
+          validateOnAcquire: false
+        }
+      })
+
+      expect(pool.config.pool.min).toBe(5)
+      expect(pool.config.pool.max).toBe(20)
+      expect(pool.config.pool.idleTimeout).toBe(60)
+      expect(pool.config.pool.acquireTimeout).toBe(5000)
+      expect(pool.config.pool.validateOnAcquire).toBe(false)
     })
   })
 
   describe('initialize', () => {
-    test('initializes connection', async () => {
+    test('creates minimum connections', async () => {
       const pool = new ConnectionPool({
         database: 'test',
-        useBunSql: false
+        useBunSql: false,
+        pool: { min: 3, max: 10 }
       })
 
-      // Mock the connection
-      const originalConnect = Connection.prototype.connect
-      Connection.prototype.connect = async function() {
-        this._connected = true
-        this._adapter = 'postgres'
-        return this
-      }
+      const restore = mockConnection()
 
       try {
         await pool.initialize()
 
         expect(pool.initialized).toBe(true)
+        expect(pool.size).toBe(3)
+        expect(pool.available).toBe(3)
+        expect(pool.stats.created).toBe(3)
       } finally {
-        Connection.prototype.connect = originalConnect
+        await pool.drain()
+        // afterEach restores Connection.prototype methods
       }
     })
 
@@ -726,17 +798,14 @@ describe('ConnectionPool', () => {
         useBunSql: false
       })
 
-      const originalConnect = Connection.prototype.connect
-      Connection.prototype.connect = async function() {
-        this._connected = true
-        return this
-      }
+      const restore = mockConnection()
 
       try {
         const result = await pool.initialize()
         expect(result).toBe(pool)
       } finally {
-        Connection.prototype.connect = originalConnect
+        await pool.drain()
+        // afterEach restores Connection.prototype methods
       }
     })
 
@@ -746,19 +815,18 @@ describe('ConnectionPool', () => {
         useBunSql: false
       })
 
-      const originalConnect = Connection.prototype.connect
-      Connection.prototype.connect = async function() {
-        this._connected = true
-        return this
-      }
+      const restore = mockConnection()
 
       try {
         await pool.initialize()
+        const sizeBefore = pool.size
         const result = await pool.initialize()
 
         expect(result).toBe(pool)
+        expect(pool.size).toBe(sizeBefore)
       } finally {
-        Connection.prototype.connect = originalConnect
+        await pool.drain()
+        // afterEach restores Connection.prototype methods
       }
     })
   })
@@ -772,40 +840,60 @@ describe('ConnectionPool', () => {
       }).toThrow(/not initialized/)
     })
 
-    test('returns connection on acquire', async () => {
+    test('throws if draining', async () => {
       const pool = new ConnectionPool({
         database: 'test',
         useBunSql: false
       })
 
-      const originalConnect = Connection.prototype.connect
-      Connection.prototype.connect = async function() {
-        this._connected = true
-        return this
+      const restore = mockConnection()
+
+      try {
+        await pool.initialize()
+        pool._draining = true
+
+        expect(async () => {
+          await pool.acquire()
+        }).toThrow(/draining/)
+      } finally {
+        pool._draining = false
+        await pool.drain()
+        // afterEach restores Connection.prototype methods
       }
+    })
+
+    test('returns pooled connection on acquire', async () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        useBunSql: false,
+        pool: { validateOnAcquire: false }
+      })
+
+      mockConnection()
 
       try {
         await pool.initialize()
         const conn = await pool.acquire()
 
-        expect(conn).toBeInstanceOf(Connection)
+        expect(conn.id).toBeDefined()
+        expect(conn.inUse).toBe(true)
         expect(pool.stats.acquired).toBe(1)
+        expect(pool.available).toBe(pool.size - 1)
+
+        pool.release(conn) // Release before drain
       } finally {
-        Connection.prototype.connect = originalConnect
+        await pool.drain()
       }
     })
 
     test('tracks release stats', async () => {
       const pool = new ConnectionPool({
         database: 'test',
-        useBunSql: false
+        useBunSql: false,
+        pool: { validateOnAcquire: false }
       })
 
-      const originalConnect = Connection.prototype.connect
-      Connection.prototype.connect = async function() {
-        this._connected = true
-        return this
-      }
+      const restore = mockConnection()
 
       try {
         await pool.initialize()
@@ -813,8 +901,124 @@ describe('ConnectionPool', () => {
         pool.release(conn)
 
         expect(pool.stats.released).toBe(1)
+        expect(conn.inUse).toBe(false)
+        expect(pool.available).toBe(pool.size)
       } finally {
-        Connection.prototype.connect = originalConnect
+        await pool.drain()
+        // afterEach restores Connection.prototype methods
+      }
+    })
+
+    test('creates new connection if none available and under max', async () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        useBunSql: false,
+        pool: { min: 1, max: 5, validateOnAcquire: false }
+      })
+
+      const restore = mockConnection()
+
+      try {
+        await pool.initialize()
+        expect(pool.size).toBe(1)
+
+        // Acquire the only connection
+        const conn1 = await pool.acquire()
+        expect(pool.available).toBe(0)
+
+        // Should create a new connection
+        const conn2 = await pool.acquire()
+        expect(pool.size).toBe(2)
+        expect(pool.stats.created).toBe(2)
+
+        pool.release(conn1)
+        pool.release(conn2)
+      } finally {
+        await pool.drain()
+        // afterEach restores Connection.prototype methods
+      }
+    })
+
+    test('waits for connection if at max capacity', async () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        useBunSql: false,
+        pool: { min: 1, max: 1, validateOnAcquire: false, acquireTimeout: 500 }
+      })
+
+      const restore = mockConnection()
+
+      try {
+        await pool.initialize()
+
+        const conn1 = await pool.acquire()
+
+        // Release after delay
+        setTimeout(() => {
+          pool.release(conn1)
+        }, 100)
+
+        const conn2 = await pool.acquire()
+        expect(conn2).toBeDefined()
+        expect(conn2.id).toBe(conn1.id) // Same connection reused
+
+        pool.release(conn2)
+      } finally {
+        await pool.drain()
+        // afterEach restores Connection.prototype methods
+      }
+    })
+
+    test('times out if pool exhausted', async () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        useBunSql: false,
+        pool: { min: 1, max: 1, validateOnAcquire: false, acquireTimeout: 100 }
+      })
+
+      const restore = mockConnection()
+
+      try {
+        await pool.initialize()
+
+        const conn = await pool.acquire()
+        // Don't release
+
+        try {
+          await pool.acquire()
+          expect.fail('Should have thrown PoolExhaustedError')
+        } catch (error) {
+          expect(error).toBeInstanceOf(PoolExhaustedError)
+          expect(pool.stats.timedOut).toBe(1)
+        }
+
+        pool.release(conn)
+      } finally {
+        await pool.drain()
+        // afterEach restores Connection.prototype methods
+      }
+    })
+
+    test('ignores release of non-pool connections', async () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        useBunSql: false,
+        pool: { validateOnAcquire: false }
+      })
+
+      const restore = mockConnection()
+
+      try {
+        await pool.initialize()
+
+        pool.release(null)
+        pool.release({})
+        pool.release({ id: 'fake' })
+
+        expect(pool.stats.released).toBe(0)
+      } finally {
+        await pool.drain()
+        // afterEach restores Connection.prototype methods
       }
     })
   })
@@ -823,14 +1027,11 @@ describe('ConnectionPool', () => {
     test('executes callback with connection', async () => {
       const pool = new ConnectionPool({
         database: 'test',
-        useBunSql: false
+        useBunSql: false,
+        pool: { validateOnAcquire: false }
       })
 
-      const originalConnect = Connection.prototype.connect
-      Connection.prototype.connect = async function() {
-        this._connected = true
-        return this
-      }
+      const restore = mockConnection()
 
       try {
         await pool.initialize()
@@ -840,25 +1041,24 @@ describe('ConnectionPool', () => {
           receivedConn = conn
         })
 
-        expect(receivedConn).toBeInstanceOf(Connection)
+        expect(receivedConn).toBeDefined()
+        expect(receivedConn.id).toBeDefined()
         expect(pool.stats.acquired).toBe(1)
         expect(pool.stats.released).toBe(1)
       } finally {
-        Connection.prototype.connect = originalConnect
+        await pool.drain()
+        // afterEach restores Connection.prototype methods
       }
     })
 
     test('releases connection even on error', async () => {
       const pool = new ConnectionPool({
         database: 'test',
-        useBunSql: false
+        useBunSql: false,
+        pool: { validateOnAcquire: false }
       })
 
-      const originalConnect = Connection.prototype.connect
-      Connection.prototype.connect = async function() {
-        this._connected = true
-        return this
-      }
+      const restore = mockConnection()
 
       try {
         await pool.initialize()
@@ -872,41 +1072,188 @@ describe('ConnectionPool', () => {
         }
 
         expect(pool.stats.released).toBe(1)
+        expect(pool.available).toBe(pool.size)
       } finally {
+        await pool.drain()
+        // afterEach restores Connection.prototype methods
+      }
+    })
+  })
+
+  describe('query', () => {
+    test('executes query using pool connection', async () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        useBunSql: false,
+        pool: { validateOnAcquire: false }
+      })
+
+      const restore = mockConnection()
+
+      try {
+        await pool.initialize()
+
+        const result = await pool.query('SELECT 1')
+        expect(result).toEqual([])
+        expect(pool.stats.acquired).toBe(1)
+        expect(pool.stats.released).toBe(1)
+      } finally {
+        await pool.drain()
+        // afterEach restores Connection.prototype methods
+      }
+    })
+  })
+
+  describe('transaction', () => {
+    test('executes transaction using pool connection', async () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        useBunSql: false,
+        pool: { validateOnAcquire: false }
+      })
+
+      // Mock with transaction support
+      const originalConnect = Connection.prototype.connect
+      Connection.prototype.connect = async function() {
+        this._connected = true
+        this._adapter = 'postgres'
+        this._client = {
+          unsafe: async () => [],
+          begin: async (callback) => {
+            const txSql = { unsafe: async () => [] }
+            return callback(txSql)
+          },
+          end: async () => {}
+        }
+        return this
+      }
+
+      try {
+        await pool.initialize()
+
+        let txExecuted = false
+        await pool.transaction(async (tx) => {
+          txExecuted = true
+          await tx.query('INSERT INTO test VALUES (1)')
+        })
+
+        expect(txExecuted).toBe(true)
+        expect(pool.stats.acquired).toBe(1)
+        expect(pool.stats.released).toBe(1)
+      } finally {
+        await pool.drain()
         Connection.prototype.connect = originalConnect
       }
     })
   })
 
-  describe('drain', () => {
-    test('closes connection and resets state', async () => {
+  describe('stats', () => {
+    test('returns comprehensive statistics', async () => {
       const pool = new ConnectionPool({
         database: 'test',
-        useBunSql: false
+        useBunSql: false,
+        pool: { min: 3, max: 10, validateOnAcquire: false }
       })
 
-      let disconnectCalled = false
-      const originalConnect = Connection.prototype.connect
-      const originalDisconnect = Connection.prototype.disconnect
-      Connection.prototype.connect = async function() {
-        this._connected = true
-        return this
-      }
-      Connection.prototype.disconnect = async function() {
-        disconnectCalled = true
-        this._connected = false
-      }
+      const restore = mockConnection()
 
       try {
         await pool.initialize()
+        const conn = await pool.acquire()
+
+        const stats = pool.stats
+        expect(stats.total).toBe(3)
+        expect(stats.available).toBe(2)
+        expect(stats.inUse).toBe(1)
+        expect(stats.created).toBe(3)
+        expect(stats.acquired).toBe(1)
+        expect(stats.waiting).toBe(0)
+
+        pool.release(conn)
+      } finally {
+        await pool.drain()
+        // afterEach restores Connection.prototype methods
+      }
+    })
+  })
+
+  describe('drain', () => {
+    test('closes all connections and resets state', async () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        useBunSql: false,
+        pool: { min: 3, max: 10, validateOnAcquire: false }
+      })
+
+      let disconnectCount = 0
+      const restore = mockConnection({
+        onDisconnect: () => { disconnectCount++ }
+      })
+
+      try {
+        await pool.initialize()
+        expect(pool.size).toBe(3)
+
         await pool.drain()
 
-        expect(disconnectCalled).toBe(true)
+        expect(disconnectCount).toBe(3)
         expect(pool.initialized).toBe(false)
+        expect(pool.size).toBe(0)
         expect(pool.stats.acquired).toBe(0)
+        expect(pool.stats.created).toBe(0)
       } finally {
-        Connection.prototype.connect = originalConnect
-        Connection.prototype.disconnect = originalDisconnect
+        // afterEach restores Connection.prototype methods
+      }
+    })
+
+    test('waits for in-use connections', async () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        useBunSql: false,
+        pool: { min: 1, max: 5, validateOnAcquire: false }
+      })
+
+      const restore = mockConnection()
+
+      try {
+        await pool.initialize()
+        const conn = await pool.acquire()
+
+        // Release after delay
+        setTimeout(() => {
+          pool.release(conn)
+        }, 50)
+
+        await pool.drain({ timeout: 5000 })
+        expect(pool.initialized).toBe(false)
+      } finally {
+        // afterEach restores Connection.prototype methods
+      }
+    })
+
+    test('rejects waiters on drain', async () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        useBunSql: false,
+        pool: { min: 1, max: 1, validateOnAcquire: false, acquireTimeout: 5000 }
+      })
+
+      const restore = mockConnection()
+
+      try {
+        await pool.initialize()
+        const conn = await pool.acquire()
+
+        // Start waiting for connection
+        const acquirePromise = pool.acquire().catch(e => e)
+
+        // Drain should reject the waiter
+        await pool.drain({ timeout: 100 })
+
+        const error = await acquirePromise
+        expect(error.message).toContain('draining')
+      } finally {
+        // afterEach restores Connection.prototype methods
       }
     })
 
@@ -914,6 +1261,7 @@ describe('ConnectionPool', () => {
       const pool = new ConnectionPool({ database: 'test' })
 
       await pool.drain() // Should not throw
+      expect(pool.initialized).toBe(false)
     })
   })
 
@@ -924,15 +1272,7 @@ describe('ConnectionPool', () => {
         useBunSql: false
       })
 
-      const originalConnect = Connection.prototype.connect
-      const originalDisconnect = Connection.prototype.disconnect
-      Connection.prototype.connect = async function() {
-        this._connected = true
-        return this
-      }
-      Connection.prototype.disconnect = async function() {
-        this._connected = false
-      }
+      const restore = mockConnection()
 
       try {
         await pool.initialize()
@@ -940,8 +1280,97 @@ describe('ConnectionPool', () => {
 
         expect(pool.initialized).toBe(false)
       } finally {
-        Connection.prototype.connect = originalConnect
-        Connection.prototype.disconnect = originalDisconnect
+        // afterEach restores Connection.prototype methods
+      }
+    })
+  })
+
+  describe('end', () => {
+    test('is alias for drain', async () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        useBunSql: false
+      })
+
+      const restore = mockConnection()
+
+      try {
+        await pool.initialize()
+        await pool.end()
+
+        expect(pool.initialized).toBe(false)
+      } finally {
+        // afterEach restores Connection.prototype methods
+      }
+    })
+  })
+
+  describe('connection validation', () => {
+    test('validates connection on acquire when enabled', async () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        useBunSql: false,
+        pool: { min: 1, max: 5, validateOnAcquire: true }
+      })
+
+      let queryCount = 0
+      mockConnection({
+        onQuery: () => { queryCount++ }
+      })
+
+      try {
+        await pool.initialize()
+
+        // Acquire triggers validation query
+        queryCount = 0
+        const conn = await pool.acquire()
+        expect(queryCount).toBe(1)
+        pool.release(conn)
+      } finally {
+        await pool.drain()
+      }
+    })
+
+    test('destroys invalid connection and retries', async () => {
+      const pool = new ConnectionPool({
+        database: 'test',
+        useBunSql: false,
+        pool: { min: 1, max: 5, validateOnAcquire: true }
+      })
+
+      let shouldFail = true
+      let connectCount = 0
+
+      Connection.prototype.connect = async function() {
+        connectCount++
+        this._connected = true
+        this._adapter = 'postgres'
+        return this
+      }
+      Connection.prototype.disconnect = async function() {
+        this._connected = false
+      }
+      Connection.prototype.query = async function() {
+        if (shouldFail) {
+          shouldFail = false
+          throw new Error('Connection dead')
+        }
+        return []
+      }
+
+      try {
+        await pool.initialize()
+        expect(connectCount).toBe(1)
+
+        // First acquire validates and finds bad connection, creates new one
+        const conn = await pool.acquire()
+        expect(connectCount).toBe(2)
+        expect(pool.stats.errors).toBe(1)
+        expect(pool.stats.destroyed).toBe(1)
+
+        pool.release(conn)
+      } finally {
+        await pool.drain()
       }
     })
   })
@@ -1015,6 +1444,15 @@ describe('Error classes', () => {
 
     expect(error.name).toBe('ConnectionNotEstablishedError')
     expect(error.message).toContain('not established')
+    expect(error).toBeInstanceOf(DatabaseError)
+  })
+
+  test('PoolExhaustedError includes timeout', () => {
+    const error = new PoolExhaustedError(5000)
+
+    expect(error.name).toBe('PoolExhaustedError')
+    expect(error.message).toContain('5000ms')
+    expect(error.message).toContain('exhausted')
     expect(error).toBeInstanceOf(DatabaseError)
   })
 })

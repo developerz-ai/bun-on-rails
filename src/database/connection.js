@@ -649,10 +649,88 @@ export class Connection {
 }
 
 /**
+ * Pool exhausted error
+ */
+export class PoolExhaustedError extends DatabaseError {
+  constructor(timeout) {
+    super(`Connection pool exhausted. Timed out after ${timeout}ms waiting for available connection.`)
+    this.name = 'PoolExhaustedError'
+  }
+}
+
+/**
+ * Pool connection wrapper
+ *
+ * Wraps a Connection to track pool state
+ * @private
+ */
+class PooledConnection {
+  constructor(connection, pool) {
+    this._connection = connection
+    this._pool = pool
+    this._inUse = false
+    this._lastUsed = Date.now()
+    this._id = Math.random().toString(36).substring(7)
+  }
+
+  get id() {
+    return this._id
+  }
+
+  get inUse() {
+    return this._inUse
+  }
+
+  get lastUsed() {
+    return this._lastUsed
+  }
+
+  get connected() {
+    return this._connection.connected
+  }
+
+  markInUse() {
+    this._inUse = true
+    this._lastUsed = Date.now()
+  }
+
+  markAvailable() {
+    this._inUse = false
+    this._lastUsed = Date.now()
+  }
+
+  async query(sql, params) {
+    this._lastUsed = Date.now()
+    return await this._connection.query(sql, params)
+  }
+
+  async transaction(callback) {
+    this._lastUsed = Date.now()
+    return await this._connection.transaction(callback)
+  }
+
+  async disconnect() {
+    return await this._connection.disconnect()
+  }
+}
+
+/**
  * Connection Pool - Manages a pool of database connections
  *
+ * Provides connection pooling with min/max limits, connection queuing,
+ * idle timeout, and health checking.
+ *
  * Note: Both Bun.sql and postgres.js have built-in connection pooling.
- * This class provides an abstraction layer and additional functionality.
+ * This class provides an additional abstraction layer for explicit pool
+ * management and better control over connection lifecycle.
+ *
+ * Configuration options:
+ * - All Connection options (adapter, host, port, database, etc.)
+ * - pool.min: Minimum connections to keep (default: 2)
+ * - pool.max: Maximum connections allowed (default: 10)
+ * - pool.idleTimeout: Seconds before idle connections are closed (default: 30)
+ * - pool.acquireTimeout: Milliseconds to wait for connection (default: 10000)
+ * - pool.validateOnAcquire: Check connection health on acquire (default: true)
  *
  * @example
  * const pool = new ConnectionPool({
@@ -670,14 +748,32 @@ export class Connection {
  * }
  */
 export class ConnectionPool {
-  constructor(config) {
-    this.config = config
-    this._connection = null
+  constructor(config = {}) {
+    this.config = {
+      ...config,
+      pool: {
+        min: 2,
+        max: 10,
+        idleTimeout: 30,
+        acquireTimeout: 10000,
+        validateOnAcquire: true,
+        ...config.pool
+      }
+    }
+
+    this._connections = []
+    this._waiters = []
     this._initialized = false
+    this._draining = false
+    this._idleCheckInterval = null
     this._stats = {
       acquired: 0,
       released: 0,
-      waiting: 0
+      waiting: 0,
+      created: 0,
+      destroyed: 0,
+      timedOut: 0,
+      errors: 0
     }
   }
 
@@ -690,66 +786,323 @@ export class ConnectionPool {
   }
 
   /**
+   * Check if pool is draining
+   * @returns {boolean}
+   */
+  get draining() {
+    return this._draining
+  }
+
+  /**
    * Get pool statistics
    * @returns {Object}
    */
   get stats() {
-    return { ...this._stats }
+    return {
+      ...this._stats,
+      total: this._connections.length,
+      available: this._connections.filter(c => !c.inUse).length,
+      inUse: this._connections.filter(c => c.inUse).length,
+      waiting: this._waiters.length
+    }
+  }
+
+  /**
+   * Get pool size
+   * @returns {number}
+   */
+  get size() {
+    return this._connections.length
+  }
+
+  /**
+   * Get number of available connections
+   * @returns {number}
+   */
+  get available() {
+    return this._connections.filter(c => !c.inUse).length
   }
 
   /**
    * Initialize the connection pool
+   *
+   * Creates minimum number of connections and starts idle connection cleanup.
+   *
    * @returns {Promise<ConnectionPool>}
+   * @throws {DatabaseError} If connection fails
    */
   async initialize() {
     if (this._initialized) {
       return this
     }
 
-    // Create the shared connection (which handles pooling internally)
-    this._connection = new Connection(this.config)
-    await this._connection.connect()
+    const { min } = this.config.pool
+
+    // Create minimum connections
+    const createPromises = []
+    for (let i = 0; i < min; i++) {
+      createPromises.push(this._createConnection())
+    }
+
+    await Promise.all(createPromises)
     this._initialized = true
+
+    // Start idle connection cleanup
+    this._startIdleCheck()
 
     return this
   }
 
   /**
+   * Create a new connection for the pool
+   * @private
+   * @returns {Promise<PooledConnection>}
+   */
+  async _createConnection() {
+    const connection = new Connection(this.config)
+    await connection.connect()
+
+    const pooled = new PooledConnection(connection, this)
+    this._connections.push(pooled)
+    this._stats.created++
+
+    return pooled
+  }
+
+  /**
+   * Destroy a connection
+   * @private
+   * @param {PooledConnection} pooled
+   */
+  async _destroyConnection(pooled) {
+    const index = this._connections.indexOf(pooled)
+    if (index !== -1) {
+      this._connections.splice(index, 1)
+    }
+
+    try {
+      await pooled.disconnect()
+    } catch (error) {
+      // Ignore disconnect errors
+    }
+
+    this._stats.destroyed++
+  }
+
+  /**
+   * Validate a connection by running a simple query
+   * @private
+   * @param {PooledConnection} pooled
+   * @returns {Promise<boolean>}
+   */
+  async _validateConnection(pooled) {
+    try {
+      await pooled.query('SELECT 1')
+      return true
+    } catch (error) {
+      return false
+    }
+  }
+
+  /**
+   * Start idle connection cleanup interval
+   * @private
+   */
+  _startIdleCheck() {
+    const { idleTimeout } = this.config.pool
+
+    // Check every half of idle timeout
+    const interval = (idleTimeout * 1000) / 2
+
+    this._idleCheckInterval = setInterval(async () => {
+      await this._cleanupIdleConnections()
+    }, interval)
+  }
+
+  /**
+   * Stop idle connection cleanup
+   * @private
+   */
+  _stopIdleCheck() {
+    if (this._idleCheckInterval) {
+      clearInterval(this._idleCheckInterval)
+      this._idleCheckInterval = null
+    }
+  }
+
+  /**
+   * Clean up idle connections above minimum
+   * @private
+   */
+  async _cleanupIdleConnections() {
+    const { min, idleTimeout } = this.config.pool
+    const now = Date.now()
+    const idleMs = idleTimeout * 1000
+
+    // Find idle connections above minimum
+    const idleConnections = this._connections
+      .filter(c => !c.inUse && (now - c.lastUsed) > idleMs)
+      .slice(0, Math.max(0, this._connections.length - min))
+
+    // Destroy idle connections
+    for (const conn of idleConnections) {
+      await this._destroyConnection(conn)
+    }
+  }
+
+  /**
    * Get a connection from the pool
    *
-   * Note: Bun.sql and postgres.js handle connection pooling internally,
-   * so this returns the shared connection object.
+   * If no connection is available and pool is not at max capacity,
+   * creates a new connection. If at max capacity, waits for a connection
+   * to be released.
    *
-   * @returns {Promise<Connection>}
+   * @param {Object} options - Acquire options
+   * @param {number} options.timeout - Override default acquire timeout
+   * @returns {Promise<PooledConnection>}
    * @throws {Error} If pool not initialized
+   * @throws {PoolExhaustedError} If timeout waiting for connection
    */
-  async acquire() {
+  async acquire(options = {}) {
     if (!this._initialized) {
       throw new Error('Connection pool not initialized. Call initialize() first.')
     }
 
-    this._stats.acquired++
-    return this._connection
+    if (this._draining) {
+      throw new Error('Connection pool is draining. Cannot acquire new connections.')
+    }
+
+    const timeout = options.timeout ?? this.config.pool.acquireTimeout
+    const { max, validateOnAcquire } = this.config.pool
+
+    // Try to get an available connection
+    let pooled = this._findAvailableConnection()
+
+    if (pooled) {
+      // Validate if enabled
+      if (validateOnAcquire) {
+        const valid = await this._validateConnection(pooled)
+        if (!valid) {
+          // Connection is bad, destroy and try again
+          await this._destroyConnection(pooled)
+          this._stats.errors++
+          return this.acquire(options)
+        }
+      }
+
+      pooled.markInUse()
+      this._stats.acquired++
+      return pooled
+    }
+
+    // No available connection, can we create a new one?
+    if (this._connections.length < max) {
+      try {
+        pooled = await this._createConnection()
+        pooled.markInUse()
+        this._stats.acquired++
+        return pooled
+      } catch (error) {
+        this._stats.errors++
+        throw error
+      }
+    }
+
+    // Pool is at max capacity, wait for a connection
+    return this._waitForConnection(timeout)
+  }
+
+  /**
+   * Find an available connection
+   * @private
+   * @returns {PooledConnection|null}
+   */
+  _findAvailableConnection() {
+    // Prefer connections that were used more recently (warmer)
+    const available = this._connections
+      .filter(c => !c.inUse)
+      .sort((a, b) => b.lastUsed - a.lastUsed)
+
+    return available[0] || null
+  }
+
+  /**
+   * Wait for a connection to become available
+   * @private
+   * @param {number} timeout
+   * @returns {Promise<PooledConnection>}
+   */
+  _waitForConnection(timeout) {
+    return new Promise((resolve, reject) => {
+      const waiter = {
+        resolve,
+        reject,
+        timer: null
+      }
+
+      // Set timeout
+      waiter.timer = setTimeout(() => {
+        const index = this._waiters.indexOf(waiter)
+        if (index !== -1) {
+          this._waiters.splice(index, 1)
+        }
+        this._stats.timedOut++
+        reject(new PoolExhaustedError(timeout))
+      }, timeout)
+
+      this._waiters.push(waiter)
+      this._stats.waiting = this._waiters.length
+    })
   }
 
   /**
    * Return a connection to the pool
    *
-   * Note: For compatibility. The underlying libraries handle pooling.
+   * If there are waiters, hands the connection to the next waiter.
+   * Otherwise marks the connection as available.
    *
-   * @param {Connection} _connection - Connection to release
+   * @param {PooledConnection} pooled - Connection to release
    */
-  release(_connection) {
+  release(pooled) {
+    if (!pooled || !(pooled instanceof PooledConnection)) {
+      return
+    }
+
+    // Check if this connection belongs to this pool
+    if (!this._connections.includes(pooled)) {
+      return
+    }
+
     this._stats.released++
+
+    // If there are waiters, give connection to next waiter
+    if (this._waiters.length > 0) {
+      const waiter = this._waiters.shift()
+      clearTimeout(waiter.timer)
+      this._stats.waiting = this._waiters.length
+
+      pooled.markInUse()
+      this._stats.acquired++
+      waiter.resolve(pooled)
+      return
+    }
+
+    // Mark as available
+    pooled.markAvailable()
   }
 
   /**
    * Execute a callback with a connection from the pool
+   *
+   * Automatically acquires a connection, runs the callback,
+   * and releases the connection (even on error).
+   *
    * @param {Function} callback - Async function receiving connection
+   * @param {Object} options - Acquire options
    * @returns {Promise<any>}
    */
-  async withConnection(callback) {
-    const conn = await this.acquire()
+  async withConnection(callback, options = {}) {
+    const conn = await this.acquire(options)
     try {
       return await callback(conn)
     } finally {
@@ -758,18 +1111,95 @@ export class ConnectionPool {
   }
 
   /**
-   * Close all connections
+   * Execute a query using a connection from the pool
+   *
+   * Convenience method for simple queries.
+   *
+   * @param {string} sql - SQL query
+   * @param {any[]} params - Query parameters
+   * @returns {Promise<any[]>}
+   */
+  async query(sql, params = []) {
+    return this.withConnection(async (conn) => {
+      return conn.query(sql, params)
+    })
+  }
+
+  /**
+   * Execute within a transaction using a connection from the pool
+   *
+   * @param {Function} callback - Async function receiving transaction
+   * @returns {Promise<any>}
+   */
+  async transaction(callback) {
+    return this.withConnection(async (conn) => {
+      return conn.transaction(callback)
+    })
+  }
+
+  /**
+   * Drain the pool - close all connections
+   *
+   * Stops accepting new acquire requests, waits for all connections
+   * to be released, then closes all connections.
+   *
+   * @param {Object} options - Drain options
+   * @param {number} options.timeout - Timeout for draining (default: 30000ms)
    * @returns {Promise<void>}
    */
-  async drain() {
+  async drain(options = {}) {
     if (!this._initialized) {
       return
     }
 
-    await this._connection.disconnect()
-    this._connection = null
+    const timeout = options.timeout ?? 30000
+    this._draining = true
+
+    // Stop idle check
+    this._stopIdleCheck()
+
+    // Reject all waiters
+    for (const waiter of this._waiters) {
+      clearTimeout(waiter.timer)
+      waiter.reject(new Error('Connection pool is draining'))
+    }
+    this._waiters = []
+    this._stats.waiting = 0
+
+    // Wait for all connections to be released (with timeout)
+    const start = Date.now()
+    while (this._connections.some(c => c.inUse)) {
+      if (Date.now() - start > timeout) {
+        // Force close
+        break
+      }
+      await new Promise(resolve => setTimeout(resolve, 100))
+    }
+
+    // Close all connections
+    // Make a copy of the connections array to avoid modification during iteration
+    const connectionsToClose = [...this._connections]
+    for (const conn of connectionsToClose) {
+      try {
+        await conn.disconnect()
+      } catch (error) {
+        // Ignore disconnect errors
+      }
+      this._stats.destroyed++
+    }
+
+    this._connections = []
     this._initialized = false
-    this._stats = { acquired: 0, released: 0, waiting: 0 }
+    this._draining = false
+    this._stats = {
+      acquired: 0,
+      released: 0,
+      waiting: 0,
+      created: 0,
+      destroyed: 0,
+      timedOut: 0,
+      errors: 0
+    }
   }
 
   /**
@@ -777,6 +1207,14 @@ export class ConnectionPool {
    * @returns {Promise<void>}
    */
   async close() {
+    return this.drain()
+  }
+
+  /**
+   * End the pool (alias for drain)
+   * @returns {Promise<void>}
+   */
+  async end() {
     return this.drain()
   }
 }
