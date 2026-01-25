@@ -365,15 +365,20 @@ export class Application {
   // ==========================================
 
   _setupMiddleware() {
-    // Core middleware in order
-    this.middleware.use(Middleware.errorHandler)
-    this.middleware.use(Middleware.logger)
-    this.middleware.use(Middleware.bodyParser)
-    this.middleware.use(Middleware.session)
+    // Core middleware in order - invoke factory functions to create middleware instances
+    this.middleware.use(Middleware.errorHandler())
+    this.middleware.use(Middleware.logger())
+    this.middleware.use(Middleware.bodyParser())
+
+    // Session middleware - only add if session store is configured
+    const sessionConfig = this.config.section('session')
+    if (sessionConfig.enabled !== false) {
+      this.middleware.use(Middleware.session(sessionConfig))
+    }
 
     // CSRF protection for mutations
     if (this.config.get('security.csrf', true)) {
-      this.middleware.use(Middleware.csrf)
+      this.middleware.use(Middleware.csrf())
     }
 
     // CORS if configured
