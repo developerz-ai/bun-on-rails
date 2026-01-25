@@ -171,7 +171,7 @@ export class ControllerMiddleware {
    * @param {Object} options - Configuration options
    * @returns {MiddlewareFunction}
    */
-  static create(options = {}) {
+  static create(_options = {}) {
     const middleware = async (context, next) => {
       const { controller, ControllerClass, actionName } = context._controllerInfo || {}
 
@@ -413,7 +413,7 @@ export const Middleware = {
    */
   session: (options = {}) => {
     const {
-      secret = process.env.SESSION_SECRET || 'change-me-in-production',
+      secret: _secret = process.env.SESSION_SECRET || 'change-me-in-production',
       cookieName = '_session',
       store = new Map(),
       maxAge = 86400 // 24 hours

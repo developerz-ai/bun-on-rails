@@ -23,6 +23,7 @@ export default [
         __filename: 'readonly',
         crypto: 'readonly',
         performance: 'readonly',
+        AbortController: 'readonly',
       },
     },
     rules: {
