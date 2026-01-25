@@ -362,7 +362,7 @@ export const Middleware = {
    * @param {Object} options - Parser options
    * @returns {MiddlewareFunction}
    */
-  bodyParser: (options = {}) => {
+  bodyParser: (_options = {}) => {
     const middleware = async (context, next) => {
       const request = context.request
       const contentType = request.headers.get('content-type') || ''
