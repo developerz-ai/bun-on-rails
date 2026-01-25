@@ -7,14 +7,14 @@
  * @module @bun-on-rails/database/model
  */
 
-import { QueryBuilder, RecordNotFoundError } from './query_builder.js'
+import { QueryBuilder, RecordNotFoundError, PaginatedResult } from './query_builder.js'
 import { getConnection } from './connection.js'
 import { PostgresAdapter } from './adapters/postgres.js'
 import { tableize } from '../support/inflector.js'
 import { runValidations } from './validations.js'
 
 // Re-export for convenience
-export { RecordNotFoundError }
+export { RecordNotFoundError, PaginatedResult }
 
 /**
  * Custom error for callback halt
@@ -509,6 +509,80 @@ export class Model {
    */
   static async ids() {
     return this.query().ids()
+  }
+
+  // ============================================
+  // Pagination
+  // ============================================
+
+  /**
+   * Set current page number for pagination
+   *
+   * Use with per() to configure page size, then call paginate() for
+   * results with metadata or all() for simple array.
+   *
+   * @param {number} pageNum - 1-based page number
+   * @returns {QueryBuilder}
+   *
+   * @example
+   * // Get page 2 with default 25 per page
+   * const result = await User.page(2).paginate()
+   *
+   * // Get page 3 with 10 per page
+   * const result = await User.page(3).per(10).paginate()
+   *
+   * // With conditions
+   * const result = await User.where({ active: true }).page(1).per(20).paginate()
+   *
+   * // Access metadata
+   * result.totalCount   // Total matching records
+   * result.totalPages   // Total pages
+   * result.hasNextPage  // Boolean
+   */
+  static page(pageNum) {
+    return this.query().page(pageNum)
+  }
+
+  /**
+   * Set records per page for pagination
+   *
+   * @param {number} perPage - Number of records per page
+   * @returns {QueryBuilder}
+   *
+   * @example
+   * // Set per page then page
+   * const result = await User.per(10).page(2).paginate()
+   *
+   * // Default is 25 per page
+   * const result = await User.page(1).paginate()  // 25 per page
+   */
+  static per(perPage) {
+    return this.query().per(perPage)
+  }
+
+  /**
+   * Get paginated results with metadata
+   *
+   * Shorthand for .page(1).paginate() with default settings.
+   *
+   * @param {Object} options - Pagination options
+   * @param {number} options.page - Page number (default: 1)
+   * @param {number} options.perPage - Records per page (default: 25)
+   * @returns {Promise<PaginatedResult>}
+   *
+   * @example
+   * // Get first page with defaults
+   * const result = await User.paginate()
+   *
+   * // With options
+   * const result = await User.paginate({ page: 2, perPage: 10 })
+   *
+   * // With conditions (use query chain instead)
+   * const result = await User.where({ active: true }).page(1).per(10).paginate()
+   */
+  static async paginate(options = {}) {
+    const { page = 1, perPage = 25 } = options
+    return this.query().per(perPage).page(page).paginate()
   }
 
   // ============================================

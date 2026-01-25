@@ -27,6 +27,226 @@ export class RecordNotFoundError extends Error {
 }
 
 /**
+ * Paginated result wrapper containing records and pagination metadata
+ *
+ * @example
+ * const result = await User.page(1).per(10).paginate()
+ *
+ * console.log(result.records)       // Array of User instances
+ * console.log(result.currentPage)   // 1
+ * console.log(result.perPage)       // 10
+ * console.log(result.totalCount)    // 100
+ * console.log(result.totalPages)    // 10
+ * console.log(result.hasNextPage)   // true
+ * console.log(result.hasPreviousPage) // false
+ *
+ * // Array-like behavior
+ * console.log(result.length)        // 10
+ * result.forEach(user => console.log(user.name))
+ * for (const user of result) { console.log(user.name) }
+ */
+export class PaginatedResult {
+  /**
+   * Create a new PaginatedResult
+   *
+   * @param {Object} options
+   * @param {Model[]} options.records - The paginated records
+   * @param {number} options.currentPage - Current page number (1-based)
+   * @param {number} options.perPage - Number of records per page
+   * @param {number} options.totalCount - Total number of records matching query
+   */
+  constructor({ records, currentPage, perPage, totalCount }) {
+    this.records = records
+    this.currentPage = currentPage
+    this.perPage = perPage
+    this.totalCount = totalCount
+  }
+
+  /**
+   * Total number of pages
+   * @type {number}
+   */
+  get totalPages() {
+    if (this.totalCount === 0) return 0
+    return Math.ceil(this.totalCount / this.perPage)
+  }
+
+  /**
+   * Whether there's a next page
+   * @type {boolean}
+   */
+  get hasNextPage() {
+    return this.currentPage < this.totalPages
+  }
+
+  /**
+   * Whether there's a previous page
+   * @type {boolean}
+   */
+  get hasPreviousPage() {
+    return this.currentPage > 1
+  }
+
+  /**
+   * Alias for hasNextPage (Rails-style)
+   * @type {boolean}
+   */
+  get nextPage() {
+    return this.hasNextPage ? this.currentPage + 1 : null
+  }
+
+  /**
+   * Alias for hasPreviousPage (Rails-style)
+   * @type {boolean}
+   */
+  get previousPage() {
+    return this.hasPreviousPage ? this.currentPage - 1 : null
+  }
+
+  /**
+   * Whether this is the first page
+   * @type {boolean}
+   */
+  get firstPage() {
+    return this.currentPage === 1
+  }
+
+  /**
+   * Whether this is the last page
+   * @type {boolean}
+   */
+  get lastPage() {
+    return this.currentPage >= this.totalPages
+  }
+
+  /**
+   * Number of records in current page
+   * @type {number}
+   */
+  get length() {
+    return this.records.length
+  }
+
+  /**
+   * Offset of first record in this page (0-based)
+   * @type {number}
+   */
+  get offset() {
+    return (this.currentPage - 1) * this.perPage
+  }
+
+  /**
+   * Whether the result is empty
+   * @type {boolean}
+   */
+  get empty() {
+    return this.records.length === 0
+  }
+
+  /**
+   * Make PaginatedResult iterable
+   * @returns {Iterator}
+   */
+  [Symbol.iterator]() {
+    return this.records[Symbol.iterator]()
+  }
+
+  /**
+   * Get record at index
+   * @param {number} index
+   * @returns {Model}
+   */
+  at(index) {
+    return this.records[index]
+  }
+
+  /**
+   * Map over records
+   * @param {Function} fn
+   * @returns {Array}
+   */
+  map(fn) {
+    return this.records.map(fn)
+  }
+
+  /**
+   * Filter records
+   * @param {Function} fn
+   * @returns {Array}
+   */
+  filter(fn) {
+    return this.records.filter(fn)
+  }
+
+  /**
+   * ForEach over records
+   * @param {Function} fn
+   */
+  forEach(fn) {
+    this.records.forEach(fn)
+  }
+
+  /**
+   * Find a record
+   * @param {Function} fn
+   * @returns {Model|undefined}
+   */
+  find(fn) {
+    return this.records.find(fn)
+  }
+
+  /**
+   * Check if some records match
+   * @param {Function} fn
+   * @returns {boolean}
+   */
+  some(fn) {
+    return this.records.some(fn)
+  }
+
+  /**
+   * Check if every record matches
+   * @param {Function} fn
+   * @returns {boolean}
+   */
+  every(fn) {
+    return this.records.every(fn)
+  }
+
+  /**
+   * Reduce records
+   * @param {Function} fn
+   * @param {any} initial
+   * @returns {any}
+   */
+  reduce(fn, initial) {
+    return this.records.reduce(fn, initial)
+  }
+
+  /**
+   * Convert to plain object (useful for JSON serialization)
+   * @returns {Object}
+   */
+  toJSON() {
+    return {
+      records: this.records.map(r => r.toJSON ? r.toJSON() : r),
+      pagination: {
+        currentPage: this.currentPage,
+        perPage: this.perPage,
+        totalCount: this.totalCount,
+        totalPages: this.totalPages,
+        hasNextPage: this.hasNextPage,
+        hasPreviousPage: this.hasPreviousPage,
+        nextPage: this.nextPage,
+        previousPage: this.previousPage,
+        firstPage: this.firstPage,
+        lastPage: this.lastPage
+      }
+    }
+  }
+}
+
+/**
  * QueryBuilder class - Chainable query interface
  *
  * @example
@@ -75,6 +295,7 @@ export class QueryBuilder {
     clone.distinctValue = this.distinctValue
     clone.lockMode = this.lockMode
     clone._perPage = this._perPage
+    clone._currentPage = this._currentPage
     return clone
   }
 
@@ -769,28 +990,121 @@ export class QueryBuilder {
   }
 
   /**
-   * Pagination helper
+   * Pagination helper - set current page number
+   *
+   * Use with per() to configure pagination, then call paginate() to get
+   * results with metadata.
+   *
    * @param {number} pageNum - 1-based page number
    * @returns {QueryBuilder}
+   *
+   * @example
+   * // Basic pagination
+   * const result = await User.page(2).per(10).paginate()
+   *
+   * // Access records and metadata
+   * result.records        // Array of User instances
+   * result.currentPage    // 2
+   * result.totalPages     // e.g., 10
+   * result.hasNextPage    // true/false
+   *
+   * // Also works with all() for simple limit/offset
+   * const users = await User.page(2).per(10).all()
    */
   page(pageNum) {
     const clone = this._clone()
     const perPageValue = clone._perPage || 25
+    clone._currentPage = pageNum
     clone.offsetValue = (pageNum - 1) * perPageValue
     clone.limitValue = perPageValue
     return clone
   }
 
   /**
-   * Set per page for pagination
-   * @param {number} perPage
+   * Set records per page for pagination
+   *
+   * Should be called before page() for proper offset calculation,
+   * or after page() to adjust limit.
+   *
+   * @param {number} perPage - Number of records per page
    * @returns {QueryBuilder}
+   *
+   * @example
+   * // Set per page before page
+   * const result = await User.per(10).page(2).paginate()
+   *
+   * // Or after page (will adjust limit but offset based on previous perPage)
+   * const result = await User.page(2).per(10).paginate()
    */
   per(perPage) {
     const clone = this._clone()
     clone._perPage = perPage
     clone.limitValue = perPage
+
+    // Recalculate offset if page was already set
+    if (clone._currentPage !== undefined) {
+      clone.offsetValue = (clone._currentPage - 1) * perPage
+    }
+
     return clone
+  }
+
+  /**
+   * Execute paginated query and return results with metadata
+   *
+   * Returns a PaginatedResult object containing the records and pagination
+   * metadata like totalCount, totalPages, hasNextPage, etc.
+   *
+   * @returns {Promise<PaginatedResult>}
+   *
+   * @example
+   * // Get paginated results
+   * const result = await Post.where({ published: true }).page(1).per(20).paginate()
+   *
+   * // Access data
+   * console.log(result.records)        // Array of Post instances
+   * console.log(result.currentPage)    // 1
+   * console.log(result.perPage)        // 20
+   * console.log(result.totalCount)     // 157
+   * console.log(result.totalPages)     // 8
+   * console.log(result.hasNextPage)    // true
+   * console.log(result.hasPreviousPage) // false
+   *
+   * // Iterate over records
+   * for (const post of result) {
+   *   console.log(post.title)
+   * }
+   *
+   * // Convert to JSON for API response
+   * res.json(result.toJSON())
+   */
+  async paginate() {
+    // Get current page and per page settings
+    const currentPage = this._currentPage || 1
+    const perPage = this._perPage || 25
+
+    // Ensure pagination values are set
+    const clone = this._clone()
+    clone._currentPage = currentPage
+    clone._perPage = perPage
+    clone.limitValue = perPage
+    clone.offsetValue = (currentPage - 1) * perPage
+
+    // Execute count query (without limit/offset)
+    const countClone = this._clone()
+    countClone.limitValue = null
+    countClone.offsetValue = null
+    const totalCount = await countClone.count()
+
+    // Execute records query
+    const records = await clone.all()
+
+    return new PaginatedResult({
+      records,
+      currentPage,
+      perPage,
+      totalCount
+    })
   }
 
   /**
