@@ -5,13 +5,13 @@
  */
 
 import { test, expect, describe, beforeEach, afterEach } from 'bun:test'
-import { Application, createApplication } from '../src/application.js'
-import { Controller } from '../src/controller/base.js'
+import { Application, createApplication } from '../../src/application.js'
+import { Controller } from '../../src/controller/base.js'
 import { join } from 'path'
 import { mkdirSync, rmSync, writeFileSync } from 'fs'
 
 // Test fixtures directory
-const fixturesDir = join(import.meta.dir, 'fixtures', 'test-app')
+const fixturesDir = join(import.meta.dir, '..', 'fixtures', 'test-app')
 
 describe('Application', () => {
   describe('constructor', () => {
