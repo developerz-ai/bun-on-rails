@@ -4,7 +4,8 @@
  */
 
 export { Application, createApplication } from './application.js'
-export { Model } from './database/model.js'
+export { Model, RecordNotFoundError } from './database/model.js'
+export { QueryBuilder } from './database/query_builder.js'
 export { Migration, MigrationRunner, TableBuilder, ColumnBuilder } from './database/migration.js'
 export { SchemaGenerator, SchemaLoader, dumpSchema, loadSchema } from './database/schema.js'
 export { Connection, ConnectionPool, getConnection, setConnection } from './database/connection.js'
