@@ -11,6 +11,7 @@ import { QueryBuilder, RecordNotFoundError } from './query_builder.js'
 import { getConnection } from './connection.js'
 import { PostgresAdapter } from './adapters/postgres.js'
 import { tableize } from '../support/inflector.js'
+import { runValidations } from './validations.js'
 
 // Re-export for convenience
 export { RecordNotFoundError }
@@ -528,8 +529,8 @@ export class Model {
    * await user.save()
    */
   async save() {
-    // Run validations
-    if (!this.validate()) {
+    // Run validations (async for uniqueness validation etc.)
+    if (!(await this.validate())) {
       return false
     }
 
@@ -711,103 +712,202 @@ export class Model {
   // ============================================
 
   /**
-   * Run validations on the model
-   * @returns {boolean} True if valid
+   * Run all validations on the model and populate the errors object
+   *
+   * Uses the comprehensive validators from the validations module including:
+   * - presence, length, format, numericality
+   * - email, url, date, array
+   * - inclusion, exclusion
+   * - uniqueness (async, requires database)
+   * - custom, confirmation, acceptance
+   *
+   * Callbacks:
+   * - beforeValidation: Called before validations run. Can modify attributes or add errors.
+   * - afterValidation: Called after validations run. Can modify errors or perform cleanup.
+   *
+   * @returns {Promise<boolean>} True if valid, false otherwise
+   *
+   * @example
+   * const user = new User({ email: 'invalid' })
+   * const isValid = await user.validate()
+   * if (!isValid) {
+   *   console.log(user.errors)
+   *   // { email: ['is not a valid email'] }
+   * }
    */
-  validate() {
+  async validate() {
+    // Clear previous errors
     this.errors = {}
-    const validations = this.constructor.validations
 
-    for (const [field, rules] of Object.entries(validations)) {
-      const value = this.attributes[field]
+    // Run beforeValidation callback
+    await this.beforeValidation()
 
-      // Presence validation
-      if (rules.presence && (value === undefined || value === null || value === '')) {
-        this.errors[field] = `${field} can't be blank`
-        continue
-      }
+    // Run all validations using the comprehensive validation system
+    const validationErrors = await runValidations(this)
 
-      // Skip further validations if value is empty and not required
-      if (value === undefined || value === null || value === '') {
-        continue
-      }
+    // Convert array errors to the format expected by the model
+    // The validations module returns { field: ['error1', 'error2'] }
+    // We'll store first error as string for backwards compatibility
+    // but keep full array in _fullErrors
+    this._fullErrors = validationErrors
 
-      // Length validation
-      if (rules.length) {
-        const len = String(value).length
-        if (rules.length.min !== undefined && len < rules.length.min) {
-          this.errors[field] = `${field} is too short (minimum is ${rules.length.min})`
-        }
-        if (rules.length.max !== undefined && len > rules.length.max) {
-          this.errors[field] = `${field} is too long (maximum is ${rules.length.max})`
-        }
-        if (rules.length.is !== undefined && len !== rules.length.is) {
-          this.errors[field] = `${field} must be exactly ${rules.length.is} characters`
-        }
-      }
-
-      // Format validation
-      if (rules.format && !rules.format.test(String(value))) {
-        this.errors[field] = `${field} is invalid`
-      }
-
-      // Numericality validation
-      if (rules.numericality) {
-        const num = Number(value)
-        if (isNaN(num)) {
-          this.errors[field] = `${field} is not a number`
-        } else {
-          if (rules.numericality.greaterThan !== undefined && num <= rules.numericality.greaterThan) {
-            this.errors[field] = `${field} must be greater than ${rules.numericality.greaterThan}`
-          }
-          if (rules.numericality.lessThan !== undefined && num >= rules.numericality.lessThan) {
-            this.errors[field] = `${field} must be less than ${rules.numericality.lessThan}`
-          }
-          if (rules.numericality.greaterThanOrEqualTo !== undefined && num < rules.numericality.greaterThanOrEqualTo) {
-            this.errors[field] = `${field} must be greater than or equal to ${rules.numericality.greaterThanOrEqualTo}`
-          }
-          if (rules.numericality.lessThanOrEqualTo !== undefined && num > rules.numericality.lessThanOrEqualTo) {
-            this.errors[field] = `${field} must be less than or equal to ${rules.numericality.lessThanOrEqualTo}`
-          }
-        }
-      }
-
-      // Inclusion validation
-      if (rules.inclusion && !rules.inclusion.includes(value)) {
-        this.errors[field] = `${field} is not included in the list`
-      }
-
-      // Exclusion validation
-      if (rules.exclusion && rules.exclusion.includes(value)) {
-        this.errors[field] = `${field} is reserved`
-      }
-
-      // Custom validation
-      if (rules.validate && typeof rules.validate === 'function') {
-        const error = rules.validate(value, this)
-        if (error) {
-          this.errors[field] = error
-        }
+    // Populate errors object - first error as string for backwards compatibility
+    for (const [field, errors] of Object.entries(validationErrors)) {
+      if (errors && errors.length > 0) {
+        // Store first error as string for backwards compat with existing tests
+        this.errors[field] = this._formatErrorForField(field, errors[0])
       }
     }
+
+    // Run afterValidation callback
+    await this.afterValidation()
 
     return Object.keys(this.errors).length === 0
   }
 
   /**
-   * Check if model is valid
-   * @returns {boolean}
+   * Format error message for a field
+   * Prepends field name if error doesn't include it for context
+   *
+   * @private
+   * @param {string} field - Field name
+   * @param {string} error - Error message
+   * @returns {string} Formatted error message
    */
-  isValid() {
+  _formatErrorForField(field, error) {
+    // Handle presence error
+    if (error === 'is required') {
+      return `${field} can't be blank`
+    }
+
+    // Handle length errors
+    const minMatch = error.match(/must be at least (\d+) characters/)
+    if (minMatch) {
+      return `${field} is too short (minimum is ${minMatch[1]})`
+    }
+
+    const maxMatch = error.match(/must be at most (\d+) characters/)
+    if (maxMatch) {
+      return `${field} is too long (maximum is ${maxMatch[1]})`
+    }
+
+    const exactMatch = error.match(/must be exactly (\d+) characters/)
+    if (exactMatch) {
+      return `${field} must be exactly ${exactMatch[1]} characters`
+    }
+
+    // Handle format/email errors
+    if (error === 'is invalid' || error === 'is not a valid email') {
+      return `${field} is invalid`
+    }
+
+    // Handle numericality errors
+    if (error === 'must be a number') {
+      return `${field} is not a number`
+    }
+
+    // Handle greater than (must check before "greater than or equal to")
+    const gteMatch = error.match(/must be greater than or equal to (-?\d+)/)
+    if (gteMatch) {
+      return `${field} must be greater than or equal to ${gteMatch[1]}`
+    }
+
+    const gtMatch = error.match(/must be greater than (-?\d+)/)
+    if (gtMatch) {
+      return `${field} must be greater than ${gtMatch[1]}`
+    }
+
+    // Handle less than (must check before "less than or equal to")
+    const lteMatch = error.match(/must be less than or equal to (-?\d+)/)
+    if (lteMatch) {
+      return `${field} must be less than or equal to ${lteMatch[1]}`
+    }
+
+    const ltMatch = error.match(/must be less than (-?\d+)/)
+    if (ltMatch) {
+      return `${field} must be less than ${ltMatch[1]}`
+    }
+
+    // Handle inclusion/exclusion errors
+    if (error.startsWith('must be one of:')) {
+      return `${field} is not included in the list`
+    }
+
+    if (error.startsWith('cannot be one of:')) {
+      return `${field} is reserved`
+    }
+
+    // For custom validators or unmatched errors, return as-is
+    return error
+  }
+
+  /**
+   * Get all errors for a specific field
+   *
+   * @param {string} field - Field name
+   * @returns {string[]} Array of error messages for the field
+   *
+   * @example
+   * const errors = user.errorsFor('email')
+   * // ['is not a valid email', 'has already been taken']
+   */
+  errorsFor(field) {
+    return this._fullErrors?.[field] || []
+  }
+
+  /**
+   * Get all errors as a flat array of messages
+   *
+   * @returns {string[]} Array of all error messages
+   *
+   * @example
+   * const allErrors = user.fullMessages()
+   * // ['name can\'t be blank', 'email is not a valid email']
+   */
+  fullMessages() {
+    const messages = []
+    for (const [field, errors] of Object.entries(this._fullErrors || {})) {
+      for (const error of errors) {
+        messages.push(`${field} ${error}`)
+      }
+    }
+    return messages
+  }
+
+  /**
+   * Check if a specific field has errors
+   *
+   * @param {string} field - Field name
+   * @returns {boolean} True if field has errors
+   */
+  hasError(field) {
+    return Boolean(this.errors[field])
+  }
+
+  /**
+   * Check if model is valid (async)
+   * @returns {Promise<boolean>}
+   *
+   * @example
+   * if (await user.isValid()) {
+   *   console.log('User is valid!')
+   * }
+   */
+  async isValid() {
     return this.validate()
   }
 
   /**
-   * Check if model is invalid
-   * @returns {boolean}
+   * Check if model is invalid (async)
+   * @returns {Promise<boolean>}
+   *
+   * @example
+   * if (await user.isInvalid()) {
+   *   console.log('User has errors:', user.errors)
+   * }
    */
-  isInvalid() {
-    return !this.validate()
+  async isInvalid() {
+    return !(await this.validate())
   }
 
   // ============================================
@@ -885,6 +985,38 @@ export class Model {
   // ============================================
   // Callbacks
   // ============================================
+
+  /**
+   * Called before validation runs
+   * Override in subclasses to modify attributes or add errors before validation
+   *
+   * @example
+   * class User extends Model {
+   *   async beforeValidation() {
+   *     // Normalize email
+   *     if (this.attributes.email) {
+   *       this.attributes.email = this.attributes.email.toLowerCase().trim()
+   *     }
+   *   }
+   * }
+   */
+  async beforeValidation() {}
+
+  /**
+   * Called after validation runs
+   * Override in subclasses to modify errors or perform post-validation logic
+   *
+   * @example
+   * class User extends Model {
+   *   async afterValidation() {
+   *     // Add conditional error
+   *     if (this.attributes.role === 'admin' && !this.attributes.admin_code) {
+   *       this.errors.admin_code = 'is required for admin users'
+   *     }
+   *   }
+   * }
+   */
+  async afterValidation() {}
 
   async beforeSave() {}
   async afterSave() {}
