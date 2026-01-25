@@ -14,7 +14,7 @@ brails g model Post title:string body:text published:boolean user:references
 
 ```javascript
 // app/models/post.js
-import { Model } from '@bun-on-rails/framework'
+import { Model } from '@bun-on-rails'
 
 export default class Post extends Model {
   // Configuration is optional - conventions handle most cases

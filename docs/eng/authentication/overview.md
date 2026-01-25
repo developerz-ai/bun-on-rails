@@ -134,7 +134,7 @@ async index() {
 ### Frontend Integration
 
 ```javascript
-import { useCurrentUser } from '@bun-on-rails/framework'
+import { useCurrentUser } from '@bun-on-rails'
 
 function Header() {
   const { user, loading } = useCurrentUser()

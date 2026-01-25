@@ -1,6 +1,6 @@
 /**
  * BunOnRails Framework
- * @module @bun-on-rails/framework
+ * @module @bun-on-rails
  */
 
 export { Application } from './application.js'

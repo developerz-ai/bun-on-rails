@@ -1,5 +1,5 @@
 {
-  "name": "@bun-on-rails/framework",
+  "name": "@bun-on-rails",
   "version": "0.1.0",
   "description": "A full-stack JavaScript framework built on Bun with Rails-like conventions",
   "type": "module",
