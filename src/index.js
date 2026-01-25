@@ -13,6 +13,20 @@ export { Channel } from './websocket/channel.js'
 export { Cache } from './cache/cache.js'
 export { Storage } from './storage/storage.js'
 
+// Configuration
+export {
+  Config,
+  createConfig,
+  loadConfig,
+  getConfig,
+  setConfig,
+  getEnvironment,
+  isDevelopment,
+  isProduction,
+  isTest,
+  defaultConfig
+} from './config/loader.js'
+
 // React integration
 export { useResource, useAction, useChannel } from './react/hooks.js'
 export { Form, Field } from './react/forms.js'
