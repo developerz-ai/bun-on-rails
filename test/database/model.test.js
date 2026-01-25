@@ -656,39 +656,446 @@ describe('Model - Scopes', () => {
     setConnection(null)
   })
 
-  it('applies scope without arguments', async () => {
-    mockConnection.setMockResults([[]])
+  describe('Model.scope()', () => {
+    it('applies scope without arguments', async () => {
+      mockConnection.setMockResults([[]])
 
-    await User.scope('active').all()
+      await User.scope('active').all()
 
-    const query = mockConnection.getLastQuery()
-    expect(query.sql).toContain('is_active')
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('is_active')
+    })
+
+    it('applies scope with arguments', async () => {
+      mockConnection.setMockResults([[]])
+
+      await User.scope('byRole', 'admin').all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.params).toContain('admin')
+    })
+
+    it('throws error for unknown scope', () => {
+      expect(() => User.scope('nonexistent')).toThrow('Unknown scope: nonexistent')
+    })
+
+    it('returns QueryBuilder for chaining', async () => {
+      mockConnection.setMockResults([[]])
+
+      const query = User.scope('active')
+      expect(query).toBeInstanceOf(QueryBuilder)
+
+      await query.where({ name: 'John' }).all()
+
+      const sql = mockConnection.getLastQuery().sql
+      expect(sql).toContain('is_active')
+      expect(sql).toContain('name')
+    })
+
+    it('can chain multiple scopes', async () => {
+      mockConnection.setMockResults([[]])
+
+      await User.scope('active').scope('byRole', 'admin').all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('is_active')
+      expect(query.params).toContain('admin')
+    })
   })
 
-  it('applies scope with arguments', async () => {
-    mockConnection.setMockResults([[]])
+  describe('QueryBuilder.scope()', () => {
+    it('applies scope in the middle of a query chain', async () => {
+      mockConnection.setMockResults([[]])
 
-    await User.scope('byRole', 'admin').all()
+      await User.where({ email: { ilike: '%@example.com%' } })
+        .scope('active')
+        .order({ name: 'asc' })
+        .all()
 
-    const query = mockConnection.getLastQuery()
-    expect(query.params).toContain('admin')
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('is_active')
+      expect(query.sql).toContain('email')
+      expect(query.sql).toContain('ORDER BY')
+    })
+
+    it('applies scope with arguments via QueryBuilder', async () => {
+      mockConnection.setMockResults([[]])
+
+      await User.where({ name: { ilike: '%john%' } })
+        .scope('byRole', 'moderator')
+        .limit(10)
+        .all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.params).toContain('moderator')
+      expect(query.sql).toContain('LIMIT 10')
+    })
+
+    it('throws error for unknown scope in QueryBuilder', async () => {
+      const query = User.where({ name: 'John' })
+      expect(() => query.scope('nonexistent')).toThrow('Unknown scope: nonexistent')
+    })
+
+    it('preserves existing query conditions when applying scope', async () => {
+      mockConnection.setMockResults([[]])
+
+      await User.where({ age: { '>': 18 } })
+        .scope('active')
+        .where({ name: 'John' })
+        .all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('age')
+      expect(query.sql).toContain('is_active')
+      expect(query.sql).toContain('name')
+      expect(query.params).toContain(18)
+      expect(query.params).toContain('John')
+    })
+
+    it('can chain scope with count()', async () => {
+      mockConnection.setMockResults([[{ count: '42' }]])
+
+      const count = await User.scope('active').count()
+
+      expect(count).toBe(42)
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('COUNT')
+      expect(query.sql).toContain('is_active')
+    })
+
+    it('can chain scope with first()', async () => {
+      mockConnection.setMockResults([[{ id: 1, name: 'John', is_active: true }]])
+
+      const user = await User.scope('active').first()
+
+      expect(user).toBeInstanceOf(User)
+      expect(user.id).toBe(1)
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('is_active')
+    })
+
+    it('can chain scope with exists()', async () => {
+      mockConnection.setMockResults([[{ count: '1' }]])
+
+      const exists = await User.scope('active').exists()
+
+      expect(exists).toBe(true)
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('is_active')
+    })
   })
 
-  it('throws error for unknown scope', () => {
-    expect(() => User.scope('nonexistent')).toThrow('Unknown scope: nonexistent')
+  describe('Scope edge cases', () => {
+    it('works with model that has no scopes defined', () => {
+      class NoScopeModel extends Model {
+        static tableName = 'no_scopes'
+      }
+
+      expect(() => NoScopeModel.scope('anything')).toThrow('Unknown scope: anything')
+    })
+
+    it('scope can return modified query with multiple conditions', async () => {
+      class ScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          publishedAndFeatured: (q) => q.where({ published: true, featured: true })
+        }
+      }
+
+      mockConnection.setMockResults([[]])
+
+      await ScopedPost.scope('publishedAndFeatured').all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('published')
+      expect(query.sql).toContain('featured')
+    })
+
+    it('scope can add ordering', async () => {
+      class ScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          recentFirst: (q) => q.order({ created_at: 'desc' })
+        }
+      }
+
+      mockConnection.setMockResults([[]])
+
+      await ScopedPost.scope('recentFirst').all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('ORDER BY')
+      expect(query.sql).toContain('DESC')
+    })
+
+    it('scope can add limit', async () => {
+      class ScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          top10: (q) => q.limit(10)
+        }
+      }
+
+      mockConnection.setMockResults([[]])
+
+      await ScopedPost.scope('top10').all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('LIMIT 10')
+    })
+
+    it('scope with dynamic argument', async () => {
+      class ScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          olderThan: (q, days) => {
+            const date = new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+            return q.where({ created_at: { '<': date } })
+          }
+        }
+      }
+
+      mockConnection.setMockResults([[]])
+
+      await ScopedPost.scope('olderThan', 30).all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('created_at')
+      expect(query.sql).toContain('<')
+    })
+
+    it('scope with multiple arguments', async () => {
+      class ScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          between: (q, startDate, endDate) => {
+            return q
+              .where({ created_at: { '>=': startDate } })
+              .where({ created_at: { '<=': endDate } })
+          }
+        }
+      }
+
+      mockConnection.setMockResults([[]])
+
+      const start = new Date('2024-01-01')
+      const end = new Date('2024-12-31')
+      await ScopedPost.scope('between', start, end).all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.params).toContain(start)
+      expect(query.params).toContain(end)
+    })
   })
 
-  it('returns QueryBuilder for chaining', async () => {
-    mockConnection.setMockResults([[]])
+  describe('Automatic scope methods', () => {
+    it('creates static methods for scopes after register()', async () => {
+      class AutoScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true }),
+          featured: (q) => q.where({ featured: true })
+        }
+      }
 
-    const query = User.scope('active')
-    expect(query).toBeInstanceOf(QueryBuilder)
+      // Register the model to initialize scopes
+      AutoScopedPost.register()
 
-    await query.where({ name: 'John' }).all()
+      // Check that scope methods exist
+      expect(typeof AutoScopedPost.published).toBe('function')
+      expect(typeof AutoScopedPost.featured).toBe('function')
+    })
 
-    const sql = mockConnection.getLastQuery().sql
-    expect(sql).toContain('is_active')
-    expect(sql).toContain('name')
+    it('creates static methods for scopes on first query()', async () => {
+      class LazyInitPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+
+      // Without calling register(), just call query() to trigger init
+      mockConnection.setMockResults([[]])
+
+      // scope method should be available now
+      LazyInitPost.query()
+      expect(typeof LazyInitPost.published).toBe('function')
+    })
+
+    it('automatic scope methods return QueryBuilder', async () => {
+      class QueryScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+      QueryScopedPost.register()
+
+      const query = QueryScopedPost.published()
+      expect(query).toBeInstanceOf(QueryBuilder)
+    })
+
+    it('automatic scope methods execute correct query', async () => {
+      class ExecScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+      ExecScopedPost.register()
+
+      mockConnection.setMockResults([[]])
+
+      await ExecScopedPost.published().all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('published')
+    })
+
+    it('automatic scope methods accept arguments', async () => {
+      class ArgScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          byAuthor: (q, authorId) => q.where({ author_id: authorId })
+        }
+      }
+      ArgScopedPost.register()
+
+      mockConnection.setMockResults([[]])
+
+      await ArgScopedPost.byAuthor(123).all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.params).toContain(123)
+    })
+
+    it('automatic scope methods can be chained', async () => {
+      class ChainScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true }),
+          featured: (q) => q.where({ featured: true })
+        }
+      }
+      ChainScopedPost.register()
+
+      mockConnection.setMockResults([[]])
+
+      await ChainScopedPost.published().where({ featured: true }).limit(5).all()
+
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('published')
+      expect(query.sql).toContain('featured')
+      expect(query.sql).toContain('LIMIT 5')
+    })
+
+    it('automatic scope methods work with count()', async () => {
+      class CountScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+      CountScopedPost.register()
+
+      mockConnection.setMockResults([[{ count: '10' }]])
+
+      const count = await CountScopedPost.published().count()
+
+      expect(count).toBe(10)
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('published')
+    })
+
+    it('automatic scope methods work with first()', async () => {
+      class FirstScopedPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+      FirstScopedPost.register()
+
+      mockConnection.setMockResults([[{ id: 1, title: 'Test', published: true }]])
+
+      const post = await FirstScopedPost.published().first()
+
+      expect(post).toBeInstanceOf(FirstScopedPost)
+      const query = mockConnection.getLastQuery()
+      expect(query.sql).toContain('published')
+    })
+
+    it('does not override existing static methods', async () => {
+      class MethodConflictModel extends Model {
+        static tableName = 'items'
+        static scopes = {
+          where: (q) => q.where({ hidden: true }) // 'where' is already a method
+        }
+
+        static customMethod() {
+          return 'custom'
+        }
+      }
+      MethodConflictModel.register()
+
+      // The original where method should still work
+      mockConnection.setMockResults([[]])
+      const query = MethodConflictModel.where({ name: 'test' })
+
+      expect(query).toBeInstanceOf(QueryBuilder)
+    })
+
+    it('only initializes scopes once per class', async () => {
+      class MultiInitPost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+
+      // First call initializes
+      MultiInitPost.register()
+      expect(MultiInitPost._scopesInitialized).toBe(true)
+
+      // Store the published method reference
+      const publishedMethod = MultiInitPost.published
+
+      // Call again - should not re-initialize or change method
+      MultiInitPost.register()
+      MultiInitPost.query()
+
+      // Method reference should be the same (not re-created)
+      expect(MultiInitPost.published).toBe(publishedMethod)
+      expect(typeof MultiInitPost.published).toBe('function')
+    })
+
+    it('each subclass gets its own scopes', async () => {
+      class BasePost extends Model {
+        static tableName = 'posts'
+        static scopes = {
+          published: (q) => q.where({ published: true })
+        }
+      }
+
+      class SpecialPost extends BasePost {
+        static tableName = 'special_posts'
+        static scopes = {
+          ...BasePost.scopes,
+          featured: (q) => q.where({ featured: true })
+        }
+      }
+
+      BasePost.register()
+      SpecialPost.register()
+
+      // BasePost should have published but not featured
+      expect(typeof BasePost.published).toBe('function')
+      expect(typeof BasePost.featured).toBe('undefined')
+
+      // SpecialPost should have both
+      expect(typeof SpecialPost.published).toBe('function')
+      expect(typeof SpecialPost.featured).toBe('function')
+    })
   })
 })
 

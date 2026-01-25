@@ -715,14 +715,14 @@ describe('QueryBuilder', () => {
     it('paginates results with per() after page()', async () => {
       mockConnection.setMockResults([[]])
 
-      // page(2) with default per page (25) = offset 25
-      // then per(10) sets limit to 10
+      // page(2) initially calculates offset with default per page (25)
+      // then per(10) recalculates the offset correctly: (2-1) * 10 = 10
       await User.query().page(2).per(10).all()
 
       const query = mockConnection.queries[0]
       expect(query.sql).toContain('LIMIT 10')
-      // page(2) with default perPage of 25 = offset 25
-      expect(query.sql).toContain('OFFSET 25')
+      // per() recalculates offset based on current page: (2-1) * 10 = 10
+      expect(query.sql).toContain('OFFSET 10')
     })
 
     it('paginates with per() setting page size', async () => {
@@ -897,5 +897,143 @@ describe('Model.getTableName()', () => {
   it('infers table name from class name', () => {
     class BlogPost extends Model {}
     expect(BlogPost.getTableName()).toBe('blog_posts')
+  })
+})
+
+// ============================================
+// Model Pagination Integration Tests
+// ============================================
+describe('Model Pagination', () => {
+  let mockConnection
+
+  beforeEach(() => {
+    mockConnection = new MockConnection()
+    setConnection(mockConnection)
+  })
+
+  afterEach(() => {
+    setConnection(null)
+  })
+
+  describe('Model.page() and Model.per()', () => {
+    it('delegates to query builder', async () => {
+      mockConnection.setMockResults([[]])
+
+      await User.page(2).per(10).all()
+
+      const query = mockConnection.queries[0]
+      expect(query.sql).toContain('LIMIT 10')
+      expect(query.sql).toContain('OFFSET 10') // (2-1) * 10
+    })
+
+    it('Model.per() starts a new query with perPage set', async () => {
+      mockConnection.setMockResults([[]])
+
+      await User.per(15).page(3).all()
+
+      const query = mockConnection.queries[0]
+      expect(query.sql).toContain('LIMIT 15')
+      expect(query.sql).toContain('OFFSET 30') // (3-1) * 15
+    })
+
+    it('can chain with where conditions', async () => {
+      mockConnection.setMockResults([[]])
+
+      await User.where({ active: true }).page(1).per(20).all()
+
+      const query = mockConnection.queries[0]
+      expect(query.sql).toContain('LIMIT 20')
+      expect(query.sql).toContain('OFFSET 0')
+      expect(query.sql).toContain('WHERE')
+    })
+  })
+
+  describe('Model.paginate()', () => {
+    it('returns PaginatedResult with metadata', async () => {
+      // First query for count, second for records
+      mockConnection.setMockResults([
+        [{ count: '45' }],
+        [
+          { id: 1, name: 'User 1' },
+          { id: 2, name: 'User 2' },
+          { id: 3, name: 'User 3' }
+        ]
+      ])
+
+      const result = await User.paginate({ page: 1, perPage: 3 })
+
+      expect(result.currentPage).toBe(1)
+      expect(result.perPage).toBe(3)
+      expect(result.totalCount).toBe(45)
+      expect(result.totalPages).toBe(15)
+      expect(result.hasNextPage).toBe(true)
+      expect(result.hasPreviousPage).toBe(false)
+      expect(result.records).toHaveLength(3)
+    })
+
+    it('uses default values when not specified', async () => {
+      mockConnection.setMockResults([
+        [{ count: '100' }],
+        Array.from({ length: 25 }, (_, i) => ({ id: i + 1 }))
+      ])
+
+      const result = await User.paginate()
+
+      expect(result.currentPage).toBe(1)
+      expect(result.perPage).toBe(25)
+    })
+
+    it('works with query chain paginate()', async () => {
+      mockConnection.setMockResults([
+        [{ count: '20' }],
+        Array.from({ length: 10 }, (_, i) => ({ id: i + 11 }))
+      ])
+
+      const result = await User.where({ active: true }).page(2).per(10).paginate()
+
+      expect(result.currentPage).toBe(2)
+      expect(result.perPage).toBe(10)
+      expect(result.totalCount).toBe(20)
+      expect(result.totalPages).toBe(2)
+      expect(result.hasNextPage).toBe(false)
+      expect(result.hasPreviousPage).toBe(true)
+    })
+  })
+
+  describe('PaginatedResult array methods', () => {
+    it('can iterate over records', async () => {
+      mockConnection.setMockResults([
+        [{ count: '3' }],
+        [
+          { id: 1, name: 'Alice' },
+          { id: 2, name: 'Bob' },
+          { id: 3, name: 'Charlie' }
+        ]
+      ])
+
+      const result = await User.paginate({ page: 1, perPage: 10 })
+
+      const names = []
+      for (const user of result) {
+        names.push(user.attributes.name)
+      }
+
+      expect(names).toEqual(['Alice', 'Bob', 'Charlie'])
+    })
+
+    it('map() transforms records', async () => {
+      mockConnection.setMockResults([
+        [{ count: '2' }],
+        [
+          { id: 1, name: 'Alice' },
+          { id: 2, name: 'Bob' }
+        ]
+      ])
+
+      const result = await User.paginate({ page: 1, perPage: 10 })
+      const ids = result.map(user => user.attributes.id)
+
+      expect(ids).toEqual([1, 2])
+    })
   })
 })

@@ -6,7 +6,7 @@
  */
 
 import { test, expect, describe, beforeEach, afterEach, mock } from 'bun:test'
-import { QueryBuilder, RecordNotFoundError } from '../../src/database/query_builder.js'
+import { QueryBuilder, RecordNotFoundError, PaginatedResult } from '../../src/database/query_builder.js'
 import { setConnection } from '../../src/database/connection.js'
 
 // Mock model class for testing
@@ -530,6 +530,155 @@ describe('QueryBuilder', () => {
     test('per() sets limit', () => {
       const result = builder.per(50)
       expect(result.limitValue).toBe(50)
+    })
+
+    test('page() tracks current page number', () => {
+      const result = builder.page(3)
+      expect(result._currentPage).toBe(3)
+    })
+
+    test('per() after page() recalculates offset', () => {
+      // First set page with default per (25), then change per
+      const result = builder.page(3).per(10)
+      expect(result.offsetValue).toBe(20) // (3-1) * 10
+      expect(result.limitValue).toBe(10)
+    })
+
+    test('chaining preserves pagination state', () => {
+      const result = builder.per(10).page(2).where({ active: true })
+      expect(result._perPage).toBe(10)
+      expect(result._currentPage).toBe(2)
+      expect(result.offsetValue).toBe(10)
+      expect(result.limitValue).toBe(10)
+    })
+  })
+
+  // ============================================
+  // Paginate method tests
+  // ============================================
+  describe('paginate()', () => {
+    test('returns PaginatedResult with correct metadata', async () => {
+      // Mock count query returns 100 total
+      let callCount = 0
+      mockConnection.query.mockImplementation(async (sql) => {
+        callCount++
+        if (sql.includes('COUNT')) {
+          return [{ count: '100' }]
+        }
+        // Return 10 mock records for page
+        return Array.from({ length: 10 }, (_, i) => ({ id: i + 1, name: `User ${i + 1}` }))
+      })
+
+      const result = await builder.page(1).per(10).paginate()
+
+      expect(result.currentPage).toBe(1)
+      expect(result.perPage).toBe(10)
+      expect(result.totalCount).toBe(100)
+      expect(result.totalPages).toBe(10)
+      expect(result.hasNextPage).toBe(true)
+      expect(result.hasPreviousPage).toBe(false)
+      expect(result.records).toHaveLength(10)
+    })
+
+    test('uses default values when not specified', async () => {
+      mockConnection.query.mockImplementation(async (sql) => {
+        if (sql.includes('COUNT')) {
+          return [{ count: '50' }]
+        }
+        return Array.from({ length: 25 }, (_, i) => ({ id: i + 1 }))
+      })
+
+      const result = await builder.paginate()
+
+      expect(result.currentPage).toBe(1)
+      expect(result.perPage).toBe(25)
+      expect(result.totalCount).toBe(50)
+      expect(result.totalPages).toBe(2)
+    })
+
+    test('calculates correct totalPages', async () => {
+      mockConnection.query.mockImplementation(async (sql) => {
+        if (sql.includes('COUNT')) {
+          return [{ count: '27' }]
+        }
+        return []
+      })
+
+      const result = await builder.per(10).page(1).paginate()
+
+      expect(result.totalPages).toBe(3) // ceil(27/10)
+    })
+
+    test('returns 0 totalPages for empty results', async () => {
+      mockConnection.query.mockImplementation(async (sql) => {
+        if (sql.includes('COUNT')) {
+          return [{ count: '0' }]
+        }
+        return []
+      })
+
+      const result = await builder.page(1).per(10).paginate()
+
+      expect(result.totalCount).toBe(0)
+      expect(result.totalPages).toBe(0)
+      expect(result.hasNextPage).toBe(false)
+      expect(result.hasPreviousPage).toBe(false)
+    })
+
+    test('hasNextPage is false on last page', async () => {
+      mockConnection.query.mockImplementation(async (sql) => {
+        if (sql.includes('COUNT')) {
+          return [{ count: '30' }]
+        }
+        return Array.from({ length: 10 }, (_, i) => ({ id: i + 21 }))
+      })
+
+      const result = await builder.page(3).per(10).paginate()
+
+      expect(result.hasNextPage).toBe(false)
+      expect(result.lastPage).toBe(true)
+    })
+
+    test('hasPreviousPage is true on pages after first', async () => {
+      mockConnection.query.mockImplementation(async (sql) => {
+        if (sql.includes('COUNT')) {
+          return [{ count: '50' }]
+        }
+        return Array.from({ length: 10 }, (_, i) => ({ id: i + 11 }))
+      })
+
+      const result = await builder.page(2).per(10).paginate()
+
+      expect(result.hasPreviousPage).toBe(true)
+      expect(result.previousPage).toBe(1)
+      expect(result.firstPage).toBe(false)
+    })
+
+    test('nextPage returns correct page number', async () => {
+      mockConnection.query.mockImplementation(async (sql) => {
+        if (sql.includes('COUNT')) {
+          return [{ count: '100' }]
+        }
+        return []
+      })
+
+      const result = await builder.page(3).per(10).paginate()
+
+      expect(result.nextPage).toBe(4)
+      expect(result.previousPage).toBe(2)
+    })
+
+    test('offset is calculated correctly', async () => {
+      mockConnection.query.mockImplementation(async (sql) => {
+        if (sql.includes('COUNT')) {
+          return [{ count: '100' }]
+        }
+        return []
+      })
+
+      const result = await builder.page(3).per(10).paginate()
+
+      expect(result.offset).toBe(20) // (3-1) * 10
     })
   })
 
@@ -1242,6 +1391,343 @@ describe('WHERE clause building', () => {
       column: 'status',
       operator: 'NOT IN',
       value: ['deleted', 'archived']
+    })
+  })
+})
+
+// ============================================
+// PaginatedResult tests
+// ============================================
+describe('PaginatedResult', () => {
+  const mockRecords = [
+    { id: 1, name: 'Alice', toJSON: () => ({ id: 1, name: 'Alice' }) },
+    { id: 2, name: 'Bob', toJSON: () => ({ id: 2, name: 'Bob' }) },
+    { id: 3, name: 'Charlie', toJSON: () => ({ id: 3, name: 'Charlie' }) }
+  ]
+
+  describe('constructor and basic properties', () => {
+    test('stores records and metadata', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 2,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      expect(result.records).toBe(mockRecords)
+      expect(result.currentPage).toBe(2)
+      expect(result.perPage).toBe(10)
+      expect(result.totalCount).toBe(50)
+    })
+
+    test('calculates totalPages correctly', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 57
+      })
+
+      expect(result.totalPages).toBe(6) // ceil(57/10)
+    })
+
+    test('totalPages is 0 for empty results', () => {
+      const result = new PaginatedResult({
+        records: [],
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 0
+      })
+
+      expect(result.totalPages).toBe(0)
+    })
+  })
+
+  describe('navigation properties', () => {
+    test('hasNextPage is true when not on last page', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 2,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      expect(result.hasNextPage).toBe(true)
+      expect(result.nextPage).toBe(3)
+    })
+
+    test('hasNextPage is false on last page', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 5,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      expect(result.hasNextPage).toBe(false)
+      expect(result.nextPage).toBeNull()
+    })
+
+    test('hasPreviousPage is false on first page', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      expect(result.hasPreviousPage).toBe(false)
+      expect(result.previousPage).toBeNull()
+    })
+
+    test('hasPreviousPage is true on pages after first', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 3,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      expect(result.hasPreviousPage).toBe(true)
+      expect(result.previousPage).toBe(2)
+    })
+
+    test('firstPage is true only on page 1', () => {
+      const first = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      const notFirst = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 2,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      expect(first.firstPage).toBe(true)
+      expect(notFirst.firstPage).toBe(false)
+    })
+
+    test('lastPage is true only on final page', () => {
+      const last = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 5,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      const notLast = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 4,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      expect(last.lastPage).toBe(true)
+      expect(notLast.lastPage).toBe(false)
+    })
+
+    test('offset calculation is correct', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 3,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      expect(result.offset).toBe(20) // (3-1) * 10
+    })
+  })
+
+  describe('array-like behavior', () => {
+    test('length returns record count', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      expect(result.length).toBe(3)
+    })
+
+    test('empty is true when no records', () => {
+      const empty = new PaginatedResult({
+        records: [],
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 0
+      })
+
+      const notEmpty = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      expect(empty.empty).toBe(true)
+      expect(notEmpty.empty).toBe(false)
+    })
+
+    test('is iterable with for...of', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      const names = []
+      for (const record of result) {
+        names.push(record.name)
+      }
+
+      expect(names).toEqual(['Alice', 'Bob', 'Charlie'])
+    })
+
+    test('at() returns record by index', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      expect(result.at(0).name).toBe('Alice')
+      expect(result.at(2).name).toBe('Charlie')
+    })
+
+    test('map() works like array', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      const ids = result.map(r => r.id)
+      expect(ids).toEqual([1, 2, 3])
+    })
+
+    test('filter() works like array', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      const filtered = result.filter(r => r.id > 1)
+      expect(filtered).toHaveLength(2)
+    })
+
+    test('forEach() iterates over records', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      const names = []
+      result.forEach(r => names.push(r.name))
+      expect(names).toEqual(['Alice', 'Bob', 'Charlie'])
+    })
+
+    test('find() finds a record', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      const bob = result.find(r => r.name === 'Bob')
+      expect(bob.id).toBe(2)
+    })
+
+    test('some() checks if any match', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      expect(result.some(r => r.name === 'Bob')).toBe(true)
+      expect(result.some(r => r.name === 'Dave')).toBe(false)
+    })
+
+    test('every() checks if all match', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      expect(result.every(r => r.id > 0)).toBe(true)
+      expect(result.every(r => r.id > 1)).toBe(false)
+    })
+
+    test('reduce() reduces records', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      const sum = result.reduce((acc, r) => acc + r.id, 0)
+      expect(sum).toBe(6) // 1 + 2 + 3
+    })
+  })
+
+  describe('toJSON()', () => {
+    test('serializes to JSON structure', () => {
+      const result = new PaginatedResult({
+        records: mockRecords,
+        currentPage: 2,
+        perPage: 10,
+        totalCount: 50
+      })
+
+      const json = result.toJSON()
+
+      expect(json.records).toHaveLength(3)
+      expect(json.records[0]).toEqual({ id: 1, name: 'Alice' })
+      expect(json.pagination).toEqual({
+        currentPage: 2,
+        perPage: 10,
+        totalCount: 50,
+        totalPages: 5,
+        hasNextPage: true,
+        hasPreviousPage: true,
+        nextPage: 3,
+        previousPage: 1,
+        firstPage: false,
+        lastPage: false
+      })
+    })
+
+    test('handles records without toJSON', () => {
+      const simpleRecords = [
+        { id: 1, name: 'Test' }
+      ]
+
+      const result = new PaginatedResult({
+        records: simpleRecords,
+        currentPage: 1,
+        perPage: 10,
+        totalCount: 1
+      })
+
+      const json = result.toJSON()
+      expect(json.records[0]).toEqual({ id: 1, name: 'Test' })
     })
   })
 })
