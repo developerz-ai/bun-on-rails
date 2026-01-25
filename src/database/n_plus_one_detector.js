@@ -52,7 +52,9 @@ const DEFAULT_CONFIG = {
   windowMs: 1000,
   includeStackTrace: true,
   ignoredTables: ['sessions', 'schema_migrations', 'ar_internal_metadata'],
-  onDetection: null
+  onDetection: null,
+  // When true, bypasses isDevelopment() check (for testing)
+  forceEnabled: false
 }
 
 /**
@@ -131,6 +133,9 @@ class N1Detector {
    * @returns {boolean}
    */
   isActive() {
+    if (this.config.forceEnabled) {
+      return this.config.enabled
+    }
     return this.config.enabled && isDevelopment()
   }
 
@@ -191,7 +196,7 @@ class N1Detector {
    * @returns {QueryFingerprint}
    * @private
    */
-  _generateFingerprint(sql, params) {
+  _generateFingerprint(sql, _params) {
     // Normalize the query
     const normalizedSql = sql
       .replace(/\s+/g, ' ')  // Normalize whitespace
@@ -342,7 +347,7 @@ class N1Detector {
         fingerprint.columns.some(c => c.endsWith('_id'))) {
       // Likely an association query
       const parentCol = fingerprint.columns.find(c => c.endsWith('_id'))
-      const parentModel = parentCol ? this._classify(parentCol.replace('_id', '')) : 'Parent'
+      const _parentModel = parentCol ? this._classify(parentCol.replace('_id', '')) : 'Parent'
 
       lines.push(`  This looks like an association query. Consider using eager loading:`)
       lines.push('')

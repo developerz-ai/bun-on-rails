@@ -9,7 +9,7 @@
  * - Integration with QueryBuilder
  */
 
-import { describe, it, expect, beforeEach, afterEach, mock, spyOn } from 'bun:test'
+import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import {
   N1QueryDetector,
   trackQuery,
@@ -23,14 +23,8 @@ import { Model } from '../../src/database/model.js'
 import { setConnection } from '../../src/database/connection.js'
 import { defineAssociations } from '../../src/database/associations.js'
 
-// Mock isDevelopment to control test behavior
-let mockIsDevelopment = true
-mock.module('../../src/config/loader.js', () => ({
-  isDevelopment: () => mockIsDevelopment,
-  isProduction: () => !mockIsDevelopment,
-  isTest: () => false,
-  getEnvironment: () => mockIsDevelopment ? 'development' : 'production'
-}))
+// Control detection behavior via forceEnabled config option instead of mocking
+// This prevents test pollution across test files
 
 // Mock connection for tests
 class MockConnection {
@@ -61,11 +55,11 @@ class MockConnection {
 describe('N+1 Query Detection', () => {
   beforeEach(() => {
     resetN1Detection()
-    mockIsDevelopment = true
     configureN1Detection({
       threshold: 3,
       windowMs: 1000,
-      includeStackTrace: false  // Disable for cleaner tests
+      includeStackTrace: false,  // Disable for cleaner tests
+      forceEnabled: true  // Bypass isDevelopment() check for testing
     })
   })
 
@@ -208,23 +202,30 @@ describe('N+1 Query Detection', () => {
     })
   })
 
-  describe('Development Mode', () => {
-    it('only tracks in development mode', () => {
-      mockIsDevelopment = true
+  describe('Enabled/Disabled Control', () => {
+    it('only tracks when enabled (via forceEnabled)', () => {
+      // With forceEnabled=true, it should track
       resetN1Detection()
+      configureN1Detection({
+        forceEnabled: true,
+        enabled: true
+      })
 
       trackQuery('SELECT * FROM "users" WHERE "id" = $1', [1])
 
       let stats = getN1Stats()
       expect(stats.totalTracked).toBe(1)
 
-      // Switch to production mode
-      mockIsDevelopment = false
+      // Disable tracking
+      configureN1Detection({
+        forceEnabled: true,
+        enabled: false
+      })
 
       trackQuery('SELECT * FROM "users" WHERE "id" = $1', [2])
 
       stats = getN1Stats()
-      // Should still be 1 - production query not tracked
+      // Should still be 1 - disabled query not tracked
       expect(stats.totalTracked).toBe(1)
     })
 
@@ -253,11 +254,15 @@ describe('N+1 Query Detection', () => {
   describe('Ignored Tables', () => {
     beforeEach(() => {
       resetN1Detection()
+      configureN1Detection({
+        forceEnabled: true
+      })
     })
 
     it('ignores configured tables', () => {
       configureN1Detection({
-        ignoredTables: ['sessions', 'logs']
+        ignoredTables: ['sessions', 'logs'],
+        forceEnabled: true
       })
 
       trackQuery('SELECT * FROM "sessions" WHERE "id" = $1', [1])
@@ -274,7 +279,8 @@ describe('N+1 Query Detection', () => {
       configureN1Detection({
         threshold: 3,
         windowMs: 1000,
-        includeStackTrace: false
+        includeStackTrace: false,
+        forceEnabled: true
       })
 
       trackQuery('SELECT * FROM "schema_migrations" WHERE "version" = $1', ['123'])
@@ -339,6 +345,7 @@ describe('N+1 Query Detection', () => {
       const warnings = []
       configureN1Detection({
         threshold: 3,
+        forceEnabled: true,
         onDetection: (data) => warnings.push(data)
       })
 
@@ -350,6 +357,7 @@ describe('N+1 Query Detection', () => {
       // After reset, we need to reconfigure with the callback
       configureN1Detection({
         threshold: 3,
+        forceEnabled: true,
         onDetection: (data) => warnings.push(data)
       })
 
@@ -369,6 +377,7 @@ describe('N+1 Query Detection', () => {
       const warnings = []
       configureN1Detection({
         threshold: 3,
+        forceEnabled: true,
         onDetection: (data) => warnings.push(data)
       })
 
@@ -383,6 +392,7 @@ describe('N+1 Query Detection', () => {
       // After reset, reconfigure with the callback
       configureN1Detection({
         threshold: 3,
+        forceEnabled: true,
         onDetection: (data) => warnings.push(data)
       })
 
@@ -460,12 +470,12 @@ describe('N+1 Detection Integration', () => {
     mockConnection = new MockConnection()
     setConnection(mockConnection)
     resetN1Detection()
-    mockIsDevelopment = true
 
     configureN1Detection({
       threshold: 3,
       windowMs: 1000,
-      includeStackTrace: false
+      includeStackTrace: false,
+      forceEnabled: true
     })
   })
 
@@ -588,11 +598,11 @@ describe('N+1 Detection Integration', () => {
 describe('Edge Cases', () => {
   beforeEach(() => {
     resetN1Detection()
-    mockIsDevelopment = true
     configureN1Detection({
       threshold: 3,
       windowMs: 1000,
-      includeStackTrace: false
+      includeStackTrace: false,
+      forceEnabled: true
     })
   })
 
