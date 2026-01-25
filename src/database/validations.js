@@ -4,9 +4,26 @@
  * Provides Rails-like validation system with built-in validators for common use cases.
  * All validators are designed to be composable and support custom error messages.
  *
+ * ## Conditional Validation Options
+ *
+ * Every validator supports these conditional options:
+ *
+ * - `on: 'create'` - Only run validation when creating a new record
+ * - `on: 'update'` - Only run validation when updating an existing record
+ * - `on: ['create', 'update']` - Array of contexts (runs on any matching context)
+ * - `if: condition` - Only run validation if condition is truthy
+ * - `unless: condition` - Only run validation if condition is falsy
+ *
+ * Conditions can be:
+ * - Function: `(model, value) => boolean` - evaluated with model and current value
+ * - String: Method name on the model to call
+ * - String: Attribute name (truthy check) if no method with that name exists
+ * - Boolean or any value: Direct truthy check
+ *
  * @module @bun-on-rails/database/validations
  *
  * @example
+ * // Basic validations
  * class User extends Model {
  *   static validations = {
  *     email: { presence: true, email: true, uniqueness: true },
@@ -14,6 +31,37 @@
  *     age: { numericality: { greaterThanOrEqualTo: 0, onlyInteger: true } },
  *     role: { inclusion: { in: ['admin', 'user', 'moderator'] } },
  *     username: { exclusion: { in: ['admin', 'root', 'system'] }, format: { with: /^[a-z0-9_]+$/ } }
+ *   }
+ * }
+ *
+ * @example
+ * // Conditional validations
+ * class User extends Model {
+ *   static validations = {
+ *     // Password only required on create
+ *     password: {
+ *       presence: { on: 'create' },
+ *       length: { min: 8, on: 'create' }
+ *     },
+ *
+ *     // Only validate if user is admin
+ *     admin_code: {
+ *       presence: { if: (model) => model.attributes.role === 'admin' }
+ *     },
+ *
+ *     // Skip validation for OAuth users
+ *     password_hash: {
+ *       presence: { unless: 'isOAuthUser' }
+ *     },
+ *
+ *     // Combine conditions
+ *     terms: {
+ *       acceptance: { on: 'create', unless: (model) => model.attributes.oauth_provider }
+ *     }
+ *   }
+ *
+ *   isOAuthUser() {
+ *     return Boolean(this.attributes.oauth_provider)
  *   }
  * }
  */
@@ -739,18 +787,54 @@ function isBlank(value) {
 /**
  * Run all validations for a model instance
  *
+ * Supports conditional validations:
+ * - `on: 'create'` - Only run validation when creating a new record
+ * - `on: 'update'` - Only run validation when updating an existing record
+ * - `if: condition` - Only run validation if condition is true (function, method name, or value)
+ * - `unless: condition` - Only run validation if condition is false (function, method name, or value)
+ *
  * @param {Model} model - Model instance to validate
  * @returns {Promise<Object>} Object with field names as keys and error arrays as values
  *
  * @example
+ * // Basic validation
  * const errors = await runValidations(user)
  * if (Object.keys(errors).length > 0) {
  *   console.log('Validation failed:', errors)
+ * }
+ *
+ * @example
+ * // Conditional validations in model
+ * class User extends Model {
+ *   static validations = {
+ *     password: {
+ *       presence: { on: 'create' },  // Only required on create
+ *       length: { min: 8, on: 'create' }
+ *     },
+ *     email: {
+ *       presence: true,
+ *       uniqueness: { if: 'emailChanged' }  // Only check uniqueness if email changed
+ *     },
+ *     terms: {
+ *       acceptance: { on: 'create' }  // Must accept terms on signup
+ *     },
+ *     nickname: {
+ *       presence: { unless: (model) => model.attributes.use_email_as_name }
+ *     }
+ *   }
+ *
+ *   emailChanged() {
+ *     return this._changedAttributes.has('email')
+ *   }
  * }
  */
 export async function runValidations(model) {
   const errors = {}
   const validations = model.constructor.validations || {}
+
+  // Determine validation context (create vs update)
+  const isCreate = !model.persisted
+  const isUpdate = model.persisted
 
   for (const [field, rules] of Object.entries(validations)) {
     const value = model.attributes[field]
@@ -764,6 +848,36 @@ export async function runValidations(model) {
         const opts = normalizeOptions(options)
         opts._model = model
         opts._field = field
+
+        // Check 'on' condition (create/update)
+        if (opts.on) {
+          const onContext = Array.isArray(opts.on) ? opts.on : [opts.on]
+          const shouldRun = onContext.some(ctx => {
+            if (ctx === 'create') return isCreate
+            if (ctx === 'update') return isUpdate
+            return true // Unknown context, run validation
+          })
+
+          if (!shouldRun) {
+            continue // Skip this validation
+          }
+        }
+
+        // Check 'if' condition
+        if (opts.if !== undefined) {
+          const ifResult = await evaluateCondition(opts.if, model, value)
+          if (!ifResult) {
+            continue // Skip this validation
+          }
+        }
+
+        // Check 'unless' condition
+        if (opts.unless !== undefined) {
+          const unlessResult = await evaluateCondition(opts.unless, model, value)
+          if (unlessResult) {
+            continue // Skip this validation
+          }
+        }
 
         // Run validator (may be async)
         const error = await validator(value, opts)
@@ -780,6 +894,45 @@ export async function runValidations(model) {
   }
 
   return errors
+}
+
+/**
+ * Evaluate a conditional option (if/unless)
+ *
+ * Supports:
+ * - Function: (model, value) => boolean
+ * - String: method name on the model to call
+ * - Boolean: direct value
+ * - Any other value: truthy check
+ *
+ * @private
+ * @param {Function|string|any} condition - The condition to evaluate
+ * @param {Model} model - Model instance
+ * @param {any} value - Current field value
+ * @returns {Promise<boolean>} Result of condition evaluation
+ */
+async function evaluateCondition(condition, model, value) {
+  // Function condition
+  if (typeof condition === 'function') {
+    const result = condition(model, value)
+    // Handle async functions
+    return result instanceof Promise ? await result : result
+  }
+
+  // String method name
+  if (typeof condition === 'string') {
+    const method = model[condition]
+    if (typeof method === 'function') {
+      const result = method.call(model, value)
+      // Handle async methods
+      return result instanceof Promise ? await result : result
+    }
+    // If not a method, treat as attribute name (truthy check)
+    return Boolean(model.attributes[condition])
+  }
+
+  // Boolean or other value - just return truthy
+  return Boolean(condition)
 }
 
 /**

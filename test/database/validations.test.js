@@ -827,6 +827,564 @@ describe('getValidatorNames', () => {
   })
 })
 
+describe('Conditional validations - on: create/update', () => {
+  let mockConnection
+
+  class UserWithContextValidations extends Model {
+    static tableName = 'users'
+    static validations = {
+      password: {
+        presence: { on: 'create' },
+        length: { min: 8, on: 'create' }
+      },
+      terms: {
+        acceptance: { on: 'create' }
+      },
+      reason: {
+        presence: { on: 'update' },
+        length: { min: 5, on: 'update' }
+      },
+      email: {
+        presence: true  // Always required
+      }
+    }
+  }
+
+  beforeEach(() => {
+    mockConnection = new MockConnection()
+    setConnection(mockConnection)
+  })
+
+  afterEach(() => {
+    setConnection(null)
+  })
+
+  it('validates on: create rules for new record', async () => {
+    const user = new UserWithContextValidations({
+      email: 'test@example.com',
+      // Missing password and terms (required on create)
+      reason: null // Not required on create
+    })
+    user.persisted = false
+
+    const errors = await runValidations(user)
+
+    expect(errors.password).toBeDefined()
+    expect(errors.terms).toBeDefined()
+    expect(errors.reason).toBeUndefined() // Not required on create
+  })
+
+  it('skips on: create rules for existing record', async () => {
+    const user = new UserWithContextValidations({
+      email: 'test@example.com',
+      // No password (would fail on create, but this is update)
+      reason: 'Updating profile' // Required on update
+    })
+    user.persisted = true
+
+    const errors = await runValidations(user)
+
+    expect(errors.password).toBeUndefined() // Not required on update
+    expect(errors.terms).toBeUndefined() // Not required on update
+  })
+
+  it('validates on: update rules for existing record', async () => {
+    const user = new UserWithContextValidations({
+      email: 'test@example.com',
+      reason: 'hi' // Too short (min: 5)
+    })
+    user.persisted = true
+
+    const errors = await runValidations(user)
+
+    expect(errors.reason).toBeDefined()
+    expect(errors.reason[0]).toContain('at least 5')
+  })
+
+  it('skips on: update rules for new record', async () => {
+    const user = new UserWithContextValidations({
+      email: 'test@example.com',
+      password: 'securepassword123',
+      terms: true
+      // No reason (would fail on update, but this is create)
+    })
+    user.persisted = false
+
+    const errors = await runValidations(user)
+
+    expect(errors.reason).toBeUndefined() // Not required on create
+  })
+
+  it('validates rules without "on" option always', async () => {
+    // Test on create
+    const newUser = new UserWithContextValidations({
+      password: 'securepassword123',
+      terms: true
+      // Missing email
+    })
+    newUser.persisted = false
+
+    let errors = await runValidations(newUser)
+    expect(errors.email).toBeDefined()
+
+    // Test on update
+    const existingUser = new UserWithContextValidations({
+      reason: 'Good reason'
+      // Missing email
+    })
+    existingUser.persisted = true
+
+    errors = await runValidations(existingUser)
+    expect(errors.email).toBeDefined()
+  })
+
+  it('supports array of contexts [create, update]', async () => {
+    class ModelWithArrayContext extends Model {
+      static validations = {
+        name: {
+          presence: { on: ['create', 'update'] } // Always (same as no 'on')
+        }
+      }
+    }
+
+    // Test on create
+    const newModel = new ModelWithArrayContext({})
+    newModel.persisted = false
+    let errors = await runValidations(newModel)
+    expect(errors.name).toBeDefined()
+
+    // Test on update
+    const existingModel = new ModelWithArrayContext({})
+    existingModel.persisted = true
+    errors = await runValidations(existingModel)
+    expect(errors.name).toBeDefined()
+  })
+})
+
+describe('Conditional validations - if option', () => {
+  it('runs validation when if function returns true', async () => {
+    class ConditionalModel extends Model {
+      static validations = {
+        nickname: {
+          presence: { if: (model) => model.attributes.require_nickname }
+        }
+      }
+    }
+
+    const model = new ConditionalModel({
+      require_nickname: true
+      // nickname is missing
+    })
+
+    const errors = await runValidations(model)
+    expect(errors.nickname).toBeDefined()
+  })
+
+  it('skips validation when if function returns false', async () => {
+    class ConditionalModel extends Model {
+      static validations = {
+        nickname: {
+          presence: { if: (model) => model.attributes.require_nickname }
+        }
+      }
+    }
+
+    const model = new ConditionalModel({
+      require_nickname: false
+      // nickname is missing, but validation should be skipped
+    })
+
+    const errors = await runValidations(model)
+    expect(errors.nickname).toBeUndefined()
+  })
+
+  it('supports if as method name string', async () => {
+    class ConditionalModel extends Model {
+      static validations = {
+        phone: {
+          presence: { if: 'requiresPhone' }
+        }
+      }
+
+      requiresPhone() {
+        return this.attributes.contact_method === 'phone'
+      }
+    }
+
+    // Should validate
+    const modelWithPhone = new ConditionalModel({ contact_method: 'phone' })
+    let errors = await runValidations(modelWithPhone)
+    expect(errors.phone).toBeDefined()
+
+    // Should skip
+    const modelWithEmail = new ConditionalModel({ contact_method: 'email' })
+    errors = await runValidations(modelWithEmail)
+    expect(errors.phone).toBeUndefined()
+  })
+
+  it('supports if as attribute name (truthy check)', async () => {
+    class ConditionalModel extends Model {
+      static validations = {
+        company_name: {
+          presence: { if: 'is_business' }
+        }
+      }
+    }
+
+    // Should validate when is_business is truthy
+    const businessModel = new ConditionalModel({ is_business: true })
+    let errors = await runValidations(businessModel)
+    expect(errors.company_name).toBeDefined()
+
+    // Should skip when is_business is falsy
+    const personalModel = new ConditionalModel({ is_business: false })
+    errors = await runValidations(personalModel)
+    expect(errors.company_name).toBeUndefined()
+  })
+
+  it('supports async if functions', async () => {
+    class ConditionalModel extends Model {
+      static validations = {
+        code: {
+          presence: {
+            if: async (model) => {
+              await new Promise(r => setTimeout(r, 10))
+              return model.attributes.needs_verification
+            }
+          }
+        }
+      }
+    }
+
+    const model = new ConditionalModel({ needs_verification: true })
+    const errors = await runValidations(model)
+    expect(errors.code).toBeDefined()
+  })
+
+  it('passes value to if function', async () => {
+    let receivedValue = null
+
+    class ConditionalModel extends Model {
+      static validations = {
+        status: {
+          inclusion: {
+            in: ['active', 'inactive'],
+            if: (model, value) => {
+              receivedValue = value
+              return true
+            }
+          }
+        }
+      }
+    }
+
+    const model = new ConditionalModel({ status: 'pending' })
+    await runValidations(model)
+
+    expect(receivedValue).toBe('pending')
+  })
+})
+
+describe('Conditional validations - unless option', () => {
+  it('skips validation when unless function returns true', async () => {
+    class ConditionalModel extends Model {
+      static validations = {
+        password: {
+          presence: { unless: (model) => model.attributes.oauth_login }
+        }
+      }
+    }
+
+    const model = new ConditionalModel({
+      oauth_login: true
+      // password missing, but should be skipped due to oauth
+    })
+
+    const errors = await runValidations(model)
+    expect(errors.password).toBeUndefined()
+  })
+
+  it('runs validation when unless function returns false', async () => {
+    class ConditionalModel extends Model {
+      static validations = {
+        password: {
+          presence: { unless: (model) => model.attributes.oauth_login }
+        }
+      }
+    }
+
+    const model = new ConditionalModel({
+      oauth_login: false
+      // password missing
+    })
+
+    const errors = await runValidations(model)
+    expect(errors.password).toBeDefined()
+  })
+
+  it('supports unless as method name string', async () => {
+    class ConditionalModel extends Model {
+      static validations = {
+        address: {
+          presence: { unless: 'isDigitalProduct' }
+        }
+      }
+
+      isDigitalProduct() {
+        return this.attributes.product_type === 'digital'
+      }
+    }
+
+    // Should skip validation for digital products
+    const digitalModel = new ConditionalModel({ product_type: 'digital' })
+    let errors = await runValidations(digitalModel)
+    expect(errors.address).toBeUndefined()
+
+    // Should validate for physical products
+    const physicalModel = new ConditionalModel({ product_type: 'physical' })
+    errors = await runValidations(physicalModel)
+    expect(errors.address).toBeDefined()
+  })
+
+  it('supports unless as attribute name (truthy check)', async () => {
+    class ConditionalModel extends Model {
+      static validations = {
+        email: {
+          presence: { unless: 'use_phone_only' }
+        }
+      }
+    }
+
+    // Should skip when use_phone_only is truthy
+    const phoneOnlyModel = new ConditionalModel({ use_phone_only: true })
+    let errors = await runValidations(phoneOnlyModel)
+    expect(errors.email).toBeUndefined()
+
+    // Should validate when use_phone_only is falsy
+    const normalModel = new ConditionalModel({ use_phone_only: false })
+    errors = await runValidations(normalModel)
+    expect(errors.email).toBeDefined()
+  })
+
+  it('supports async unless functions', async () => {
+    class ConditionalModel extends Model {
+      static validations = {
+        captcha: {
+          presence: {
+            unless: async (model) => {
+              await new Promise(r => setTimeout(r, 10))
+              return model.attributes.is_trusted_user
+            }
+          }
+        }
+      }
+    }
+
+    // Should skip for trusted users
+    const trustedModel = new ConditionalModel({ is_trusted_user: true })
+    let errors = await runValidations(trustedModel)
+    expect(errors.captcha).toBeUndefined()
+
+    // Should validate for untrusted users
+    const untrustedModel = new ConditionalModel({ is_trusted_user: false })
+    errors = await runValidations(untrustedModel)
+    expect(errors.captcha).toBeDefined()
+  })
+})
+
+describe('Conditional validations - combined conditions', () => {
+  it('combines on and if conditions (both must pass)', async () => {
+    class ConditionalModel extends Model {
+      static validations = {
+        verification_code: {
+          presence: {
+            on: 'create',
+            if: (model) => model.attributes.needs_verification
+          }
+        }
+      }
+    }
+
+    // Create + needs_verification = should validate
+    const newVerifyModel = new ConditionalModel({ needs_verification: true })
+    newVerifyModel.persisted = false
+    let errors = await runValidations(newVerifyModel)
+    expect(errors.verification_code).toBeDefined()
+
+    // Create + no needs_verification = should skip (if fails)
+    const newNoVerifyModel = new ConditionalModel({ needs_verification: false })
+    newNoVerifyModel.persisted = false
+    errors = await runValidations(newNoVerifyModel)
+    expect(errors.verification_code).toBeUndefined()
+
+    // Update + needs_verification = should skip (on fails)
+    const existingVerifyModel = new ConditionalModel({ needs_verification: true })
+    existingVerifyModel.persisted = true
+    errors = await runValidations(existingVerifyModel)
+    expect(errors.verification_code).toBeUndefined()
+  })
+
+  it('combines on and unless conditions', async () => {
+    class ConditionalModel extends Model {
+      static validations = {
+        password: {
+          presence: {
+            on: 'create',
+            unless: (model) => model.attributes.oauth_provider
+          }
+        }
+      }
+    }
+
+    // Create + no oauth = should validate
+    const newNormalModel = new ConditionalModel({})
+    newNormalModel.persisted = false
+    let errors = await runValidations(newNormalModel)
+    expect(errors.password).toBeDefined()
+
+    // Create + oauth = should skip (unless passes, so skip)
+    const newOauthModel = new ConditionalModel({ oauth_provider: 'google' })
+    newOauthModel.persisted = false
+    errors = await runValidations(newOauthModel)
+    expect(errors.password).toBeUndefined()
+
+    // Update + no oauth = should skip (on fails)
+    const existingModel = new ConditionalModel({})
+    existingModel.persisted = true
+    errors = await runValidations(existingModel)
+    expect(errors.password).toBeUndefined()
+  })
+
+  it('combines if and unless conditions (both must pass)', async () => {
+    class ConditionalModel extends Model {
+      static validations = {
+        admin_code: {
+          presence: {
+            if: (model) => model.attributes.role === 'admin',
+            unless: (model) => model.attributes.super_admin
+          }
+        }
+      }
+    }
+
+    // admin + not super_admin = should validate
+    const adminModel = new ConditionalModel({ role: 'admin', super_admin: false })
+    let errors = await runValidations(adminModel)
+    expect(errors.admin_code).toBeDefined()
+
+    // admin + super_admin = should skip (unless kicks in)
+    const superAdminModel = new ConditionalModel({ role: 'admin', super_admin: true })
+    errors = await runValidations(superAdminModel)
+    expect(errors.admin_code).toBeUndefined()
+
+    // user + not super_admin = should skip (if fails)
+    const userModel = new ConditionalModel({ role: 'user', super_admin: false })
+    errors = await runValidations(userModel)
+    expect(errors.admin_code).toBeUndefined()
+  })
+})
+
+describe('Conditional validations - real world examples', () => {
+  it('password only required on create, confirmation only if password present', async () => {
+    class UserModel extends Model {
+      static validations = {
+        password: {
+          presence: { on: 'create' },
+          length: { min: 8, on: 'create' },
+          confirmation: { if: 'hasPassword' }
+        }
+      }
+
+      hasPassword() {
+        return Boolean(this.attributes.password)
+      }
+    }
+
+    // Create without password = error
+    const newUserNoPass = new UserModel({})
+    newUserNoPass.persisted = false
+    let errors = await runValidations(newUserNoPass)
+    expect(errors.password).toBeDefined()
+
+    // Create with short password = error
+    const newUserShortPass = new UserModel({ password: 'short' })
+    newUserShortPass.persisted = false
+    errors = await runValidations(newUserShortPass)
+    expect(errors.password).toBeDefined()
+
+    // Create with password but wrong confirmation = error
+    const newUserBadConfirm = new UserModel({
+      password: 'securepass123',
+      password_confirmation: 'different'
+    })
+    newUserBadConfirm.persisted = false
+    errors = await runValidations(newUserBadConfirm)
+    expect(errors.password).toBeDefined()
+    expect(errors.password[0]).toContain('confirmation')
+
+    // Create with valid password and confirmation = success
+    const newUserGood = new UserModel({
+      password: 'securepass123',
+      password_confirmation: 'securepass123'
+    })
+    newUserGood.persisted = false
+    errors = await runValidations(newUserGood)
+    expect(errors.password).toBeUndefined()
+
+    // Update without password = no error (not required on update)
+    const existingUser = new UserModel({})
+    existingUser.persisted = true
+    errors = await runValidations(existingUser)
+    expect(errors.password).toBeUndefined()
+  })
+
+  it('address validation for e-commerce orders', async () => {
+    class OrderModel extends Model {
+      static validations = {
+        shipping_address: {
+          presence: { unless: 'isDigitalOnly' }
+        },
+        billing_address: {
+          presence: { if: 'differentBillingAddress' }
+        }
+      }
+
+      isDigitalOnly() {
+        return this.attributes.items?.every(i => i.digital)
+      }
+
+      differentBillingAddress() {
+        return this.attributes.use_different_billing
+      }
+    }
+
+    // Physical product, no shipping address = error
+    const physicalOrder = new OrderModel({
+      items: [{ name: 'Book', digital: false }]
+    })
+    let errors = await runValidations(physicalOrder)
+    expect(errors.shipping_address).toBeDefined()
+    expect(errors.billing_address).toBeUndefined()
+
+    // Digital only, no shipping address = ok
+    const digitalOrder = new OrderModel({
+      items: [{ name: 'eBook', digital: true }]
+    })
+    errors = await runValidations(digitalOrder)
+    expect(errors.shipping_address).toBeUndefined()
+
+    // Different billing required but missing = error
+    const diffBillingOrder = new OrderModel({
+      items: [{ name: 'Book', digital: false }],
+      shipping_address: '123 Main St',
+      use_different_billing: true
+    })
+    errors = await runValidations(diffBillingOrder)
+    expect(errors.shipping_address).toBeUndefined()
+    expect(errors.billing_address).toBeDefined()
+  })
+})
+
 describe('Integration - Model with validations', () => {
   let mockConnection
 
