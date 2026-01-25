@@ -273,7 +273,7 @@ export class Connection {
       database,
       username,
       password,
-      ssl: ssl ? { rejectUnauthorized: false } : false,
+      ssl: ssl ? 'require' : false,
       max: pool.max,
       idle_timeout: pool.idleTimeout,
       connect_timeout: pool.connectTimeout,
@@ -484,8 +484,10 @@ export class Connection {
 
     const ifExists = options.ifExists !== false ? 'IF EXISTS' : ''
     const cascade = options.cascade ? 'CASCADE' : ''
+    const { PostgresAdapter } = await import('./adapters/postgres.js')
+    const adapter = new PostgresAdapter()
 
-    await this.query(`DROP TABLE ${ifExists} "${name}" ${cascade}`.trim())
+    await this.query(`DROP TABLE ${ifExists} ${adapter.quoteTableName(name)} ${cascade}`.trim())
   }
 
   /**
@@ -501,12 +503,14 @@ export class Connection {
       throw new ConnectionNotEstablishedError()
     }
 
-    let sql = `ALTER TABLE "${table}" ADD COLUMN "${column}" ${type}`
+    const { PostgresAdapter } = await import('./adapters/postgres.js')
+    const adapter = new PostgresAdapter()
+    let sql = `ALTER TABLE ${adapter.quoteTableName(table)} ADD COLUMN ${adapter.quoteIdentifier(column)} ${type}`
 
     if (options.notNull) sql += ' NOT NULL'
     if (options.default !== undefined) {
       const defaultVal = typeof options.default === 'string'
-        ? `'${options.default}'`
+        ? `'${options.default.replace(/'/g, "''")}'`
         : options.default
       sql += ` DEFAULT ${defaultVal}`
     }
@@ -526,7 +530,9 @@ export class Connection {
       throw new ConnectionNotEstablishedError()
     }
 
-    await this.query(`ALTER TABLE "${table}" DROP COLUMN "${column}"`)
+    const { PostgresAdapter } = await import('./adapters/postgres.js')
+    const adapter = new PostgresAdapter()
+    await this.query(`ALTER TABLE ${adapter.quoteTableName(table)} DROP COLUMN ${adapter.quoteIdentifier(column)}`)
   }
 
   /**
@@ -541,14 +547,17 @@ export class Connection {
       throw new ConnectionNotEstablishedError()
     }
 
+    const { PostgresAdapter } = await import('./adapters/postgres.js')
+    const adapter = new PostgresAdapter()
+
     const cols = Array.isArray(columns) ? columns : [columns]
     const indexName = options.name || `index_${table}_on_${cols.join('_')}`
 
     let sql = `CREATE`
     if (options.unique) sql += ' UNIQUE'
-    sql += ` INDEX "${indexName}" ON "${table}"`
+    sql += ` INDEX ${adapter.quoteIdentifier(indexName)} ON ${adapter.quoteTableName(table)}`
     if (options.using) sql += ` USING ${options.using}`
-    sql += ` (${cols.map(c => `"${c}"`).join(', ')})`
+    sql += ` (${cols.map(c => adapter.quoteIdentifier(c)).join(', ')})`
     if (options.where) sql += ` WHERE ${options.where}`
 
     await this.query(sql)
@@ -572,7 +581,9 @@ export class Connection {
       : indexName
 
     const ifExists = options.ifExists !== false ? 'IF EXISTS' : ''
-    await this.query(`DROP INDEX ${ifExists} "${name}"`)
+    const { PostgresAdapter } = await import('./adapters/postgres.js')
+    const adapter = new PostgresAdapter()
+    await this.query(`DROP INDEX ${ifExists} ${adapter.quoteIdentifier(name)}`)
   }
 
   /**

@@ -1113,9 +1113,8 @@ export class PostgresAdapter {
         }
       } else if (op === 'BETWEEN') {
         params.push(value[0], value[1])
-        clause = `${this.quoteIdentifier(column)} BETWEEN $${paramIndex++} AND $${paramIndex++}`
-        paramIndex-- // Adjust because we added 2
-        paramIndex++
+        clause = `${this.quoteIdentifier(column)} BETWEEN $${paramIndex} AND $${paramIndex + 1}`
+        paramIndex += 2
       } else if (op === 'LIKE' || op === 'ILIKE') {
         params.push(value)
         clause = `${this.quoteIdentifier(column)} ${op} $${paramIndex++}`
