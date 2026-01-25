@@ -362,6 +362,45 @@ export class QueryBuilder {
   }
 
   /**
+   * Apply a named scope to the query
+   *
+   * @param {string} name - Scope name defined in the model
+   * @param {...any} args - Arguments to pass to the scope function
+   * @returns {QueryBuilder}
+   *
+   * @example
+   * // Define scopes on your model
+   * class Post extends Model {
+   *   static scopes = {
+   *     published: (q) => q.where({ published: true }),
+   *     recent: (q, days = 7) => q.where({ created_at: { '>': new Date(Date.now() - days * 86400000) } }),
+   *     byAuthor: (q, authorId) => q.where({ author_id: authorId })
+   *   }
+   * }
+   *
+   * // Apply scopes in query chains
+   * const recentPublishedPosts = await Post.where({ category: 'tech' })
+   *   .scope('published')
+   *   .scope('recent', 14)
+   *   .order({ created_at: 'desc' })
+   *   .all()
+   *
+   * // Chain multiple scopes
+   * const posts = await Post.scope('published').scope('byAuthor', 1).all()
+   */
+  scope(name, ...args) {
+    const scopes = this.model.scopes || {}
+    const scopeFn = scopes[name]
+
+    if (!scopeFn) {
+      throw new Error(`Unknown scope: ${name}`)
+    }
+
+    // Apply the scope to a clone of this query builder
+    return scopeFn(this._clone(), ...args)
+  }
+
+  /**
    * Remove all conditions, returning unscoped query
    * @returns {QueryBuilder}
    */
