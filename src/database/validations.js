@@ -497,12 +497,18 @@ export const Validators = {
     }
 
     const ModelClass = _model.constructor
-    const tableName = ModelClass.getTableName()
     const primaryKey = ModelClass.primaryKey
+    const caseSensitive = opts.caseSensitive !== false // Default to true
 
     try {
       // Build query conditions
-      let query = ModelClass.where({ [_field]: value })
+      let query
+      if (caseSensitive) {
+        query = ModelClass.where({ [_field]: value })
+      } else {
+        // Case-insensitive comparison using LOWER()
+        query = ModelClass.where(`LOWER(${_field}) = LOWER(?)`, value)
+      }
 
       // Add scope conditions
       if (opts.scope) {
