@@ -289,9 +289,13 @@ export class Application {
 
       this.redis = new Redis(connectionConfig)
 
-      // Suppress unhandled error events during connection attempt
-      this.redis.on('error', () => {
-        // Silently handle - we'll catch in the try/catch
+      // Handle error events during connection attempt
+      this.redis.on('error', (error) => {
+        // Log errors in development for debugging
+        if (isDevelopment()) {
+          this.logger.debug(`Redis error event: ${error.message}`)
+        }
+        // Error is also handled in the try/catch below
       })
 
       // Try to connect with timeout
@@ -320,8 +324,10 @@ export class Application {
     const store = cacheConfig.store || 'memory'
 
     if (store === 'redis' && this.redis) {
-      this.cache = new Cache(new RedisStore(this.redis))
-      this.logger.debug('Cache initialized with Redis')
+      // RedisStore methods are not yet fully implemented (stub with TODOs)
+      // Fall back to MemoryStore until RedisStore is complete
+      this.cache = new Cache(new MemoryStore())
+      this.logger.warn('RedisStore not fully implemented, using MemoryStore as fallback')
     } else {
       this.cache = new Cache(new MemoryStore())
       this.logger.debug('Cache initialized with memory store')
