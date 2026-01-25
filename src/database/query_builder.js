@@ -600,7 +600,6 @@ export class QueryBuilder {
    */
   toSQL() {
     const tableName = this.model.tableName || this._getTableName()
-    const whereClause = this._buildWhereClause()
 
     return this._adapter.selectSQL({
       table: tableName,
