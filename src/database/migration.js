@@ -336,18 +336,17 @@ export class MigrationRunner {
       console.log(`Migrating: ${file}`)
 
       const migration = await import(`${this.migrationsPath}/${file}`)
-      const MigrationClass = migration.default || migration
+      const MigrationClass = migration.default
 
       // Support both class-based and function-based migrations
-      if (typeof MigrationClass === 'function') {
-        if (MigrationClass.prototype && MigrationClass.prototype.up) {
-          // Class-based migration
-          const instance = new MigrationClass(this.db)
-          await instance.up()
-        } else if (migration.up) {
-          // Function-based migration
-          await migration.up(this.db)
-        }
+      if (typeof MigrationClass === 'function' &&
+          MigrationClass.prototype && MigrationClass.prototype.up) {
+        // Class-based migration (export default class extends Migration)
+        const instance = new MigrationClass(this.db)
+        await instance.up()
+      } else if (typeof migration.up === 'function') {
+        // Function-based migration (export async function up(db))
+        await migration.up(this.db)
       }
 
       // Record migration
@@ -391,15 +390,16 @@ export class MigrationRunner {
       console.log(`Rolling back: ${file}`)
 
       const migration = await import(`${this.migrationsPath}/${file}`)
-      const MigrationClass = migration.default || migration
+      const MigrationClass = migration.default
 
-      if (typeof MigrationClass === 'function') {
-        if (MigrationClass.prototype && MigrationClass.prototype.down) {
-          const instance = new MigrationClass(this.db)
-          await instance.down()
-        } else if (migration.down) {
-          await migration.down(this.db)
-        }
+      if (typeof MigrationClass === 'function' &&
+          MigrationClass.prototype && MigrationClass.prototype.down) {
+        // Class-based migration (export default class extends Migration)
+        const instance = new MigrationClass(this.db)
+        await instance.down()
+      } else if (typeof migration.down === 'function') {
+        // Function-based migration (export async function down(db))
+        await migration.down(this.db)
       }
 
       // Remove from schema_migrations
