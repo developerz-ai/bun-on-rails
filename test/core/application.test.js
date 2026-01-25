@@ -213,7 +213,7 @@ describe('Application', () => {
     beforeEach(async () => {
       // Create a test app with a controller
       app = new Application({
-        config: { logging: { level: 'error' } }
+        config: { logging: { level: 'error' }, security: { csrf: false } }
       })
 
       await app.initialize()
