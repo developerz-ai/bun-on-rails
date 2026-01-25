@@ -2,7 +2,7 @@
  * Base Model class - Active Record style ORM
  *
  * Provides Rails-like Active Record pattern for database interactions
- * with support for associations, validations, and query building.
+ * with support for associations, validations, query building, and callbacks.
  *
  * @module @bun-on-rails/database/model
  */
@@ -15,6 +15,18 @@ import { runValidations } from './validations.js'
 
 // Re-export for convenience
 export { RecordNotFoundError }
+
+/**
+ * Custom error for callback halt
+ * Thrown when a callback returns false to halt the chain
+ */
+export class CallbackHaltError extends Error {
+  constructor(callbackName) {
+    super(`Callback chain halted by ${callbackName}`)
+    this.name = 'CallbackHaltError'
+    this.callbackName = callbackName
+  }
+}
 
 /**
  * Base Model class for Active Record pattern
@@ -72,6 +84,61 @@ export class Model {
    * @type {Object}
    */
   static scopes = {}
+
+  /**
+   * Callback definitions for lifecycle events
+   *
+   * Define callbacks declaratively using this static property.
+   * Each callback type can have multiple handlers.
+   *
+   * @type {Object}
+   * @property {Array} beforeSave - Called before any save (create or update)
+   * @property {Array} afterSave - Called after any save (create or update)
+   * @property {Array} beforeCreate - Called before creating a new record
+   * @property {Array} afterCreate - Called after creating a new record
+   * @property {Array} beforeUpdate - Called before updating an existing record
+   * @property {Array} afterUpdate - Called after updating an existing record
+   * @property {Array} beforeDestroy - Called before deleting a record
+   * @property {Array} afterDestroy - Called after deleting a record
+   * @property {Array} beforeValidation - Called before running validations
+   * @property {Array} afterValidation - Called after running validations
+   *
+   * @example
+   * class User extends Model {
+   *   static callbacks = {
+   *     beforeSave: ['normalizeEmail', 'setDefaults'],
+   *     afterCreate: ['sendWelcomeEmail'],
+   *     beforeDestroy: [{ method: 'checkCanDelete', if: 'hasNoDependents' }]
+   *   }
+   *
+   *   normalizeEmail() {
+   *     if (this.attributes.email) {
+   *       this.attributes.email = this.attributes.email.toLowerCase().trim()
+   *     }
+   *   }
+   *
+   *   setDefaults() {
+   *     if (!this.attributes.role) {
+   *       this.attributes.role = 'user'
+   *     }
+   *   }
+   *
+   *   async sendWelcomeEmail() {
+   *     // Send welcome email...
+   *   }
+   *
+   *   checkCanDelete() {
+   *     if (this.attributes.posts_count > 0) {
+   *       return false  // Halt the callback chain
+   *     }
+   *   }
+   *
+   *   hasNoDependents() {
+   *     return this.attributes.posts_count === 0
+   *   }
+   * }
+   */
+  static callbacks = {}
 
   /**
    * Track whether scopes have been initialized as methods
@@ -583,7 +650,14 @@ export class Model {
   /**
    * Save the current record (insert or update)
    *
-   * @returns {Promise<boolean>} True if saved successfully
+   * Runs the following callbacks in order:
+   * - For new records: beforeSave → beforeCreate → (insert) → afterCreate → afterSave
+   * - For existing records: beforeSave → beforeUpdate → (update) → afterUpdate → afterSave
+   *
+   * If any "before" callback returns `false`, the save operation is halted.
+   *
+   * @returns {Promise<boolean>} True if saved successfully, false if validation fails,
+   *                             callbacks halt, or database error occurs
    *
    * @example
    * const user = new User({ name: 'John' })
@@ -603,12 +677,17 @@ export class Model {
     const tableName = this.constructor.tableName || tableize(this.constructor.name)
 
     try {
-      // Run callbacks
-      await this.beforeSave()
+      // Run beforeSave callbacks - halt if returns false
+      if ((await this._runCallbacks('beforeSave')) === false) {
+        return false
+      }
 
       if (this.persisted) {
         // Update existing record
-        await this.beforeUpdate()
+        // Run beforeUpdate callbacks - halt if returns false
+        if ((await this._runCallbacks('beforeUpdate')) === false) {
+          return false
+        }
 
         const data = { ...this.attributes }
         delete data[this.constructor.primaryKey]
@@ -630,10 +709,14 @@ export class Model {
           this.attributes = { ...result[0] }
         }
 
-        await this.afterUpdate()
+        // Run afterUpdate callbacks
+        await this._runCallbacks('afterUpdate')
       } else {
         // Insert new record
-        await this.beforeCreate()
+        // Run beforeCreate callbacks - halt if returns false
+        if ((await this._runCallbacks('beforeCreate')) === false) {
+          return false
+        }
 
         const data = { ...this.attributes }
 
@@ -659,13 +742,16 @@ export class Model {
         }
 
         this.persisted = true
-        await this.afterCreate()
+
+        // Run afterCreate callbacks
+        await this._runCallbacks('afterCreate')
       }
 
       this._originalAttributes = { ...this.attributes }
       this._changedAttributes.clear()
 
-      await this.afterSave()
+      // Run afterSave callbacks
+      await this._runCallbacks('afterSave')
       return true
     } catch (error) {
       this.errors.base = error.message
@@ -720,7 +806,13 @@ export class Model {
   /**
    * Delete the record from database
    *
-   * @returns {Promise<boolean>}
+   * Runs the following callbacks in order:
+   * - beforeDestroy → (delete) → afterDestroy
+   *
+   * If beforeDestroy returns `false`, the destroy operation is halted.
+   *
+   * @returns {Promise<boolean>} True if destroyed successfully, false if not persisted,
+   *                             callbacks halt, or database error occurs
    *
    * @example
    * await user.destroy()
@@ -735,7 +827,10 @@ export class Model {
     const tableName = this.constructor.tableName || tableize(this.constructor.name)
 
     try {
-      await this.beforeDestroy()
+      // Run beforeDestroy callbacks - halt if returns false
+      if ((await this._runCallbacks('beforeDestroy')) === false) {
+        return false
+      }
 
       const { sql, params } = adapter.deleteSQL(
         tableName,
@@ -745,7 +840,9 @@ export class Model {
       await connection.query(sql, params)
 
       this.persisted = false
-      await this.afterDestroy()
+
+      // Run afterDestroy callbacks
+      await this._runCallbacks('afterDestroy')
 
       return true
     } catch (error) {
@@ -803,8 +900,10 @@ export class Model {
     // Clear previous errors
     this.errors = {}
 
-    // Run beforeValidation callback
-    await this.beforeValidation()
+    // Run beforeValidation callbacks
+    // Note: beforeValidation returning false does NOT halt validation,
+    // it just means the callback executed. To halt save, use beforeSave.
+    await this._runCallbacks('beforeValidation')
 
     // Run all validations using the comprehensive validation system
     const validationErrors = await runValidations(this)
@@ -823,8 +922,8 @@ export class Model {
       }
     }
 
-    // Run afterValidation callback
-    await this.afterValidation()
+    // Run afterValidation callbacks
+    await this._runCallbacks('afterValidation')
 
     return Object.keys(this.errors).length === 0
   }
@@ -1051,8 +1150,161 @@ export class Model {
   // ============================================
 
   /**
+   * Run all callbacks for a given lifecycle event
+   *
+   * This method handles both:
+   * 1. Method override callbacks (instance methods like beforeSave())
+   * 2. Declarative callbacks (defined in static callbacks property)
+   *
+   * Callbacks are run in order. If any callback returns `false` explicitly,
+   * the callback chain is halted and the method returns `false`.
+   *
+   * @private
+   * @param {string} callbackType - The callback type (e.g., 'beforeSave', 'afterCreate')
+   * @returns {Promise<boolean>} - True if all callbacks passed, false if halted
+   *
+   * @example
+   * // In save() method
+   * if (!await this._runCallbacks('beforeSave')) {
+   *   return false  // Callback halted the operation
+   * }
+   */
+  async _runCallbacks(callbackType) {
+    // 1. Run the instance method callback (e.g., this.beforeSave())
+    // This preserves backwards compatibility with method overrides
+    const instanceMethod = this[callbackType]
+    if (typeof instanceMethod === 'function' && instanceMethod !== Model.prototype[callbackType]) {
+      const result = await instanceMethod.call(this)
+      if (result === false) {
+        return false
+      }
+    }
+
+    // 2. Run declarative callbacks from static callbacks property
+    const callbacks = this.constructor.callbacks[callbackType]
+    if (!callbacks || !Array.isArray(callbacks)) {
+      return true
+    }
+
+    for (const callback of callbacks) {
+      const result = await this._runSingleCallback(callback, callbackType)
+      if (result === false) {
+        return false
+      }
+    }
+
+    return true
+  }
+
+  /**
+   * Run a single callback handler
+   *
+   * Supports multiple callback formats:
+   * - String: method name to call on the instance
+   * - Function: inline function to execute
+   * - Object: { method: 'methodName', if: 'condition', unless: 'condition' }
+   *
+   * @private
+   * @param {string|Function|Object} callback - The callback definition
+   * @param {string} callbackType - The callback type for error messages
+   * @returns {Promise<boolean|undefined>} - Returns false to halt, undefined/true to continue
+   */
+  async _runSingleCallback(callback, callbackType) {
+    // Handle string callback (method name)
+    if (typeof callback === 'string') {
+      const method = this[callback]
+      if (typeof method !== 'function') {
+        throw new Error(`Callback method '${callback}' not found on ${this.constructor.name}`)
+      }
+      return await method.call(this)
+    }
+
+    // Handle function callback (inline)
+    if (typeof callback === 'function') {
+      return await callback.call(this)
+    }
+
+    // Handle object callback with conditions
+    if (typeof callback === 'object' && callback !== null) {
+      const { method, if: ifCondition, unless: unlessCondition } = callback
+
+      // Check 'if' condition
+      if (ifCondition !== undefined) {
+        const shouldRun = await this._evaluateCondition(ifCondition)
+        if (!shouldRun) {
+          return undefined  // Skip this callback, don't halt
+        }
+      }
+
+      // Check 'unless' condition
+      if (unlessCondition !== undefined) {
+        const shouldSkip = await this._evaluateCondition(unlessCondition)
+        if (shouldSkip) {
+          return undefined  // Skip this callback, don't halt
+        }
+      }
+
+      // Run the callback method
+      if (typeof method === 'string') {
+        const methodFn = this[method]
+        if (typeof methodFn !== 'function') {
+          throw new Error(`Callback method '${method}' not found on ${this.constructor.name}`)
+        }
+        return await methodFn.call(this)
+      }
+
+      if (typeof method === 'function') {
+        return await method.call(this)
+      }
+
+      throw new Error(`Invalid callback definition in ${callbackType}: method must be a string or function`)
+    }
+
+    throw new Error(`Invalid callback type in ${callbackType}: expected string, function, or object`)
+  }
+
+  /**
+   * Evaluate a callback condition
+   *
+   * Conditions can be:
+   * - String: method name that returns boolean
+   * - Function: inline function that returns boolean
+   * - Boolean: literal value
+   *
+   * @private
+   * @param {string|Function|boolean} condition - The condition to evaluate
+   * @returns {Promise<boolean>}
+   */
+  async _evaluateCondition(condition) {
+    if (typeof condition === 'boolean') {
+      return condition
+    }
+
+    if (typeof condition === 'string') {
+      const method = this[condition]
+      if (typeof method !== 'function') {
+        throw new Error(`Condition method '${condition}' not found on ${this.constructor.name}`)
+      }
+      const result = await method.call(this)
+      return Boolean(result)
+    }
+
+    if (typeof condition === 'function') {
+      const result = await condition.call(this)
+      return Boolean(result)
+    }
+
+    return Boolean(condition)
+  }
+
+  /**
    * Called before validation runs
    * Override in subclasses to modify attributes or add errors before validation
+   *
+   * Can also be defined declaratively in static callbacks:
+   * static callbacks = { beforeValidation: ['normalizeEmail'] }
+   *
+   * @returns {Promise<void|false>} Return false to halt validation
    *
    * @example
    * class User extends Model {
@@ -1070,6 +1322,11 @@ export class Model {
    * Called after validation runs
    * Override in subclasses to modify errors or perform post-validation logic
    *
+   * Can also be defined declaratively in static callbacks:
+   * static callbacks = { afterValidation: ['checkPasswordStrength'] }
+   *
+   * @returns {Promise<void>}
+   *
    * @example
    * class User extends Model {
    *   async afterValidation() {
@@ -1082,13 +1339,168 @@ export class Model {
    */
   async afterValidation() {}
 
+  /**
+   * Called before any save (create or update)
+   *
+   * Can also be defined declaratively in static callbacks:
+   * static callbacks = { beforeSave: ['setDefaults', 'updateTimestamp'] }
+   *
+   * @returns {Promise<void|false>} Return false to halt the save operation
+   *
+   * @example
+   * class Post extends Model {
+   *   async beforeSave() {
+   *     // Generate slug from title
+   *     if (this.attributes.title) {
+   *       this.attributes.slug = this.attributes.title
+   *         .toLowerCase()
+   *         .replace(/[^a-z0-9]+/g, '-')
+   *     }
+   *   }
+   * }
+   */
   async beforeSave() {}
+
+  /**
+   * Called after any save (create or update)
+   *
+   * Can also be defined declaratively in static callbacks:
+   * static callbacks = { afterSave: ['clearCache', 'notifySubscribers'] }
+   *
+   * @returns {Promise<void>}
+   *
+   * @example
+   * class Post extends Model {
+   *   async afterSave() {
+   *     // Invalidate cache
+   *     await Cache.delete(`post:${this.id}`)
+   *   }
+   * }
+   */
   async afterSave() {}
+
+  /**
+   * Called before creating a new record
+   *
+   * Can also be defined declaratively in static callbacks:
+   * static callbacks = { beforeCreate: ['generateUuid', 'setCreatedBy'] }
+   *
+   * @returns {Promise<void|false>} Return false to halt the create operation
+   *
+   * @example
+   * class User extends Model {
+   *   async beforeCreate() {
+   *     // Generate UUID
+   *     if (!this.attributes.uuid) {
+   *       this.attributes.uuid = crypto.randomUUID()
+   *     }
+   *   }
+   * }
+   */
   async beforeCreate() {}
+
+  /**
+   * Called after creating a new record
+   *
+   * Can also be defined declaratively in static callbacks:
+   * static callbacks = { afterCreate: ['sendWelcomeEmail', 'logActivity'] }
+   *
+   * @returns {Promise<void>}
+   *
+   * @example
+   * class User extends Model {
+   *   async afterCreate() {
+   *     // Send welcome email
+   *     await WelcomeEmailJob.performLater({ userId: this.id })
+   *   }
+   * }
+   */
   async afterCreate() {}
+
+  /**
+   * Called before updating an existing record
+   *
+   * Can also be defined declaratively in static callbacks:
+   * static callbacks = { beforeUpdate: ['trackChanges', 'validateTransition'] }
+   *
+   * @returns {Promise<void|false>} Return false to halt the update operation
+   *
+   * @example
+   * class Order extends Model {
+   *   async beforeUpdate() {
+   *     // Prevent status downgrade
+   *     if (this._originalAttributes.status === 'shipped' &&
+   *         this.attributes.status === 'pending') {
+   *       this.errors.status = 'cannot downgrade from shipped'
+   *       return false
+   *     }
+   *   }
+   * }
+   */
   async beforeUpdate() {}
+
+  /**
+   * Called after updating an existing record
+   *
+   * Can also be defined declaratively in static callbacks:
+   * static callbacks = { afterUpdate: ['notifyChanges', 'syncExternalSystem'] }
+   *
+   * @returns {Promise<void>}
+   *
+   * @example
+   * class User extends Model {
+   *   async afterUpdate() {
+   *     // Log profile changes
+   *     if (this._changedAttributes.has('email')) {
+   *       await AuditLog.create({
+   *         user_id: this.id,
+   *         action: 'email_changed',
+   *         old_value: this._originalAttributes.email,
+   *         new_value: this.attributes.email
+   *       })
+   *     }
+   *   }
+   * }
+   */
   async afterUpdate() {}
+
+  /**
+   * Called before deleting a record
+   *
+   * Can also be defined declaratively in static callbacks:
+   * static callbacks = { beforeDestroy: ['checkDependencies', 'archiveData'] }
+   *
+   * @returns {Promise<void|false>} Return false to halt the destroy operation
+   *
+   * @example
+   * class User extends Model {
+   *   async beforeDestroy() {
+   *     // Prevent deletion if user has posts
+   *     if (this.attributes.posts_count > 0) {
+   *       this.errors.base = 'Cannot delete user with posts'
+   *       return false
+   *     }
+   *   }
+   * }
+   */
   async beforeDestroy() {}
+
+  /**
+   * Called after deleting a record
+   *
+   * Can also be defined declaratively in static callbacks:
+   * static callbacks = { afterDestroy: ['cleanupFiles', 'notifyAdmin'] }
+   *
+   * @returns {Promise<void>}
+   *
+   * @example
+   * class User extends Model {
+   *   async afterDestroy() {
+   *     // Clean up user's files
+   *     await Storage.deleteAll(`users/${this.id}/`)
+   *   }
+   * }
+   */
   async afterDestroy() {}
 
   // ============================================
