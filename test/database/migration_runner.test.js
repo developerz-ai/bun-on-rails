@@ -602,6 +602,218 @@ describe('MigrationRunner', () => {
         console.log = originalLog
       }
     })
+
+    test('supports class-based migrations with down method', async () => {
+      tmpDir = await createTestMigrations([
+        {
+          filename: '20250101_class_migration.js',
+          content: `
+            export default class CreateTodos {
+              constructor(db) {
+                this.db = db
+              }
+
+              async up() {
+                await this.db.query('CREATE TABLE todos')
+              }
+
+              async down() {
+                await this.db.query('DROP TABLE todos CASCADE')
+              }
+            }
+          `
+        }
+      ])
+
+      const db = createMockDb({
+        mockData: {
+          completedVersionsDesc: [{ version: '20250101' }]
+        }
+      })
+      const runner = new MigrationRunner(db, tmpDir)
+
+      const rolledBack = await runner.rollback()
+
+      expect(rolledBack).toEqual(['20250101'])
+
+      // Should have executed the class down() method
+      const dropQueries = db.executedQueries.filter(q =>
+        q.sql.includes('DROP TABLE todos')
+      )
+      expect(dropQueries.length).toBe(1)
+    })
+
+    test('rollback deletes version from schema_migrations after successful down', async () => {
+      tmpDir = await createTestMigrations([
+        {
+          filename: '20250101_test.js',
+          content: `
+            export async function up(db) {}
+            export async function down(db) {
+              await db.query('CLEANUP OPERATION')
+            }
+          `
+        }
+      ])
+
+      const db = createMockDb({
+        mockData: {
+          completedVersionsDesc: [{ version: '20250101' }]
+        }
+      })
+      const runner = new MigrationRunner(db, tmpDir)
+
+      await runner.rollback()
+
+      // Find the delete query and cleanup query indices
+      const cleanupIndex = db.executedQueries.findIndex(q =>
+        q.sql.includes('CLEANUP OPERATION')
+      )
+      const deleteIndex = db.executedQueries.findIndex(q =>
+        q.sql.includes('DELETE FROM schema_migrations')
+      )
+
+      // Delete should happen AFTER cleanup
+      expect(deleteIndex).toBeGreaterThan(cleanupIndex)
+    })
+
+    test('handles migration with no down method gracefully', async () => {
+      tmpDir = await createTestMigrations([
+        {
+          filename: '20250101_no_down.js',
+          content: `
+            export async function up(db) {
+              await db.query('CREATE TABLE temp')
+            }
+            // No down function defined
+          `
+        }
+      ])
+
+      const db = createMockDb({
+        mockData: {
+          completedVersionsDesc: [{ version: '20250101' }]
+        }
+      })
+      const runner = new MigrationRunner(db, tmpDir)
+
+      // Should not throw, just skip the down execution but still remove from tracking
+      const rolledBack = await runner.rollback()
+
+      expect(rolledBack).toEqual(['20250101'])
+
+      // Should still delete from schema_migrations
+      const deleteQueries = db.executedQueries.filter(q =>
+        q.sql.includes('DELETE FROM schema_migrations')
+      )
+      expect(deleteQueries.length).toBe(1)
+    })
+
+    test('rollback respects steps=0 (no rollback)', async () => {
+      tmpDir = await createTestMigrations([
+        {
+          filename: '20250101_test.js',
+          content: `
+            export async function up(db) {}
+            export async function down(db) {
+              await db.query('SHOULD NOT RUN')
+            }
+          `
+        }
+      ])
+
+      const db = createMockDb({
+        mockData: {
+          completedVersionsDesc: []  // No results for LIMIT 0
+        },
+        onQuery: (sql, params) => {
+          if (sql.includes('LIMIT') && params[0] === 0) {
+            return []  // 0 rows for LIMIT 0
+          }
+          return []
+        }
+      })
+      const runner = new MigrationRunner(db, tmpDir)
+
+      const rolledBack = await runner.rollback(0)
+
+      expect(rolledBack).toEqual([])
+
+      // Should NOT have run any down migration
+      const shouldNotRunQueries = db.executedQueries.filter(q =>
+        q.sql.includes('SHOULD NOT RUN')
+      )
+      expect(shouldNotRunQueries.length).toBe(0)
+    })
+
+    test('rollback with steps=3 rolls back exactly 3 migrations', async () => {
+      tmpDir = await createTestMigrations([
+        {
+          filename: '20250101_first.js',
+          content: `
+            export async function up(db) {}
+            export async function down(db) {
+              await db.query('ROLLBACK FIRST')
+            }
+          `
+        },
+        {
+          filename: '20250102_second.js',
+          content: `
+            export async function up(db) {}
+            export async function down(db) {
+              await db.query('ROLLBACK SECOND')
+            }
+          `
+        },
+        {
+          filename: '20250103_third.js',
+          content: `
+            export async function up(db) {}
+            export async function down(db) {
+              await db.query('ROLLBACK THIRD')
+            }
+          `
+        },
+        {
+          filename: '20250104_fourth.js',
+          content: `
+            export async function up(db) {}
+            export async function down(db) {
+              await db.query('ROLLBACK FOURTH')
+            }
+          `
+        }
+      ])
+
+      const db = createMockDb({
+        mockData: {
+          completedVersionsDesc: [
+            { version: '20250104' },
+            { version: '20250103' },
+            { version: '20250102' }
+          ]  // Only return 3 for LIMIT 3
+        }
+      })
+      const runner = new MigrationRunner(db, tmpDir)
+
+      const rolledBack = await runner.rollback(3)
+
+      // Should rollback exactly 3 migrations in reverse order
+      expect(rolledBack).toEqual(['20250104', '20250103', '20250102'])
+
+      // Check that rollback queries were executed
+      const rollbackQueries = db.executedQueries.filter(q =>
+        q.sql.includes('ROLLBACK')
+      )
+      expect(rollbackQueries.length).toBe(3)
+
+      // First should NOT be rolled back (only 3 were requested)
+      const firstRolledBack = db.executedQueries.filter(q =>
+        q.sql.includes('ROLLBACK FIRST')
+      )
+      expect(firstRolledBack.length).toBe(0)
+    })
   })
 
   // ============================================
