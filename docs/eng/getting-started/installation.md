@@ -58,7 +58,7 @@ sudo apt install docker.io docker-compose
 Install the BunOnRails CLI globally:
 
 ```bash
-bun add -g @bun-on-rails/framework
+bun add -g @bun-on-rails
 ```
 
 Verify installation:

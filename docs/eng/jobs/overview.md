@@ -25,7 +25,7 @@ brails g job SendWelcomeEmail
 
 ```javascript
 // app/jobs/send_welcome_email_job.js
-import { Job } from '@bun-on-rails/framework'
+import { Job } from '@bun-on-rails'
 import UserMailer from '../mailers/user_mailer.js'
 
 export default class SendWelcomeEmailJob extends Job {

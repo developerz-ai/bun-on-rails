@@ -59,7 +59,7 @@ jobs:
 
             ## Installation
             ```bash
-            bun add @bun-on-rails/framework
+            bun add @bun-on-rails
             ```
           draft: false
           prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}

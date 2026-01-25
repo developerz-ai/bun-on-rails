@@ -21,6 +21,8 @@ export default [
         Bun: 'readonly',
         __dirname: 'readonly',
         __filename: 'readonly',
+        crypto: 'readonly',
+        performance: 'readonly',
       },
     },
     rules: {
