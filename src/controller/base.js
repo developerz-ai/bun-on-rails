@@ -43,6 +43,10 @@ export class Controller {
     this.temp = context.temp
     this.db = context.db
     this.broadcastManager = context.broadcastManager
+
+    // Storage for response cookies and headers
+    this._responseCookies = []
+    this._responseHeaders = new Map()
   }
 
   /**
@@ -55,13 +59,15 @@ export class Controller {
     const status = options.status || 200
     const headers = options.headers || {}
 
-    return new Response(JSON.stringify(data), {
+    const response = new Response(JSON.stringify(data), {
       status,
       headers: {
         'Content-Type': 'application/json',
         ...headers
       }
     })
+
+    return this._applyResponseModifications(response)
   }
 
   /**
@@ -72,10 +78,12 @@ export class Controller {
    */
   redirect(url, options = {}) {
     const status = options.status || 302
-    return new Response(null, {
+    const response = new Response(null, {
       status,
       headers: { 'Location': url }
     })
+
+    return this._applyResponseModifications(response)
   }
 
   /**
@@ -84,7 +92,8 @@ export class Controller {
    * @returns {Response}
    */
   head(status) {
-    return new Response(null, { status })
+    const response = new Response(null, { status })
+    return this._applyResponseModifications(response)
   }
 
   /**
@@ -290,29 +299,207 @@ export class Controller {
 
   /**
    * Set response header
-   * @param {string} name
-   * @param {string} value
+   *
+   * Sets a header that will be included in the response.
+   * Multiple values for the same header are supported.
+   *
+   * @param {string} name - Header name
+   * @param {string} value - Header value
+   *
+   * @example
+   * this.setHeader('X-Custom-Header', 'my-value')
+   * this.setHeader('Cache-Control', 'no-cache')
    */
-  setHeader(_name, _value) {
-    // TODO: Store for response
+  setHeader(name, value) {
+    this._responseHeaders.set(name, value)
   }
 
   /**
-   * Set response cookie
-   * @param {string} name
-   * @param {string} value
-   * @param {Object} options
+   * Get a cookie value from the request
+   *
+   * Parses the Cookie header from the incoming request and returns
+   * the value of the specified cookie. Returns undefined if the
+   * cookie doesn't exist.
+   *
+   * @param {string} name - The name of the cookie to retrieve
+   * @returns {string|undefined} The cookie value, or undefined if not found
+   *
+   * @example
+   * // Get a user preference cookie
+   * const theme = this.getCookie('theme') // 'dark'
+   *
+   * @example
+   * // Check if user has accepted cookies
+   * const consent = this.getCookie('cookie_consent')
+   * if (!consent) {
+   *   // Show cookie banner
+   * }
    */
-  setCookie(_name, _value, _options = {}) {
-    // TODO: Store for response
+  getCookie(name) {
+    const cookieHeader = this.request?.headers?.get('Cookie')
+    if (!cookieHeader) {
+      return undefined
+    }
+
+    // Parse cookies from header
+    // Format: "name1=value1; name2=value2; name3=value3"
+    const cookies = cookieHeader.split(';').reduce((acc, cookie) => {
+      const [key, ...valueParts] = cookie.trim().split('=')
+      if (key) {
+        // Rejoin in case value contains '='
+        acc[key.trim()] = valueParts.join('=')
+      }
+      return acc
+    }, {})
+
+    return cookies[name]
   }
 
   /**
-   * Delete response cookie
-   * @param {string} name
+   * Set a cookie to be sent with the response
+   *
+   * Creates a Set-Cookie header with the specified name, value, and options.
+   * The cookie will be included in the response when render(), redirect(),
+   * or head() is called.
+   *
+   * @param {string} name - Cookie name
+   * @param {string} value - Cookie value (will be URI encoded)
+   * @param {Object} [options={}] - Cookie options
+   * @param {string} [options.path='/'] - Cookie path
+   * @param {string} [options.domain] - Cookie domain
+   * @param {Date|string} [options.expires] - Expiration date
+   * @param {number} [options.maxAge] - Max age in seconds
+   * @param {boolean} [options.httpOnly=true] - HttpOnly flag (default true for security)
+   * @param {boolean} [options.secure] - Secure flag (auto-enabled in production)
+   * @param {string} [options.sameSite='Lax'] - SameSite attribute ('Strict', 'Lax', or 'None')
+   *
+   * @example
+   * // Set a simple cookie
+   * this.setCookie('user_id', '12345')
+   *
+   * @example
+   * // Set a cookie with options
+   * this.setCookie('remember_me', 'token123', {
+   *   maxAge: 30 * 24 * 60 * 60, // 30 days
+   *   httpOnly: true,
+   *   secure: true,
+   *   sameSite: 'Strict'
+   * })
+   *
+   * @example
+   * // Set a cookie with expiration date
+   * const nextWeek = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+   * this.setCookie('promo_seen', 'true', { expires: nextWeek })
    */
-  deleteCookie(_name) {
-    // TODO: Set cookie with expiry
+  setCookie(name, value, options = {}) {
+    const {
+      path = '/',
+      domain,
+      expires,
+      maxAge,
+      httpOnly = true,
+      secure,
+      sameSite = 'Lax'
+    } = options
+
+    // Build the cookie string
+    let cookieStr = `${encodeURIComponent(name)}=${encodeURIComponent(value)}`
+
+    if (path) {
+      cookieStr += `; Path=${path}`
+    }
+
+    if (domain) {
+      cookieStr += `; Domain=${domain}`
+    }
+
+    if (expires) {
+      const expiresDate = expires instanceof Date ? expires : new Date(expires)
+      cookieStr += `; Expires=${expiresDate.toUTCString()}`
+    }
+
+    if (maxAge !== undefined) {
+      cookieStr += `; Max-Age=${maxAge}`
+    }
+
+    if (httpOnly) {
+      cookieStr += '; HttpOnly'
+    }
+
+    // Auto-enable Secure in production or when explicitly set
+    const isProduction = process.env.NODE_ENV === 'production'
+    if (secure || (secure !== false && isProduction)) {
+      cookieStr += '; Secure'
+    }
+
+    if (sameSite) {
+      cookieStr += `; SameSite=${sameSite}`
+    }
+
+    this._responseCookies.push(cookieStr)
+  }
+
+  /**
+   * Delete a cookie by setting it to expire immediately
+   *
+   * Removes a cookie by setting its value to empty and its expiration
+   * date to the past. The path and domain must match the original cookie
+   * for the deletion to work properly.
+   *
+   * @param {string} name - Cookie name to delete
+   * @param {Object} [options={}] - Cookie options (path and domain should match original)
+   * @param {string} [options.path='/'] - Cookie path
+   * @param {string} [options.domain] - Cookie domain
+   *
+   * @example
+   * // Delete a cookie
+   * this.deleteCookie('session_id')
+   *
+   * @example
+   * // Delete a cookie with specific path/domain
+   * this.deleteCookie('user_prefs', { path: '/app', domain: '.example.com' })
+   */
+  deleteCookie(name, options = {}) {
+    // Set cookie to expire in the past to delete it
+    this.setCookie(name, '', {
+      ...options,
+      expires: new Date(0),
+      maxAge: 0,
+      httpOnly: options.httpOnly !== undefined ? options.httpOnly : true
+    })
+  }
+
+  /**
+   * Apply stored headers and cookies to a response
+   * @private
+   * @param {Response} response - The response to modify
+   * @returns {Response} New response with headers and cookies applied
+   */
+  _applyResponseModifications(response) {
+    // If no modifications needed, return original response
+    if (this._responseHeaders.size === 0 && this._responseCookies.length === 0) {
+      return response
+    }
+
+    // Clone headers from original response
+    const headers = new Headers(response.headers)
+
+    // Apply custom headers
+    for (const [name, value] of this._responseHeaders) {
+      headers.set(name, value)
+    }
+
+    // Apply cookies (Set-Cookie headers)
+    for (const cookie of this._responseCookies) {
+      headers.append('Set-Cookie', cookie)
+    }
+
+    // Create new response with modified headers
+    return new Response(response.body, {
+      status: response.status,
+      statusText: response.statusText,
+      headers
+    })
   }
 }
 

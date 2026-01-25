@@ -496,6 +496,434 @@ describe('Controller', () => {
       })
     })
   })
+
+  describe('getCookie()', () => {
+    let controller
+
+    beforeEach(() => {
+      const context = new ControllerContext({
+        request: new Request('http://localhost/test', {
+          headers: { 'Cookie': 'session_id=abc123; theme=dark; user_id=42' }
+        }),
+        params: {},
+        session: {},
+        currentUser: null,
+        http: {},
+        cache: null,
+        temp: new Map(),
+        db: null
+      })
+      controller = new Controller(context)
+    })
+
+    test('returns cookie value by name', () => {
+      expect(controller.getCookie('session_id')).toBe('abc123')
+      expect(controller.getCookie('theme')).toBe('dark')
+      expect(controller.getCookie('user_id')).toBe('42')
+    })
+
+    test('returns undefined for non-existent cookie', () => {
+      expect(controller.getCookie('nonexistent')).toBeUndefined()
+    })
+
+    test('returns undefined when no Cookie header', () => {
+      const context = new ControllerContext({
+        request: new Request('http://localhost/test'),
+        params: {},
+        session: {},
+        currentUser: null,
+        http: {},
+        cache: null,
+        temp: new Map(),
+        db: null
+      })
+      const ctrl = new Controller(context)
+
+      expect(ctrl.getCookie('any')).toBeUndefined()
+    })
+
+    test('handles cookies with = in value', () => {
+      const context = new ControllerContext({
+        request: new Request('http://localhost/test', {
+          headers: { 'Cookie': 'data=a=b=c' }
+        }),
+        params: {},
+        session: {},
+        currentUser: null,
+        http: {},
+        cache: null,
+        temp: new Map(),
+        db: null
+      })
+      const ctrl = new Controller(context)
+
+      expect(ctrl.getCookie('data')).toBe('a=b=c')
+    })
+
+    test('handles cookies with spaces', () => {
+      const context = new ControllerContext({
+        request: new Request('http://localhost/test', {
+          headers: { 'Cookie': '  first=one  ;  second=two  ' }
+        }),
+        params: {},
+        session: {},
+        currentUser: null,
+        http: {},
+        cache: null,
+        temp: new Map(),
+        db: null
+      })
+      const ctrl = new Controller(context)
+
+      expect(ctrl.getCookie('first')).toBe('one')
+      expect(ctrl.getCookie('second')).toBe('two')
+    })
+
+    test('handles null request', () => {
+      const context = new ControllerContext({
+        request: null,
+        params: {},
+        session: {},
+        currentUser: null,
+        http: {},
+        cache: null,
+        temp: new Map(),
+        db: null
+      })
+      const ctrl = new Controller(context)
+
+      expect(ctrl.getCookie('any')).toBeUndefined()
+    })
+  })
+
+  describe('setCookie()', () => {
+    let controller
+
+    beforeEach(() => {
+      const context = new ControllerContext({
+        request: new Request('http://localhost/test'),
+        params: {},
+        session: {},
+        currentUser: null,
+        http: {},
+        cache: null,
+        temp: new Map(),
+        db: null
+      })
+      controller = new Controller(context)
+    })
+
+    test('sets a simple cookie', () => {
+      controller.setCookie('user_id', '12345')
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('user_id=12345')
+      expect(setCookie).toContain('Path=/')
+      expect(setCookie).toContain('HttpOnly')
+      expect(setCookie).toContain('SameSite=Lax')
+    })
+
+    test('encodes cookie name and value', () => {
+      controller.setCookie('special name', 'value with spaces')
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('special%20name=value%20with%20spaces')
+    })
+
+    test('sets cookie with custom path', () => {
+      controller.setCookie('app_token', 'xyz', { path: '/api' })
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('Path=/api')
+    })
+
+    test('sets cookie with domain', () => {
+      controller.setCookie('shared', 'value', { domain: '.example.com' })
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('Domain=.example.com')
+    })
+
+    test('sets cookie with expires date', () => {
+      const expires = new Date('2025-12-31T23:59:59Z')
+      controller.setCookie('expires_cookie', 'value', { expires })
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('Expires=')
+      expect(setCookie).toContain('Dec')
+    })
+
+    test('sets cookie with expires as string', () => {
+      controller.setCookie('expires_cookie', 'value', { expires: '2025-12-31T23:59:59Z' })
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('Expires=')
+    })
+
+    test('sets cookie with maxAge', () => {
+      controller.setCookie('session', 'token', { maxAge: 3600 })
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('Max-Age=3600')
+    })
+
+    test('disables HttpOnly when explicitly set to false', () => {
+      controller.setCookie('client_cookie', 'value', { httpOnly: false })
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).not.toContain('HttpOnly')
+    })
+
+    test('sets Secure flag when explicitly set', () => {
+      controller.setCookie('secure_cookie', 'value', { secure: true })
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('Secure')
+    })
+
+    test('sets SameSite=Strict', () => {
+      controller.setCookie('strict_cookie', 'value', { sameSite: 'Strict' })
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('SameSite=Strict')
+    })
+
+    test('sets SameSite=None', () => {
+      controller.setCookie('none_cookie', 'value', { sameSite: 'None', secure: true })
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('SameSite=None')
+      expect(setCookie).toContain('Secure')
+    })
+
+    test('sets multiple cookies', () => {
+      controller.setCookie('cookie1', 'value1')
+      controller.setCookie('cookie2', 'value2')
+
+      const response = controller.render({ ok: true })
+      const cookies = response.headers.getSetCookie()
+
+      expect(cookies.length).toBe(2)
+      expect(cookies[0]).toContain('cookie1=value1')
+      expect(cookies[1]).toContain('cookie2=value2')
+    })
+
+    test('includes cookies in redirect response', () => {
+      controller.setCookie('redirect_cookie', 'value')
+
+      const response = controller.redirect('/new-location')
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('redirect_cookie=value')
+    })
+
+    test('includes cookies in head response', () => {
+      controller.setCookie('head_cookie', 'value')
+
+      const response = controller.head(204)
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('head_cookie=value')
+    })
+  })
+
+  describe('deleteCookie()', () => {
+    let controller
+
+    beforeEach(() => {
+      const context = new ControllerContext({
+        request: new Request('http://localhost/test'),
+        params: {},
+        session: {},
+        currentUser: null,
+        http: {},
+        cache: null,
+        temp: new Map(),
+        db: null
+      })
+      controller = new Controller(context)
+    })
+
+    test('deletes a cookie by setting empty value and past expiration', () => {
+      controller.deleteCookie('session_id')
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('session_id=')
+      expect(setCookie).toContain('Expires=Thu, 01 Jan 1970')
+      expect(setCookie).toContain('Max-Age=0')
+    })
+
+    test('deletes cookie with custom path', () => {
+      controller.deleteCookie('app_token', { path: '/api' })
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('Path=/api')
+      expect(setCookie).toContain('Max-Age=0')
+    })
+
+    test('deletes cookie with custom domain', () => {
+      controller.deleteCookie('shared', { domain: '.example.com' })
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).toContain('Domain=.example.com')
+      expect(setCookie).toContain('Max-Age=0')
+    })
+
+    test('preserves httpOnly setting when deleting', () => {
+      controller.deleteCookie('client_cookie', { httpOnly: false })
+
+      const response = controller.render({ ok: true })
+      const setCookie = response.headers.get('Set-Cookie')
+
+      expect(setCookie).not.toContain('HttpOnly')
+    })
+  })
+
+  describe('setHeader()', () => {
+    let controller
+
+    beforeEach(() => {
+      const context = new ControllerContext({
+        request: new Request('http://localhost/test'),
+        params: {},
+        session: {},
+        currentUser: null,
+        http: {},
+        cache: null,
+        temp: new Map(),
+        db: null
+      })
+      controller = new Controller(context)
+    })
+
+    test('sets a custom header', () => {
+      controller.setHeader('X-Custom-Header', 'custom-value')
+
+      const response = controller.render({ ok: true })
+
+      expect(response.headers.get('X-Custom-Header')).toBe('custom-value')
+    })
+
+    test('sets multiple headers', () => {
+      controller.setHeader('X-Header-1', 'value1')
+      controller.setHeader('X-Header-2', 'value2')
+
+      const response = controller.render({ ok: true })
+
+      expect(response.headers.get('X-Header-1')).toBe('value1')
+      expect(response.headers.get('X-Header-2')).toBe('value2')
+    })
+
+    test('overwrites existing header', () => {
+      controller.setHeader('X-Custom', 'first')
+      controller.setHeader('X-Custom', 'second')
+
+      const response = controller.render({ ok: true })
+
+      expect(response.headers.get('X-Custom')).toBe('second')
+    })
+
+    test('includes headers in redirect response', () => {
+      controller.setHeader('X-Redirect-Header', 'value')
+
+      const response = controller.redirect('/new-location')
+
+      expect(response.headers.get('X-Redirect-Header')).toBe('value')
+    })
+
+    test('includes headers in head response', () => {
+      controller.setHeader('X-Head-Header', 'value')
+
+      const response = controller.head(204)
+
+      expect(response.headers.get('X-Head-Header')).toBe('value')
+    })
+  })
+
+  describe('_applyResponseModifications()', () => {
+    let controller
+
+    beforeEach(() => {
+      const context = new ControllerContext({
+        request: new Request('http://localhost/test'),
+        params: {},
+        session: {},
+        currentUser: null,
+        http: {},
+        cache: null,
+        temp: new Map(),
+        db: null
+      })
+      controller = new Controller(context)
+    })
+
+    test('returns original response when no modifications', () => {
+      const original = new Response('OK')
+      const modified = controller._applyResponseModifications(original)
+
+      // Should return same response since no modifications
+      expect(modified.status).toBe(original.status)
+    })
+
+    test('applies both headers and cookies', () => {
+      controller.setHeader('X-Custom', 'value')
+      controller.setCookie('session', 'token')
+
+      const response = controller.render({ ok: true })
+
+      expect(response.headers.get('X-Custom')).toBe('value')
+      expect(response.headers.get('Set-Cookie')).toContain('session=token')
+    })
+
+    test('preserves original response headers', () => {
+      const original = new Response('OK', {
+        headers: { 'X-Original': 'preserved' }
+      })
+      controller.setHeader('X-New', 'added')
+
+      const modified = controller._applyResponseModifications(original)
+
+      expect(modified.headers.get('X-Original')).toBe('preserved')
+      expect(modified.headers.get('X-New')).toBe('added')
+    })
+
+    test('preserves original response status', () => {
+      const original = new Response('Created', { status: 201 })
+      controller.setCookie('test', 'value')
+
+      const modified = controller._applyResponseModifications(original)
+
+      expect(modified.status).toBe(201)
+    })
+  })
 })
 
 describe('ControllerContext', () => {
