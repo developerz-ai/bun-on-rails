@@ -721,6 +721,10 @@ export class Model {
    * - uniqueness (async, requires database)
    * - custom, confirmation, acceptance
    *
+   * Callbacks:
+   * - beforeValidation: Called before validations run. Can modify attributes or add errors.
+   * - afterValidation: Called after validations run. Can modify errors or perform cleanup.
+   *
    * @returns {Promise<boolean>} True if valid, false otherwise
    *
    * @example
@@ -734,6 +738,9 @@ export class Model {
   async validate() {
     // Clear previous errors
     this.errors = {}
+
+    // Run beforeValidation callback
+    await this.beforeValidation()
 
     // Run all validations using the comprehensive validation system
     const validationErrors = await runValidations(this)
@@ -751,6 +758,9 @@ export class Model {
         this.errors[field] = this._formatErrorForField(field, errors[0])
       }
     }
+
+    // Run afterValidation callback
+    await this.afterValidation()
 
     return Object.keys(this.errors).length === 0
   }
@@ -975,6 +985,38 @@ export class Model {
   // ============================================
   // Callbacks
   // ============================================
+
+  /**
+   * Called before validation runs
+   * Override in subclasses to modify attributes or add errors before validation
+   *
+   * @example
+   * class User extends Model {
+   *   async beforeValidation() {
+   *     // Normalize email
+   *     if (this.attributes.email) {
+   *       this.attributes.email = this.attributes.email.toLowerCase().trim()
+   *     }
+   *   }
+   * }
+   */
+  async beforeValidation() {}
+
+  /**
+   * Called after validation runs
+   * Override in subclasses to modify errors or perform post-validation logic
+   *
+   * @example
+   * class User extends Model {
+   *   async afterValidation() {
+   *     // Add conditional error
+   *     if (this.attributes.role === 'admin' && !this.attributes.admin_code) {
+   *       this.errors.admin_code = 'is required for admin users'
+   *     }
+   *   }
+   * }
+   */
+  async afterValidation() {}
 
   async beforeSave() {}
   async afterSave() {}

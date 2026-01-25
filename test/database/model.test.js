@@ -846,6 +846,8 @@ describe('Model - Callbacks', () => {
     const user = new User({ name: 'John', email: 'john@example.com', role: 'user' })
 
     // These should not throw
+    await user.beforeValidation()
+    await user.afterValidation()
     await user.beforeSave()
     await user.afterSave()
     await user.beforeCreate()
@@ -873,6 +875,338 @@ describe('Model - Callbacks', () => {
     await user.save()
 
     expect(callbackRan).toBe(true)
+  })
+})
+
+describe('Model - Validation Callbacks', () => {
+  describe('beforeValidation', () => {
+    it('is called before validation runs', async () => {
+      const callOrder = []
+
+      class TrackedModel extends Model {
+        static validations = {
+          name: { presence: true }
+        }
+
+        async beforeValidation() {
+          callOrder.push('beforeValidation')
+        }
+      }
+
+      // Mock the runValidations to track call order
+      const model = new TrackedModel({ name: 'John' })
+      await model.validate()
+
+      expect(callOrder).toContain('beforeValidation')
+    })
+
+    it('can modify attributes before validation', async () => {
+      class NormalizingModel extends Model {
+        static validations = {
+          email: { presence: true, format: /^[^@]+@[^@]+\.[^@]+$/ }
+        }
+
+        async beforeValidation() {
+          // Normalize email to lowercase and trim
+          if (this.attributes.email) {
+            this.attributes.email = this.attributes.email.toLowerCase().trim()
+          }
+        }
+      }
+
+      const model = new NormalizingModel({ email: '  JOHN@EXAMPLE.COM  ' })
+      await model.validate()
+
+      expect(model.attributes.email).toBe('john@example.com')
+      expect(Object.keys(model.errors).length).toBe(0)
+    })
+
+    it('can add errors in beforeValidation that persist', async () => {
+      class ConditionalModel extends Model {
+        static validations = {
+          name: { presence: true }
+        }
+
+        async beforeValidation() {
+          if (this.attributes.name === 'blocked') {
+            this.errors.name = 'is blocked'
+          }
+        }
+      }
+
+      const model = new ConditionalModel({ name: 'blocked' })
+      const isValid = await model.validate()
+
+      // Errors added in beforeValidation persist through validation
+      // (unless overwritten by built-in validators for the same field)
+      expect(isValid).toBe(false)
+      expect(model.errors.name).toBe('is blocked')
+    })
+
+    it('built-in validators can overwrite beforeValidation errors for same field', async () => {
+      class OverwriteModel extends Model {
+        static validations = {
+          name: { presence: true }  // This will overwrite beforeValidation error
+        }
+
+        async beforeValidation() {
+          this.errors.name = 'custom error from beforeValidation'
+        }
+      }
+
+      // When name is missing, presence validator will overwrite the error
+      const model = new OverwriteModel({})
+      const isValid = await model.validate()
+
+      expect(isValid).toBe(false)
+      // The presence validator's error overwrites the beforeValidation error
+      expect(model.errors.name).toContain("can't be blank")
+    })
+
+    it('can set default values before validation', async () => {
+      class DefaultsModel extends Model {
+        static validations = {
+          status: { inclusion: ['pending', 'active', 'inactive'] }
+        }
+
+        async beforeValidation() {
+          if (!this.attributes.status) {
+            this.attributes.status = 'pending'
+          }
+        }
+      }
+
+      const model = new DefaultsModel({})
+      const isValid = await model.validate()
+
+      expect(isValid).toBe(true)
+      expect(model.attributes.status).toBe('pending')
+    })
+
+    it('is awaited (supports async operations)', async () => {
+      let asyncComplete = false
+
+      class AsyncModel extends Model {
+        static validations = {
+          name: { presence: true }
+        }
+
+        async beforeValidation() {
+          await new Promise(resolve => setTimeout(resolve, 10))
+          asyncComplete = true
+          this.attributes.name = 'set-async'
+        }
+      }
+
+      const model = new AsyncModel({})
+      await model.validate()
+
+      expect(asyncComplete).toBe(true)
+      expect(model.attributes.name).toBe('set-async')
+    })
+  })
+
+  describe('afterValidation', () => {
+    it('is called after validation runs', async () => {
+      let afterValidationCalled = false
+
+      class TrackedModel extends Model {
+        static validations = {
+          name: { presence: true }
+        }
+
+        async afterValidation() {
+          afterValidationCalled = true
+        }
+      }
+
+      const model = new TrackedModel({ name: 'John' })
+      await model.validate()
+
+      expect(afterValidationCalled).toBe(true)
+    })
+
+    it('can add conditional errors based on validation results', async () => {
+      class ConditionalErrorModel extends Model {
+        static validations = {
+          password: { presence: true }
+        }
+
+        async afterValidation() {
+          // Add error if password is present but weak
+          if (this.attributes.password && this.attributes.password.length < 8) {
+            this.errors.password = 'is too weak (must be at least 8 characters)'
+          }
+        }
+      }
+
+      const model = new ConditionalErrorModel({ password: 'short' })
+      const isValid = await model.validate()
+
+      expect(isValid).toBe(false)
+      expect(model.errors.password).toContain('too weak')
+    })
+
+    it('can remove errors conditionally', async () => {
+      class WarningModel extends Model {
+        static validations = {
+          name: { presence: true, length: { min: 10 } }
+        }
+
+        async afterValidation() {
+          // Allow short names if user opted in
+          if (this.attributes.allow_short_name && this.errors.name) {
+            delete this.errors.name
+          }
+        }
+      }
+
+      const model = new WarningModel({ name: 'Jo', allow_short_name: true })
+      const isValid = await model.validate()
+
+      expect(isValid).toBe(true)
+    })
+
+    it('can add cross-field validation errors', async () => {
+      class DateRangeModel extends Model {
+        static validations = {
+          start_date: { presence: true },
+          end_date: { presence: true }
+        }
+
+        async afterValidation() {
+          if (this.attributes.start_date && this.attributes.end_date) {
+            if (new Date(this.attributes.end_date) < new Date(this.attributes.start_date)) {
+              this.errors.end_date = 'must be after start date'
+            }
+          }
+        }
+      }
+
+      const model = new DateRangeModel({
+        start_date: '2024-06-01',
+        end_date: '2024-05-01'
+      })
+      const isValid = await model.validate()
+
+      expect(isValid).toBe(false)
+      expect(model.errors.end_date).toBe('must be after start date')
+    })
+
+    it('is awaited (supports async operations)', async () => {
+      let asyncComplete = false
+
+      class AsyncModel extends Model {
+        static validations = {
+          name: { presence: true }
+        }
+
+        async afterValidation() {
+          await new Promise(resolve => setTimeout(resolve, 10))
+          asyncComplete = true
+        }
+      }
+
+      const model = new AsyncModel({ name: 'John' })
+      await model.validate()
+
+      expect(asyncComplete).toBe(true)
+    })
+
+    it('has access to validation errors from built-in validators', async () => {
+      let capturedErrors = null
+
+      class InspectingModel extends Model {
+        static validations = {
+          email: { presence: true, email: true }
+        }
+
+        async afterValidation() {
+          capturedErrors = { ...this.errors }
+        }
+      }
+
+      const model = new InspectingModel({ email: 'invalid' })
+      await model.validate()
+
+      expect(capturedErrors).toBeDefined()
+      expect(capturedErrors.email).toBeDefined()
+    })
+  })
+
+  describe('callback order', () => {
+    it('calls beforeValidation before afterValidation', async () => {
+      const callOrder = []
+
+      class OrderedModel extends Model {
+        static validations = {
+          name: { presence: true }
+        }
+
+        async beforeValidation() {
+          callOrder.push('before')
+        }
+
+        async afterValidation() {
+          callOrder.push('after')
+        }
+      }
+
+      const model = new OrderedModel({ name: 'John' })
+      await model.validate()
+
+      expect(callOrder).toEqual(['before', 'after'])
+    })
+
+    it('validation callbacks run on isValid() call', async () => {
+      let beforeCalled = false
+      let afterCalled = false
+
+      class TrackedModel extends Model {
+        static validations = {
+          name: { presence: true }
+        }
+
+        async beforeValidation() {
+          beforeCalled = true
+        }
+
+        async afterValidation() {
+          afterCalled = true
+        }
+      }
+
+      const model = new TrackedModel({ name: 'John' })
+      await model.isValid()
+
+      expect(beforeCalled).toBe(true)
+      expect(afterCalled).toBe(true)
+    })
+
+    it('validation callbacks run on isInvalid() call', async () => {
+      let beforeCalled = false
+      let afterCalled = false
+
+      class TrackedModel extends Model {
+        static validations = {
+          name: { presence: true }
+        }
+
+        async beforeValidation() {
+          beforeCalled = true
+        }
+
+        async afterValidation() {
+          afterCalled = true
+        }
+      }
+
+      const model = new TrackedModel({})
+      await model.isInvalid()
+
+      expect(beforeCalled).toBe(true)
+      expect(afterCalled).toBe(true)
+    })
   })
 })
 
