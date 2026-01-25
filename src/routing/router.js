@@ -377,12 +377,124 @@ export class Router {
 
   /**
    * Generate URL from named route
-   * @param {string} name
-   * @param {Object} params
-   * @returns {string}
+   * @param {string} name - Named route identifier (from `as` option)
+   * @param {Object} params - Parameters to interpolate into the path
+   * @param {Object} options - Additional options
+   * @param {boolean} options.absolute - If true, include host (requires host option or context)
+   * @param {string} options.host - Host to use for absolute URLs
+   * @param {string} options.protocol - Protocol for absolute URLs (default: 'https')
+   * @param {Object} options.query - Query parameters to append
+   * @returns {string} - Generated URL
+   * @throws {Error} - If named route not found or required params missing
    */
-  urlFor(_name, _params = {}) {
-    // TODO: Generate URL from named route with params
+  urlFor(name, params = {}, options = {}) {
+    // Look up the named route
+    const namedRoute = this.namedRoutes[name]
+
+    if (!namedRoute) {
+      throw new Error(`No route found with name: ${name}`)
+    }
+
+    const { path } = namedRoute
+    let generatedPath = path
+
+    // Extract param names from the path pattern
+    const paramNames = this._extractParamNames(path)
+
+    // Track which params we use for path interpolation
+    const usedParams = new Set()
+
+    // Replace each parameter placeholder with actual value
+    for (const paramName of paramNames) {
+      const value = params[paramName]
+
+      if (value === undefined || value === null) {
+        throw new Error(`Missing required parameter '${paramName}' for route '${name}'`)
+      }
+
+      // URL-encode the value for safety
+      const encodedValue = encodeURIComponent(String(value))
+      generatedPath = generatedPath.replace(`:${paramName}`, encodedValue)
+      usedParams.add(paramName)
+    }
+
+    // Handle query parameters
+    // Merge explicit query option with unused params (unused params become query)
+    const queryParams = { ...options.query }
+
+    // Add unused params as query parameters (Rails-like behavior)
+    for (const [key, value] of Object.entries(params)) {
+      if (!usedParams.has(key) && value !== undefined && value !== null) {
+        queryParams[key] = value
+      }
+    }
+
+    // Build query string if there are query params
+    if (Object.keys(queryParams).length > 0) {
+      const queryString = this._buildQueryString(queryParams)
+      generatedPath = `${generatedPath}?${queryString}`
+    }
+
+    // Handle absolute URLs
+    if (options.absolute || options.host) {
+      const protocol = options.protocol || 'https'
+      const host = options.host
+
+      if (!host) {
+        throw new Error('Host required for absolute URL generation')
+      }
+
+      return `${protocol}://${host}${generatedPath}`
+    }
+
+    return generatedPath
+  }
+
+  /**
+   * Extract parameter names from a route path pattern
+   * @param {string} path - Route path pattern (e.g., '/posts/:id/comments/:comment_id')
+   * @returns {string[]} - Array of parameter names
+   * @private
+   */
+  _extractParamNames(path) {
+    const paramNames = []
+    const segments = path.split('/')
+
+    for (const segment of segments) {
+      if (segment.startsWith(':')) {
+        paramNames.push(segment.slice(1))
+      }
+    }
+
+    return paramNames
+  }
+
+  /**
+   * Build a query string from an object of parameters
+   * @param {Object} params - Query parameters
+   * @returns {string} - Encoded query string (without leading ?)
+   * @private
+   */
+  _buildQueryString(params) {
+    const pairs = []
+
+    for (const [key, value] of Object.entries(params)) {
+      if (Array.isArray(value)) {
+        // Handle array values (e.g., tags[]=a&tags[]=b)
+        for (const item of value) {
+          pairs.push(`${encodeURIComponent(key)}[]=${encodeURIComponent(String(item))}`)
+        }
+      } else if (typeof value === 'object' && value !== null) {
+        // Handle nested objects (e.g., filter[status]=active)
+        for (const [nestedKey, nestedValue] of Object.entries(value)) {
+          pairs.push(`${encodeURIComponent(key)}[${encodeURIComponent(nestedKey)}]=${encodeURIComponent(String(nestedValue))}`)
+        }
+      } else {
+        pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+      }
+    }
+
+    return pairs.join('&')
   }
 
   /**
