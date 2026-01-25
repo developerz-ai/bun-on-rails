@@ -973,6 +973,84 @@ export const Middleware = {
 
     middleware._name = 'compress'
     return middleware
+  },
+
+  /**
+   * Flash messages middleware
+   *
+   * Handles flash message lifecycle - moves "next request" messages to current,
+   * and clears accessed messages after response.
+   *
+   * Flash messages are stored in session with this structure:
+   * - _flash: Current flash messages to display
+   * - _flashNext: Messages queued for next request
+   * - _flashRead: Flag indicating all messages were read
+   * - _flashAccessed: Array of specific keys that were accessed
+   *
+   * @param {Object} options - Flash options
+   * @returns {MiddlewareFunction}
+   *
+   * @example
+   * // In middleware setup
+   * app.use(Middleware.flash())
+   *
+   * // In controller
+   * this.flash('success', 'Item saved!')
+   * return this.redirect('/items')
+   *
+   * // In next request
+   * const message = this.flash('success') // 'Item saved!'
+   */
+  flash: (_options = {}) => {
+    const middleware = async (context, next) => {
+      // Ensure session exists
+      if (!context.session) {
+        context.session = {}
+      }
+
+      // Move "next request" messages to current flash
+      // This handles the transition between requests
+      if (context.session._flashNext) {
+        context.session._flash = context.session._flashNext
+        delete context.session._flashNext
+      }
+
+      // Initialize flash storage if not present
+      if (!context.session._flash) {
+        context.session._flash = {}
+      }
+
+      // Track controller for flash processing
+      const originalController = context._controllerInfo?.controller
+
+      // Execute the rest of the chain
+      const response = await next()
+
+      // Process flash messages after response
+      // If controller set new flash messages, move them to "next request"
+      const controller = context._controllerInfo?.controller || originalController
+
+      if (controller && typeof controller._processFlashAfterResponse === 'function') {
+        controller._processFlashAfterResponse()
+      } else if (context.session) {
+        // Direct session processing if no controller (e.g., static routes)
+        if (context.session._flashRead) {
+          context.session._flash = {}
+          context.session._flashRead = false
+          context.session._flashAccessed = []
+        } else if (context.session._flashAccessed?.length > 0) {
+          for (const key of context.session._flashAccessed) {
+            delete context.session._flash[key]
+          }
+          context.session._flashAccessed = []
+        }
+      }
+
+      return response
+    }
+
+    middleware._name = 'flash'
+    return middleware
   }
 }
 
@@ -1047,6 +1125,11 @@ export function createDefaultMiddlewareStack(options = {}) {
   // Session
   if (options.session) {
     stack.use(Middleware.session(options.session))
+  }
+
+  // Flash messages (requires session)
+  if (options.flash !== false && options.session) {
+    stack.use(Middleware.flash(options.flash || {}))
   }
 
   // CSRF

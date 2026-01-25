@@ -275,6 +275,227 @@ describe('Controller', () => {
       expect(Controller.rateLimit).toEqual({})
     })
   })
+
+  describe('flash()', () => {
+    let controller
+    let session
+
+    beforeEach(() => {
+      session = {}
+      const context = new ControllerContext({
+        request: new Request('http://localhost/test'),
+        params: {},
+        session,
+        currentUser: null,
+        http: {},
+        cache: null,
+        temp: new Map(),
+        db: null
+      })
+      controller = new Controller(context)
+    })
+
+    describe('setter mode', () => {
+      test('sets a flash message with type and message', () => {
+        controller.flash('success', 'Item created!')
+
+        expect(session._flash).toBeDefined()
+        expect(session._flash.success).toBe('Item created!')
+      })
+
+      test('sets multiple flash messages of different types', () => {
+        controller.flash('success', 'Item saved!')
+        controller.flash('notice', 'Please review your changes')
+        controller.flash('alert', 'Your session expires soon')
+
+        expect(session._flash.success).toBe('Item saved!')
+        expect(session._flash.notice).toBe('Please review your changes')
+        expect(session._flash.alert).toBe('Your session expires soon')
+      })
+
+      test('overwrites existing flash message of same type', () => {
+        controller.flash('error', 'First error')
+        controller.flash('error', 'Second error')
+
+        expect(session._flash.error).toBe('Second error')
+      })
+
+      test('initializes session if undefined', () => {
+        const context = new ControllerContext({
+          request: new Request('http://localhost/test'),
+          params: {},
+          session: null,
+          currentUser: null,
+          http: {},
+          cache: null,
+          temp: new Map(),
+          db: null
+        })
+        const ctrl = new Controller(context)
+        ctrl.session = null
+
+        ctrl.flash('test', 'message')
+
+        expect(ctrl.session).toBeDefined()
+        expect(ctrl.session._flash.test).toBe('message')
+      })
+    })
+
+    describe('getter mode - all messages', () => {
+      test('returns all flash messages when called with no args', () => {
+        session._flash = { success: 'Done!', notice: 'Check this out' }
+
+        const messages = controller.flash()
+
+        expect(messages).toEqual({ success: 'Done!', notice: 'Check this out' })
+      })
+
+      test('returns empty object when no flash messages', () => {
+        const messages = controller.flash()
+
+        expect(messages).toEqual({})
+      })
+
+      test('marks all messages as read', () => {
+        session._flash = { success: 'Done!' }
+
+        controller.flash()
+
+        expect(session._flashRead).toBe(true)
+      })
+    })
+
+    describe('getter mode - specific type', () => {
+      test('returns specific flash message by type', () => {
+        session._flash = { success: 'Item created!', notice: 'Welcome' }
+
+        const message = controller.flash('success')
+
+        expect(message).toBe('Item created!')
+      })
+
+      test('returns undefined for non-existent type', () => {
+        session._flash = { success: 'Done!' }
+
+        const message = controller.flash('error')
+
+        expect(message).toBeUndefined()
+      })
+
+      test('tracks accessed keys', () => {
+        session._flash = { success: 'Done!', notice: 'Info' }
+
+        controller.flash('success')
+
+        expect(session._flashAccessed).toContain('success')
+        expect(session._flashAccessed).not.toContain('notice')
+      })
+
+      test('does not duplicate accessed keys', () => {
+        session._flash = { success: 'Done!' }
+
+        controller.flash('success')
+        controller.flash('success')
+
+        expect(session._flashAccessed.filter(k => k === 'success').length).toBe(1)
+      })
+    })
+
+    describe('flashMessages getter', () => {
+      test('returns current flash messages without marking as read', () => {
+        session._flash = { success: 'Done!' }
+
+        const messages = controller.flashMessages
+
+        expect(messages).toEqual({ success: 'Done!' })
+        expect(session._flashRead).toBeFalsy()
+        expect(session._flashAccessed).toBeFalsy()
+      })
+
+      test('returns empty object when no messages', () => {
+        expect(controller.flashMessages).toEqual({})
+      })
+
+      test('returns a copy, not the original', () => {
+        session._flash = { success: 'Done!' }
+
+        const messages = controller.flashMessages
+        messages.success = 'Modified!'
+
+        expect(session._flash.success).toBe('Done!')
+      })
+    })
+
+    describe('hasFlash()', () => {
+      test('returns true when flash messages exist', () => {
+        session._flash = { success: 'Done!' }
+
+        expect(controller.hasFlash()).toBe(true)
+      })
+
+      test('returns false when no flash messages', () => {
+        session._flash = {}
+
+        expect(controller.hasFlash()).toBe(false)
+      })
+
+      test('returns false when flash is undefined', () => {
+        expect(controller.hasFlash()).toBe(false)
+      })
+    })
+
+    describe('clearFlash()', () => {
+      test('clears all flash messages', () => {
+        session._flash = { success: 'Done!', error: 'Failed!' }
+        session._flashRead = true
+        session._flashAccessed = ['success']
+
+        controller.clearFlash()
+
+        expect(session._flash).toEqual({})
+        expect(session._flashRead).toBe(false)
+        expect(session._flashAccessed).toEqual([])
+      })
+    })
+
+    describe('_processFlashAfterResponse()', () => {
+      test('clears all messages when _flashRead is true', () => {
+        session._flash = { success: 'Done!', error: 'Failed!' }
+        session._flashRead = true
+
+        controller._processFlashAfterResponse()
+
+        expect(session._flash).toEqual({})
+        expect(session._flashRead).toBe(false)
+      })
+
+      test('clears only accessed messages', () => {
+        session._flash = { success: 'Done!', error: 'Failed!' }
+        session._flashAccessed = ['success']
+
+        controller._processFlashAfterResponse()
+
+        expect(session._flash.success).toBeUndefined()
+        expect(session._flash.error).toBe('Failed!')
+        expect(session._flashAccessed).toEqual([])
+      })
+
+      test('does nothing when no messages accessed', () => {
+        session._flash = { success: 'Done!' }
+
+        controller._processFlashAfterResponse()
+
+        expect(session._flash.success).toBe('Done!')
+      })
+
+      test('handles missing session gracefully', () => {
+        controller.session = null
+
+        // Should not throw
+        expect(() => controller._processFlashAfterResponse()).not.toThrow()
+      })
+    })
+  })
 })
 
 describe('ControllerContext', () => {

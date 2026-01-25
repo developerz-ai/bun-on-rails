@@ -1236,3 +1236,203 @@ describe('Middleware integration', () => {
     expect(context.currentUser.id).toBe(1)
   })
 })
+
+// ==========================================
+// Middleware.flash() Tests
+// ==========================================
+
+describe('Middleware.flash()', () => {
+  test('has correct name', () => {
+    const middleware = Middleware.flash()
+    expect(middleware._name).toBe('flash')
+  })
+
+  test('initializes session if not present', async () => {
+    const middleware = Middleware.flash()
+    const context = {
+      request: new Request('http://localhost/test')
+    }
+
+    await middleware(context, async () => new Response('OK'))
+
+    expect(context.session).toBeDefined()
+    expect(context.session._flash).toEqual({})
+  })
+
+  test('initializes flash storage in existing session', async () => {
+    const middleware = Middleware.flash()
+    const context = {
+      request: new Request('http://localhost/test'),
+      session: { userId: 1 }
+    }
+
+    await middleware(context, async () => new Response('OK'))
+
+    expect(context.session._flash).toEqual({})
+    expect(context.session.userId).toBe(1)
+  })
+
+  test('moves _flashNext to _flash at request start', async () => {
+    const middleware = Middleware.flash()
+    const context = {
+      request: new Request('http://localhost/test'),
+      session: {
+        _flashNext: { success: 'Saved!' }
+      }
+    }
+
+    await middleware(context, async () => new Response('OK'))
+
+    expect(context.session._flash).toEqual({ success: 'Saved!' })
+    expect(context.session._flashNext).toBeUndefined()
+  })
+
+  test('clears all flash messages when _flashRead is true', async () => {
+    const middleware = Middleware.flash()
+    const context = {
+      request: new Request('http://localhost/test'),
+      session: {
+        _flash: { success: 'Done!', error: 'Failed!' },
+        _flashRead: true
+      }
+    }
+
+    await middleware(context, async () => new Response('OK'))
+
+    expect(context.session._flash).toEqual({})
+    expect(context.session._flashRead).toBe(false)
+  })
+
+  test('clears only accessed flash messages', async () => {
+    const middleware = Middleware.flash()
+    const context = {
+      request: new Request('http://localhost/test'),
+      session: {
+        _flash: { success: 'Done!', error: 'Failed!' },
+        _flashAccessed: ['success']
+      }
+    }
+
+    await middleware(context, async () => new Response('OK'))
+
+    expect(context.session._flash.success).toBeUndefined()
+    expect(context.session._flash.error).toBe('Failed!')
+    expect(context.session._flashAccessed).toEqual([])
+  })
+
+  test('preserves flash messages not accessed', async () => {
+    const middleware = Middleware.flash()
+    const context = {
+      request: new Request('http://localhost/test'),
+      session: {
+        _flash: { success: 'Done!' }
+      }
+    }
+
+    await middleware(context, async () => new Response('OK'))
+
+    expect(context.session._flash.success).toBe('Done!')
+  })
+
+  test('calls controller._processFlashAfterResponse if available', async () => {
+    const middleware = Middleware.flash()
+    let processCalled = false
+    const mockController = {
+      _processFlashAfterResponse: () => {
+        processCalled = true
+      }
+    }
+    const context = {
+      request: new Request('http://localhost/test'),
+      session: {},
+      _controllerInfo: { controller: mockController }
+    }
+
+    await middleware(context, async () => new Response('OK'))
+
+    expect(processCalled).toBe(true)
+  })
+
+  test('integrates with session middleware', async () => {
+    const stack = new MiddlewareStack()
+    const sessionStore = new Map()
+
+    stack.use(Middleware.session({ store: sessionStore }))
+    stack.use(Middleware.flash())
+
+    // First request - set flash
+    const context1 = {
+      request: new Request('http://localhost/test', {
+        method: 'POST'
+      }),
+      session: {}
+    }
+
+    const response1 = await stack.run(context1, async () => {
+      context1.session._flash = { success: 'Created!' }
+      return new Response(null, { status: 302 })
+    })
+
+    // Extract session cookie
+    const setCookie = response1.headers.get('set-cookie')
+    const sessionId = setCookie?.match(/=([^;]+)/)?.[1]
+
+    // Second request - read flash
+    const context2 = {
+      request: new Request('http://localhost/test', {
+        headers: { Cookie: `_session=${sessionId}` }
+      }),
+      session: {}
+    }
+
+    await stack.run(context2, async () => {
+      // Flash should be available from previous request
+      expect(context2.session._flash.success).toBe('Created!')
+
+      // Mark as read
+      context2.session._flashRead = true
+      return new Response('OK')
+    })
+
+    // Third request - flash should be cleared
+    const context3 = {
+      request: new Request('http://localhost/test', {
+        headers: { Cookie: `_session=${sessionId}` }
+      }),
+      session: {}
+    }
+
+    await stack.run(context3, async () => {
+      expect(context3.session._flash).toEqual({})
+      return new Response('OK')
+    })
+  })
+})
+
+describe('createDefaultMiddlewareStack with flash', () => {
+  test('includes flash middleware when session is enabled', () => {
+    const stack = createDefaultMiddlewareStack({
+      session: { secret: 'test' }
+    })
+
+    const hasFlash = stack.middleware.some(m => m._name === 'flash')
+    expect(hasFlash).toBe(true)
+  })
+
+  test('does not include flash middleware without session', () => {
+    const stack = createDefaultMiddlewareStack({})
+
+    const hasFlash = stack.middleware.some(m => m._name === 'flash')
+    expect(hasFlash).toBe(false)
+  })
+
+  test('can disable flash middleware explicitly', () => {
+    const stack = createDefaultMiddlewareStack({
+      session: { secret: 'test' },
+      flash: false
+    })
+
+    const hasFlash = stack.middleware.some(m => m._name === 'flash')
+    expect(hasFlash).toBe(false)
+  })
+})

@@ -161,12 +161,131 @@ export class Controller {
   }
 
   /**
-   * Set flash message for next request
-   * @param {string} type
-   * @param {string} message
+   * Set or get flash messages for the next request
+   *
+   * Flash messages are stored in the session and automatically cleared after being read.
+   * They are commonly used for success/error messages that should persist across redirects.
+   *
+   * @param {string} [type] - Flash message type (e.g., 'success', 'error', 'notice', 'alert')
+   * @param {string} [message] - The message to flash
+   * @returns {Object|string|undefined} When called with no args, returns all flash messages.
+   *          When called with only type, returns that type's message.
+   *          When called with type and message, sets the flash and returns undefined.
+   *
+   * @example
+   * // Set a flash message
+   * this.flash('success', 'Post created successfully!')
+   *
+   * @example
+   * // Set multiple flash messages
+   * this.flash('notice', 'Welcome back!')
+   * this.flash('alert', 'Your session will expire soon')
+   *
+   * @example
+   * // Read all flash messages (in next request)
+   * const messages = this.flash() // { notice: 'Welcome back!', alert: '...' }
+   *
+   * @example
+   * // Read specific flash message (in next request)
+   * const notice = this.flash('notice') // 'Welcome back!'
    */
-  flash(_type, _message) {
-    // TODO: Store in session
+  flash(type, message) {
+    // Initialize flash storage in session if not present
+    if (!this.session) {
+      this.session = {}
+    }
+
+    // _flash stores messages to be shown on the NEXT request
+    // _flashRead tracks which messages have been read (for auto-clear)
+    if (!this.session._flash) {
+      this.session._flash = {}
+    }
+
+    // Getter mode: no arguments - return all flash messages and mark for clearing
+    if (type === undefined) {
+      const messages = { ...this.session._flash }
+      // Mark all as read by moving to a "read" state
+      // The messages will be cleared on the next request
+      this.session._flashRead = true
+      return messages
+    }
+
+    // Getter mode: only type provided - return specific flash message
+    if (message === undefined) {
+      const msg = this.session._flash[type]
+      // Mark as partially read - we'll track which keys were accessed
+      if (!this.session._flashAccessed) {
+        this.session._flashAccessed = []
+      }
+      if (!this.session._flashAccessed.includes(type)) {
+        this.session._flashAccessed.push(type)
+      }
+      return msg
+    }
+
+    // Setter mode: both type and message provided
+    this.session._flash[type] = message
+  }
+
+  /**
+   * Access the current flash messages without clearing them
+   * Useful for checking if flash messages exist before rendering
+   *
+   * @returns {Object} Current flash messages
+   */
+  get flashMessages() {
+    if (!this.session || !this.session._flash) {
+      return {}
+    }
+    return { ...this.session._flash }
+  }
+
+  /**
+   * Clear all flash messages manually
+   * Called automatically by the flash middleware, but can be called manually if needed
+   */
+  clearFlash() {
+    if (this.session) {
+      this.session._flash = {}
+      this.session._flashRead = false
+      this.session._flashAccessed = []
+    }
+  }
+
+  /**
+   * Check if there are any flash messages
+   * @returns {boolean}
+   */
+  hasFlash() {
+    if (!this.session || !this.session._flash) {
+      return false
+    }
+    return Object.keys(this.session._flash).length > 0
+  }
+
+  /**
+   * Internal: Process flash messages after response
+   * Clears messages that have been read
+   * @private
+   */
+  _processFlashAfterResponse() {
+    if (!this.session) return
+
+    // If all flash messages were read (via flash() with no args)
+    if (this.session._flashRead) {
+      this.session._flash = {}
+      this.session._flashRead = false
+      this.session._flashAccessed = []
+      return
+    }
+
+    // If specific messages were accessed, remove only those
+    if (this.session._flashAccessed && this.session._flashAccessed.length > 0) {
+      for (const key of this.session._flashAccessed) {
+        delete this.session._flash[key]
+      }
+      this.session._flashAccessed = []
+    }
   }
 
   /**
