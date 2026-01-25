@@ -465,15 +465,207 @@ function defineHasMany(modelClass, config) {
 
 /**
  * Define hasOne association
+ *
+ * Creates an async method on model instances to load a single child record.
+ * Similar to hasMany but returns a single record instead of an array.
+ * Uses caching to avoid repeated queries for the same association.
+ *
+ * @param {typeof Model} modelClass - The model class to add the association to
+ * @param {Object} config - Association configuration
+ * @param {string} config.name - Association name (e.g., 'profile', 'address')
+ * @param {typeof Model} [config.model] - Associated model class (inferred from name if not provided)
+ * @param {string} [config.foreignKey] - Foreign key column name on child table (defaults to `${ownerModelName}_id`)
+ * @param {Object} [config.scope] - Default scope conditions
+ *
+ * @example
+ * // Basic usage - infers Profile model and user_id foreign key
+ * class User extends Model {
+ *   static associations = {
+ *     hasOne: ['profile']
+ *   }
+ * }
+ *
+ * // With explicit configuration
+ * class User extends Model {
+ *   static associations = {
+ *     hasOne: [
+ *       { name: 'home_address', model: Address, foreignKey: 'owner_id' },
+ *       { name: 'settings', scope: { active: true } }
+ *     ]
+ *   }
+ * }
+ *
+ * // Loading the association
+ * const user = await User.find(1)
+ * const profile = await user.profile()       // Loads and caches profile
+ * const profile2 = await user.profile()      // Returns cached profile
+ * const profile3 = await user.profile({ reload: true }) // Force reload
+ *
  * @private
  */
 function defineHasOne(modelClass, config) {
-  const { name, model, foreignKey } = config
-  const _associatedModel = model || capitalize(name)
-  const _fk = foreignKey || `${modelClass.name.toLowerCase()}_id`
+  const { name, model, foreignKey, scope } = config
 
-  modelClass.prototype[name] = async function () {
-    // TODO: Query for single associated record
+  // Infer model name from association name if not explicitly provided
+  // 'profile' -> 'Profile', 'home_address' -> 'HomeAddress'
+  const associatedModelName = model
+    ? (typeof model === 'string' ? model : null)
+    : classify(name)
+
+  // Infer foreign key from owner model name
+  // User.hasOne profile -> foreign key is user_id on profiles table
+  // BlogPost.hasOne summary -> foreign key is blog_post_id on summaries table
+  const fk = foreignKey || foreignKeyForModel(modelClass.name)
+
+  // Cache key for storing loaded association
+  const cacheKey = `_association_${name}`
+
+  /**
+   * Association method that loads and caches a single child record
+   *
+   * @param {Object} [options] - Loading options
+   * @param {boolean} [options.reload=false] - Force reload from database
+   * @returns {Promise<Model|null>} The associated record or null if not found
+   */
+  modelClass.prototype[name] = async function (options = {}) {
+    const { reload = false } = options
+
+    // Return cached value if available and not forcing reload
+    if (!reload && this[cacheKey] !== undefined) {
+      return this[cacheKey]
+    }
+
+    // Get our primary key value
+    const pkColumn = this.constructor.primaryKey || 'id'
+    const pkValue = this.attributes[pkColumn]
+
+    // Return null if primary key is not set
+    if (pkValue === null || pkValue === undefined) {
+      this[cacheKey] = null
+      return null
+    }
+
+    // Resolve the associated model class
+    const AssociatedModel = resolveModel(model, associatedModelName)
+
+    if (!AssociatedModel) {
+      throw new Error(
+        `Cannot resolve model for hasOne association '${name}' on ${modelClass.name}. ` +
+        `Either register the model or provide explicit model config.`
+      )
+    }
+
+    // Build query with WHERE clause using the foreign key
+    let query = AssociatedModel.where({ [fk]: pkValue })
+
+    // Apply default scope if provided
+    if (scope) {
+      query = query.where(scope)
+    }
+
+    // Get the first record (hasOne returns single record)
+    const record = await query.first()
+
+    // Cache the result
+    this[cacheKey] = record
+
+    return record
+  }
+
+  // Define setter for the association
+  // Allows: user.profile = profileInstance (sets foreign key on child automatically)
+  Object.defineProperty(modelClass.prototype, `${name}=`, {
+    value: function (record) {
+      if (record === null || record === undefined) {
+        this[cacheKey] = null
+      } else {
+        // Set the foreign key on the associated record to point to this record
+        const pkColumn = this.constructor.primaryKey || 'id'
+        const pkValue = this.attributes[pkColumn]
+        record.attributes[fk] = pkValue
+        this[cacheKey] = record
+      }
+    },
+    writable: false,
+    enumerable: false
+  })
+
+  // Define method to build (but not save) a new associated record
+  // user.buildProfile({ bio: 'Hello' }) returns new Profile instance with user_id set
+  modelClass.prototype[`build${capitalize(name)}`] = function (attributes = {}) {
+    const AssociatedModel = resolveModel(model, associatedModelName)
+    if (!AssociatedModel) {
+      throw new Error(`Cannot resolve model for association '${name}'`)
+    }
+
+    // Set the foreign key to point to this record
+    const pkColumn = this.constructor.primaryKey || 'id'
+    const pkValue = this.attributes[pkColumn]
+
+    return new AssociatedModel({
+      ...attributes,
+      [fk]: pkValue
+    })
+  }
+
+  // Define method to create and save a new associated record
+  // user.createProfile({ bio: 'Hello' }) creates, saves, and returns Profile with user_id set
+  modelClass.prototype[`create${capitalize(name)}`] = async function (attributes = {}) {
+    const AssociatedModel = resolveModel(model, associatedModelName)
+    if (!AssociatedModel) {
+      throw new Error(`Cannot resolve model for association '${name}'`)
+    }
+
+    // Set the foreign key to point to this record
+    const pkColumn = this.constructor.primaryKey || 'id'
+    const pkValue = this.attributes[pkColumn]
+
+    const record = await AssociatedModel.create({
+      ...attributes,
+      [fk]: pkValue
+    })
+
+    // Cache the record if it was persisted
+    if (record.persisted) {
+      this[cacheKey] = record
+    }
+
+    return record
+  }
+
+  // Define method to check if the associated record exists
+  // user.hasProfile() returns boolean
+  modelClass.prototype[`has${capitalize(name)}`] = async function (conditions = {}) {
+    const AssociatedModel = resolveModel(model, associatedModelName)
+    if (!AssociatedModel) {
+      throw new Error(`Cannot resolve model for association '${name}'`)
+    }
+
+    const pkColumn = this.constructor.primaryKey || 'id'
+    const pkValue = this.attributes[pkColumn]
+
+    if (pkValue === null || pkValue === undefined) {
+      return false
+    }
+
+    let query = AssociatedModel.where({ [fk]: pkValue })
+
+    // Apply default scope
+    if (scope) {
+      query = query.where(scope)
+    }
+
+    // Apply additional conditions
+    if (Object.keys(conditions).length > 0) {
+      query = query.where(conditions)
+    }
+
+    return query.exists()
+  }
+
+  // Define method to clear the association cache
+  modelClass.prototype[`clear${capitalize(name)}Cache`] = function () {
+    this[cacheKey] = undefined
   }
 }
 
