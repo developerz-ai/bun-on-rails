@@ -8,7 +8,7 @@
 import { join } from 'path'
 import { createConfig, getEnvironment, isDevelopment, isProduction } from './config/loader.js'
 import { Router } from './routing/router.js'
-import { Cache, MemoryStore, RedisStore } from './cache/cache.js'
+import { Cache, MemoryStore } from './cache/cache.js'
 import { MiddlewareStack, Middleware } from './controller/middleware.js'
 import { ControllerContext } from './controller/base.js'
 
