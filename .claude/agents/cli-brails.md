@@ -29,4 +29,5 @@ Every command module exports `{ name, description, async run(args) }`; the parse
 Add CLI help text to `src/cli/help.js` when adding a command; `brails --help` is the documented entry point.
 `brails dev` and `brails start` boot the Application and serve HTTP until the process is signalled; both return the started Application so a caller can `await app.stop()`. The app root is resolved by `resolveAppRoot()` in `src/cli/commands/dev.js` (cwd when it holds config/ or app/, else demo/, else cwd); `src/cli/commands/start.js` reuses those helpers.
 Several CLI commands are still stubs with TODO markers (`new`, `db:migrate`, `test`) — do not assume they complete real work.
+`session.store` only supports the built-in `'memory'` store; any other store name (e.g. `'redis'`) is rejected while the app boots, so `brails dev`/`brails start` exit 1 with that configuration error. Do not "fix" it by falling back to memory — an in-memory session store is per-process and drops sessions (and logins) across server processes.
 Keep `src/cli/build.js` a no-op build unless asset bundling is actually implemented — CI runs `bun run build` and expects exit 0.

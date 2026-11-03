@@ -476,8 +476,9 @@ export const Middleware = {
    * @param {Object} options - Session options
    * @param {string} options.secret - Secret for signing cookies
    * @param {string} options.cookieName - Cookie name (default: '_session')
-   * @param {string|Object} options.store - Session store name ('memory') or a
-   *   Map-like store object (default: in-memory)
+   * @param {string|Object} options.store - Session store name ('memory', the
+   *   only built-in store) or a Map-like store object (default: in-memory).
+   *   Any other store name is rejected while the application starts.
    * @param {number} options.maxAge - Session max age in seconds
    * @returns {MiddlewareFunction}
    */
@@ -1324,31 +1325,57 @@ export const Middleware = {
  *
  * The configuration schema passes a store NAME (e.g. `session.store = 'memory'`),
  * while the middleware is also used programmatically with a Map-like object.
- * Both forms are accepted; anything unknown falls back to an in-memory store so
- * a misconfigured store never breaks the response pipeline.
+ * Both forms are accepted.
+ *
+ * 'memory' is the only built-in store. A named store the framework does not
+ * implement (e.g. 'redis') is rejected here, while the application is still
+ * starting, instead of being silently swapped for a private Map: an in-memory
+ * store is per-process, so serving several processes behind a load balancer
+ * would drop sessions - and the login state they carry - between requests.
  *
  * @param {string|Object|undefined} storeOption - Store name or Map-like store
- * @returns {Object} A Map-like store with get/set/has/delete
+ * @returns {Object} A Map-like store with get/set/has
+ * @throws {Error} When a named store is not implemented by the framework, or
+ *   when a store object does not provide the Map-like API the middleware uses
  */
 function resolveSessionStore(storeOption) {
   if (storeOption && typeof storeOption === "object") {
+    // A programmatic store must provide the Map-like API the middleware calls.
+    const isMapLike =
+      typeof storeOption.get === "function" &&
+      typeof storeOption.set === "function" &&
+      typeof storeOption.has === "function";
+
+    if (!isMapLike) {
+      throw new Error(
+        "Invalid session store object: it must implement get(key), " +
+          "set(key, value) and has(key).",
+      );
+    }
+
     return storeOption;
   }
 
-  // Named stores. 'redis' is not implemented yet and falls back to memory,
-  // mirroring the cache store fallback in Application#_initializeCache.
   switch (storeOption) {
     case "memory":
-    case "redis":
     case undefined:
     case null:
     case "":
       return new Map();
-    default:
-      console.warn(
-        `Unknown session store '${storeOption}', using in-memory store`,
+    case "redis":
+      throw new Error(
+        "Session store 'redis' is not implemented. BunOnRails has no Redis " +
+          "session adapter, and falling back to the in-memory store would " +
+          "drop sessions between server processes. Use session.store = " +
+          "'memory' for a single-process deployment, or pass a Map-like " +
+          "store object to Middleware.session().",
       );
-      return new Map();
+    default:
+      throw new Error(
+        `Unknown session store '${storeOption}'. The only built-in session ` +
+          "store is 'memory'; pass a Map-like store object to " +
+          "Middleware.session() to use another backend.",
+      );
   }
 }
 
