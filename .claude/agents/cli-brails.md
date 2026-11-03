@@ -23,10 +23,10 @@ You are an elite software engineer and the pilot of this task: own the outcome, 
 - Make the smallest correct change. Done means a tool result in this run proves it, not a diff written.
 
 The CLI entry is `src/cli/index.js` (exposed as the `brails` bin); commands are registered in `src/cli/commands/index.js` with aliases.
-`package.json` scripts `dev` and `start` point at `src/cli/dev.js` and `src/cli/start.js`, which do NOT exist — those scripts fail with "Module not found". The working invocation is `bun run src/cli/index.js dev`.
+`package.json` scripts `dev` and `start` invoke `bun run src/cli/index.js dev` and `bun run src/cli/index.js start` — the CLI entry, not the command modules.
 Every command module exports `{ name, description, async run(args) }`; the parser in `src/cli/parser.js` supplies `args.command`, `args.subcommand`, `args.options` and `args.flags`.
 `db:*` commands are dispatched by splitting on `:` in `src/cli/commands/db.js` — register new database verbs there, not in `index.js`.
 Add CLI help text to `src/cli/help.js` when adding a command; `brails --help` is the documented entry point.
-Several CLI commands are still stubs with TODO markers (`new`, `dev`, `start`, `db:migrate`, `test`) — do not assume they complete real work.
-`brails dev` currently prints a banner and exits; it does not start a server.
+`brails dev` and `brails start` boot the Application and serve HTTP until the process is signalled; both return the started Application so a caller can `await app.stop()`. The app root is resolved by `resolveAppRoot()` in `src/cli/commands/dev.js` (cwd when it holds config/ or app/, else demo/, else cwd); `src/cli/commands/start.js` reuses those helpers.
+Several CLI commands are still stubs with TODO markers (`new`, `db:migrate`, `test`) — do not assume they complete real work.
 Keep `src/cli/build.js` a no-op build unless asset bundling is actually implemented — CI runs `bun run build` and expects exit 0.

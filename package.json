@@ -8,8 +8,8 @@
     "brails": "./src/cli/index.js"
   },
   "scripts": {
-    "dev": "bun run src/cli/dev.js",
-    "start": "bun run src/cli/start.js",
+    "dev": "bun run src/cli/index.js dev",
+    "start": "bun run src/cli/index.js start",
     "build": "bun run src/cli/build.js",
     "test": "bun test test/",
     "test:unit": "bun test --filter unit",
