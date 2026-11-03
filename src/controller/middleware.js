@@ -9,7 +9,7 @@
 export class MiddlewareStack {
   constructor() {
     /** @type {Array<MiddlewareFunction>} */
-    this.middleware = []
+    this.middleware = [];
   }
 
   /**
@@ -20,14 +20,16 @@ export class MiddlewareStack {
   use(fn) {
     if (Array.isArray(fn)) {
       for (const f of fn) {
-        this.use(f)
+        this.use(f);
       }
-    } else if (typeof fn === 'function') {
-      this.middleware.push(fn)
+    } else if (typeof fn === "function") {
+      this.middleware.push(fn);
     } else {
-      throw new TypeError('Middleware must be a function or array of functions')
+      throw new TypeError(
+        "Middleware must be a function or array of functions",
+      );
     }
-    return this
+    return this;
   }
 
   /**
@@ -36,11 +38,11 @@ export class MiddlewareStack {
    * @returns {MiddlewareStack} - For chaining
    */
   prepend(fn) {
-    if (typeof fn !== 'function') {
-      throw new TypeError('Middleware must be a function')
+    if (typeof fn !== "function") {
+      throw new TypeError("Middleware must be a function");
     }
-    this.middleware.unshift(fn)
-    return this
+    this.middleware.unshift(fn);
+    return this;
   }
 
   /**
@@ -50,11 +52,11 @@ export class MiddlewareStack {
    * @returns {MiddlewareStack} - For chaining
    */
   insertAt(index, fn) {
-    if (typeof fn !== 'function') {
-      throw new TypeError('Middleware must be a function')
+    if (typeof fn !== "function") {
+      throw new TypeError("Middleware must be a function");
     }
-    this.middleware.splice(index, 0, fn)
-    return this
+    this.middleware.splice(index, 0, fn);
+    return this;
   }
 
   /**
@@ -64,11 +66,13 @@ export class MiddlewareStack {
    * @returns {MiddlewareStack} - For chaining
    */
   insertBefore(name, fn) {
-    const index = this.middleware.findIndex(m => m.name === name || m._name === name)
+    const index = this.middleware.findIndex(
+      (m) => m.name === name || m._name === name,
+    );
     if (index === -1) {
-      throw new Error(`Middleware '${name}' not found`)
+      throw new Error(`Middleware '${name}' not found`);
     }
-    return this.insertAt(index, fn)
+    return this.insertAt(index, fn);
   }
 
   /**
@@ -78,11 +82,13 @@ export class MiddlewareStack {
    * @returns {MiddlewareStack} - For chaining
    */
   insertAfter(name, fn) {
-    const index = this.middleware.findIndex(m => m.name === name || m._name === name)
+    const index = this.middleware.findIndex(
+      (m) => m.name === name || m._name === name,
+    );
     if (index === -1) {
-      throw new Error(`Middleware '${name}' not found`)
+      throw new Error(`Middleware '${name}' not found`);
     }
-    return this.insertAt(index + 1, fn)
+    return this.insertAt(index + 1, fn);
   }
 
   /**
@@ -91,15 +97,18 @@ export class MiddlewareStack {
    * @returns {boolean} - True if removed
    */
   remove(fnOrName) {
-    const index = typeof fnOrName === 'string'
-      ? this.middleware.findIndex(m => m.name === fnOrName || m._name === fnOrName)
-      : this.middleware.indexOf(fnOrName)
+    const index =
+      typeof fnOrName === "string"
+        ? this.middleware.findIndex(
+            (m) => m.name === fnOrName || m._name === fnOrName,
+          )
+        : this.middleware.indexOf(fnOrName);
 
     if (index !== -1) {
-      this.middleware.splice(index, 1)
-      return true
+      this.middleware.splice(index, 1);
+      return true;
     }
-    return false
+    return false;
   }
 
   /**
@@ -107,8 +116,8 @@ export class MiddlewareStack {
    * @returns {MiddlewareStack} - For chaining
    */
   clear() {
-    this.middleware = []
-    return this
+    this.middleware = [];
+    return this;
   }
 
   /**
@@ -116,7 +125,7 @@ export class MiddlewareStack {
    * @returns {number}
    */
   get length() {
-    return this.middleware.length
+    return this.middleware.length;
   }
 
   /**
@@ -129,26 +138,26 @@ export class MiddlewareStack {
    * @returns {Promise<Response>}
    */
   async run(context, handler) {
-    let index = 0
-    let response = null
+    let index = 0;
+    let response = null;
 
     const next = async () => {
       if (index < this.middleware.length) {
-        const fn = this.middleware[index++]
+        const fn = this.middleware[index++];
         try {
-          response = await fn(context, next)
-          return response
+          response = await fn(context, next);
+          return response;
         } catch (error) {
           // Re-throw to allow error middleware to catch
-          throw error
+          throw error;
         }
       }
       // All middleware executed, run the final handler
-      response = await handler(context)
-      return response
-    }
+      response = await handler(context);
+      return response;
+    };
 
-    return await next()
+    return await next();
   }
 
   /**
@@ -157,8 +166,8 @@ export class MiddlewareStack {
    */
   compose() {
     return async (context, next) => {
-      return await this.run(context, next || (() => Promise.resolve()))
-    }
+      return await this.run(context, next || (() => Promise.resolve()));
+    };
   }
 }
 
@@ -173,40 +182,41 @@ export class ControllerMiddleware {
    */
   static create(_options = {}) {
     const middleware = async (context, next) => {
-      const { controller, ControllerClass, actionName } = context._controllerInfo || {}
+      const { controller, ControllerClass, actionName } =
+        context._controllerInfo || {};
 
       if (!controller || !ControllerClass) {
-        return await next()
+        return await next();
       }
 
       // Run before filters
       const beforeResult = await ControllerMiddleware.runBeforeFilters(
         controller,
         ControllerClass,
-        actionName
-      )
+        actionName,
+      );
 
       // If a before filter returned a response, return it (e.g., unauthorized)
       if (beforeResult instanceof Response) {
-        return beforeResult
+        return beforeResult;
       }
 
       // Execute the action via next()
-      const response = await next()
+      const response = await next();
 
       // Run after filters (response is already generated)
       await ControllerMiddleware.runAfterFilters(
         controller,
         ControllerClass,
         actionName,
-        response
-      )
+        response,
+      );
 
-      return response
-    }
+      return response;
+    };
 
-    middleware._name = 'controllerMiddleware'
-    return middleware
+    middleware._name = "controllerMiddleware";
+    return middleware;
   }
 
   /**
@@ -217,28 +227,30 @@ export class ControllerMiddleware {
    * @returns {Promise<Response|null>} - Response to halt chain, or null to continue
    */
   static async runBeforeFilters(controller, ControllerClass, actionName) {
-    const beforeFilters = ControllerClass.beforeAction || []
+    const beforeFilters = ControllerClass.beforeAction || [];
 
     for (const filter of beforeFilters) {
       const result = await ControllerMiddleware._executeFilter(
         controller,
         filter,
         actionName,
-        'before'
-      )
+        "before",
+      );
 
       // If filter returns a Response, halt the chain
       if (result instanceof Response) {
-        return result
+        return result;
       }
 
       // If filter returns false, halt without response (let controller handle it)
       if (result === false) {
-        return controller.forbidden ? controller.forbidden() : new Response('Forbidden', { status: 403 })
+        return controller.forbidden
+          ? controller.forbidden()
+          : new Response("Forbidden", { status: 403 });
       }
     }
 
-    return null
+    return null;
   }
 
   /**
@@ -248,17 +260,22 @@ export class ControllerMiddleware {
    * @param {string} actionName - Current action name
    * @param {Response} response - The response from the action
    */
-  static async runAfterFilters(controller, ControllerClass, actionName, response) {
-    const afterFilters = ControllerClass.afterAction || []
+  static async runAfterFilters(
+    controller,
+    ControllerClass,
+    actionName,
+    response,
+  ) {
+    const afterFilters = ControllerClass.afterAction || [];
 
     for (const filter of afterFilters) {
       await ControllerMiddleware._executeFilter(
         controller,
         filter,
         actionName,
-        'after',
-        response
-      )
+        "after",
+        response,
+      );
     }
   }
 
@@ -272,63 +289,69 @@ export class ControllerMiddleware {
    * @returns {Promise<*>}
    * @private
    */
-  static async _executeFilter(controller, filter, actionName, phase, response = null) {
+  static async _executeFilter(
+    controller,
+    filter,
+    actionName,
+    phase,
+    response = null,
+  ) {
     // Parse filter configuration
-    const filterConfig = typeof filter === 'string'
-      ? { name: filter }
-      : filter
+    const filterConfig = typeof filter === "string" ? { name: filter } : filter;
 
-    const { name, only, except, if: ifCondition, unless } = filterConfig
+    const { name, only, except, if: ifCondition, unless } = filterConfig;
 
     // Check :only option - only run for specified actions
     if (only && !ControllerMiddleware._matchesActions(actionName, only)) {
-      return null
+      return null;
     }
 
     // Check :except option - skip for specified actions
     if (except && ControllerMiddleware._matchesActions(actionName, except)) {
-      return null
+      return null;
     }
 
     // Check :if condition
     if (ifCondition) {
-      const shouldRun = typeof ifCondition === 'function'
-        ? await ifCondition.call(controller)
-        : typeof controller[ifCondition] === 'function'
-          ? await controller[ifCondition]()
-          : ifCondition
+      const shouldRun =
+        typeof ifCondition === "function"
+          ? await ifCondition.call(controller)
+          : typeof controller[ifCondition] === "function"
+            ? await controller[ifCondition]()
+            : ifCondition;
 
       if (!shouldRun) {
-        return null
+        return null;
       }
     }
 
     // Check :unless condition
     if (unless) {
-      const shouldSkip = typeof unless === 'function'
-        ? await unless.call(controller)
-        : typeof controller[unless] === 'function'
-          ? await controller[unless]()
-          : unless
+      const shouldSkip =
+        typeof unless === "function"
+          ? await unless.call(controller)
+          : typeof controller[unless] === "function"
+            ? await controller[unless]()
+            : unless;
 
       if (shouldSkip) {
-        return null
+        return null;
       }
     }
 
     // Execute the filter method
-    const method = controller[name]
-    if (typeof method !== 'function') {
-      console.warn(`Filter method '${name}' not found on controller`)
-      return null
+    const method = controller[name];
+    if (typeof method !== "function") {
+      console.warn(`Filter method '${name}' not found on controller`);
+      return null;
     }
 
     // Call the filter method
-    if (phase === 'after' && response) {
-      return await method.call(controller, response)
+    if (phase === "after" && response) {
+      return await method.call(controller, response);
     }
 
-    return await method.call(controller)
+    return await method.call(controller);
   }
 
   /**
@@ -340,14 +363,14 @@ export class ControllerMiddleware {
    */
   static _matchesActions(actionName, actions) {
     if (Array.isArray(actions)) {
-      return actions.includes(actionName)
+      return actions.includes(actionName);
     }
-    return actions === actionName
+    return actions === actionName;
   }
 }
 
 // Import the comprehensive request parser
-import { requestParserMiddleware as createRequestParser } from './request_parser.js'
+import { requestParserMiddleware as createRequestParser } from "./request_parser.js";
 
 /**
  * Built-in middleware functions
@@ -364,57 +387,64 @@ export const Middleware = {
    */
   bodyParser: (_options = {}) => {
     const middleware = async (context, next) => {
-      const request = context.request
-      const contentType = request.headers.get('content-type') || ''
+      const request = context.request;
+      const contentType = request.headers.get("content-type") || "";
 
       // Only parse for methods that typically have bodies
-      if (['POST', 'PUT', 'PATCH'].includes(request.method)) {
+      if (["POST", "PUT", "PATCH"].includes(request.method)) {
         try {
-          if (contentType.includes('application/json')) {
-            const body = await request.clone().json()
-            context.body = body
-            context.params = { ...context.params, ...body }
-          } else if (contentType.includes('application/x-www-form-urlencoded')) {
-            const formData = await request.clone().formData()
-            const body = Object.fromEntries(formData)
-            context.body = body
-            context.params = { ...context.params, ...body }
-          } else if (contentType.includes('multipart/form-data')) {
-            const formData = await request.clone().formData()
-            const body = {}
-            const files = {}
+          if (contentType.includes("application/json")) {
+            const body = await request.clone().json();
+            context.body = body;
+            context.params = { ...context.params, ...body };
+          } else if (
+            contentType.includes("application/x-www-form-urlencoded")
+          ) {
+            const formData = await request.clone().formData();
+            const body = Object.fromEntries(formData);
+            context.body = body;
+            context.params = { ...context.params, ...body };
+          } else if (contentType.includes("multipart/form-data")) {
+            const formData = await request.clone().formData();
+            const body = {};
+            const files = {};
             for (const [key, value] of formData.entries()) {
               // Check if value is a File/Blob
-              if (value && typeof value === 'object' && typeof value.arrayBuffer === 'function' && value.name !== undefined) {
+              if (
+                value &&
+                typeof value === "object" &&
+                typeof value.arrayBuffer === "function" &&
+                value.name !== undefined
+              ) {
                 files[key] = {
                   name: value.name,
                   type: value.type,
                   size: value.size,
-                  file: value
-                }
+                  file: value,
+                };
               } else {
-                body[key] = value
+                body[key] = value;
               }
             }
-            context.body = body
-            context.files = files
-            context.params = { ...context.params, ...body }
+            context.body = body;
+            context.files = files;
+            context.params = { ...context.params, ...body };
           }
         } catch (error) {
-          console.warn(`Failed to parse request body: ${error.message}`)
+          console.warn(`Failed to parse request body: ${error.message}`);
         }
       }
 
       // Initialize defaults if not set
-      if (!context.query) context.query = {}
-      if (!context.body) context.body = {}
-      if (!context.files) context.files = {}
+      if (!context.query) context.query = {};
+      if (!context.body) context.body = {};
+      if (!context.files) context.files = {};
 
-      return await next()
-    }
+      return await next();
+    };
 
-    middleware._name = 'bodyParser'
-    return middleware
+    middleware._name = "bodyParser";
+    return middleware;
   },
 
   /**
@@ -438,7 +468,7 @@ export const Middleware = {
    * }))
    */
   requestParser: (options = {}) => {
-    return createRequestParser(options)
+    return createRequestParser(options);
   },
 
   /**
@@ -446,56 +476,60 @@ export const Middleware = {
    * @param {Object} options - Session options
    * @param {string} options.secret - Secret for signing cookies
    * @param {string} options.cookieName - Cookie name (default: '_session')
-   * @param {Object} options.store - Session store (default: in-memory)
+   * @param {string|Object} options.store - Session store name ('memory', the
+   *   only built-in store) or a Map-like store object (default: in-memory).
+   *   Any other store name is rejected while the application starts.
    * @param {number} options.maxAge - Session max age in seconds
    * @returns {MiddlewareFunction}
    */
   session: (options = {}) => {
     const {
-      secret: _secret = process.env.SESSION_SECRET || 'change-me-in-production',
-      cookieName = '_session',
-      store = new Map(),
-      maxAge = 86400 // 24 hours
-    } = options
+      secret: _secret = process.env.SESSION_SECRET || "change-me-in-production",
+      cookieName = "_session",
+      store: storeOption,
+      maxAge = 86400, // 24 hours
+    } = options;
+
+    const store = resolveSessionStore(storeOption);
 
     const middleware = async (context, next) => {
-      const request = context.request
-      const cookies = parseCookies(request.headers.get('cookie') || '')
-      const sessionId = cookies[cookieName]
+      const request = context.request;
+      const cookies = parseCookies(request.headers.get("cookie") || "");
+      const sessionId = cookies[cookieName];
 
       // Load or create session
-      let session = {}
+      let session = {};
       if (sessionId && store.has(sessionId)) {
-        session = store.get(sessionId)
+        session = store.get(sessionId);
       }
 
-      context.session = session
+      context.session = session;
 
       // Execute the rest of the chain
-      const response = await next()
+      const response = await next();
 
       // Save session after response
-      const newSessionId = sessionId || generateSessionId()
-      store.set(newSessionId, context.session)
+      const newSessionId = sessionId || generateSessionId();
+      store.set(newSessionId, context.session);
 
       // Set session cookie if needed
       if (!sessionId) {
-        const setCookieHeader = `${cookieName}=${newSessionId}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}`
+        const setCookieHeader = `${cookieName}=${newSessionId}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${maxAge}`;
         // Clone response with new header
-        const headers = new Headers(response.headers)
-        headers.append('Set-Cookie', setCookieHeader)
+        const headers = new Headers(response.headers);
+        headers.append("Set-Cookie", setCookieHeader);
         return new Response(response.body, {
           status: response.status,
           statusText: response.statusText,
-          headers
-        })
+          headers,
+        });
       }
 
-      return response
-    }
+      return response;
+    };
 
-    middleware._name = 'session'
-    return middleware
+    middleware._name = "session";
+    return middleware;
   },
 
   /**
@@ -506,45 +540,45 @@ export const Middleware = {
    * @returns {MiddlewareFunction}
    */
   csrf: (options = {}) => {
-    const {
-      ignoreMethods = ['GET', 'HEAD', 'OPTIONS'],
-      ignorePaths = []
-    } = options
+    const { ignoreMethods = ["GET", "HEAD", "OPTIONS"], ignorePaths = [] } =
+      options;
 
     const middleware = async (context, next) => {
-      const request = context.request
-      const url = new URL(request.url)
+      const request = context.request;
+      const url = new URL(request.url);
 
       // Skip for safe methods
       if (ignoreMethods.includes(request.method)) {
-        return await next()
+        return await next();
       }
 
       // Skip for ignored paths
-      if (ignorePaths.some(path => url.pathname.startsWith(path))) {
-        return await next()
+      if (ignorePaths.some((path) => url.pathname.startsWith(path))) {
+        return await next();
       }
 
       // Get CSRF token from header or body
-      const headerToken = request.headers.get('X-CSRF-Token') || request.headers.get('X-XSRF-Token')
-      const bodyToken = context.params?._csrf || context.body?._csrf
+      const headerToken =
+        request.headers.get("X-CSRF-Token") ||
+        request.headers.get("X-XSRF-Token");
+      const bodyToken = context.params?._csrf || context.body?._csrf;
 
-      const token = headerToken || bodyToken
-      const sessionToken = context.session?.csrfToken
+      const token = headerToken || bodyToken;
+      const sessionToken = context.session?.csrfToken;
 
       // Verify token
       if (!token || !sessionToken || token !== sessionToken) {
-        return new Response(JSON.stringify({ error: 'CSRF token mismatch' }), {
+        return new Response(JSON.stringify({ error: "CSRF token mismatch" }), {
           status: 403,
-          headers: { 'Content-Type': 'application/json' }
-        })
+          headers: { "Content-Type": "application/json" },
+        });
       }
 
-      return await next()
-    }
+      return await next();
+    };
 
-    middleware._name = 'csrf'
-    return middleware
+    middleware._name = "csrf";
+    return middleware;
   },
 
   /**
@@ -559,59 +593,61 @@ export const Middleware = {
    */
   cors: (options = {}) => {
     const {
-      origin = '*',
-      methods = ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-      headers = ['Content-Type', 'Authorization', 'X-CSRF-Token'],
+      origin = "*",
+      methods = ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+      headers = ["Content-Type", "Authorization", "X-CSRF-Token"],
       credentials = false,
-      maxAge = 86400
-    } = options
+      maxAge = 86400,
+    } = options;
 
     const middleware = async (context, next) => {
-      const request = context.request
-      const requestOrigin = request.headers.get('origin')
+      const request = context.request;
+      const requestOrigin = request.headers.get("origin");
 
       // Determine allowed origin
-      let allowedOrigin = '*'
-      if (typeof origin === 'function') {
-        allowedOrigin = origin(requestOrigin) || ''
+      let allowedOrigin = "*";
+      if (typeof origin === "function") {
+        allowedOrigin = origin(requestOrigin) || "";
       } else if (Array.isArray(origin)) {
-        allowedOrigin = origin.includes(requestOrigin) ? requestOrigin : ''
-      } else if (origin !== '*') {
-        allowedOrigin = origin === requestOrigin ? requestOrigin : ''
+        allowedOrigin = origin.includes(requestOrigin) ? requestOrigin : "";
+      } else if (origin !== "*") {
+        allowedOrigin = origin === requestOrigin ? requestOrigin : "";
       }
 
       // Handle preflight
-      if (request.method === 'OPTIONS') {
+      if (request.method === "OPTIONS") {
         return new Response(null, {
           status: 204,
           headers: {
-            'Access-Control-Allow-Origin': allowedOrigin,
-            'Access-Control-Allow-Methods': methods.join(', '),
-            'Access-Control-Allow-Headers': headers.join(', '),
-            'Access-Control-Max-Age': String(maxAge),
-            ...(credentials ? { 'Access-Control-Allow-Credentials': 'true' } : {})
-          }
-        })
+            "Access-Control-Allow-Origin": allowedOrigin,
+            "Access-Control-Allow-Methods": methods.join(", "),
+            "Access-Control-Allow-Headers": headers.join(", "),
+            "Access-Control-Max-Age": String(maxAge),
+            ...(credentials
+              ? { "Access-Control-Allow-Credentials": "true" }
+              : {}),
+          },
+        });
       }
 
-      const response = await next()
+      const response = await next();
 
       // Add CORS headers to response
-      const corsHeaders = new Headers(response.headers)
-      corsHeaders.set('Access-Control-Allow-Origin', allowedOrigin)
+      const corsHeaders = new Headers(response.headers);
+      corsHeaders.set("Access-Control-Allow-Origin", allowedOrigin);
       if (credentials) {
-        corsHeaders.set('Access-Control-Allow-Credentials', 'true')
+        corsHeaders.set("Access-Control-Allow-Credentials", "true");
       }
 
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
-        headers: corsHeaders
-      })
-    }
+        headers: corsHeaders,
+      });
+    };
 
-    middleware._name = 'cors'
-    return middleware
+    middleware._name = "cors";
+    return middleware;
   },
 
   /**
@@ -622,38 +658,39 @@ export const Middleware = {
    * @returns {MiddlewareFunction}
    */
   logger: (options = {}) => {
-    const {
-      logger = console.log,
-      includeBody = false
-    } = options
+    const { logger = console.log, includeBody = false } = options;
 
     const middleware = async (context, next) => {
-      const request = context.request
-      const startTime = performance.now()
-      const url = new URL(request.url)
+      const request = context.request;
+      const startTime = performance.now();
+      const url = new URL(request.url);
 
-      logger(`--> ${request.method} ${url.pathname}`)
+      logger(`--> ${request.method} ${url.pathname}`);
 
       if (includeBody && context.body) {
-        logger(`    Body: ${JSON.stringify(context.body).slice(0, 200)}`)
+        logger(`    Body: ${JSON.stringify(context.body).slice(0, 200)}`);
       }
 
       try {
-        const response = await next()
-        const duration = (performance.now() - startTime).toFixed(2)
+        const response = await next();
+        const duration = (performance.now() - startTime).toFixed(2);
 
-        logger(`<-- ${request.method} ${url.pathname} ${response.status} ${duration}ms`)
+        logger(
+          `<-- ${request.method} ${url.pathname} ${response.status} ${duration}ms`,
+        );
 
-        return response
+        return response;
       } catch (error) {
-        const duration = (performance.now() - startTime).toFixed(2)
-        logger(`<-- ${request.method} ${url.pathname} ERROR ${duration}ms - ${error.message}`)
-        throw error
+        const duration = (performance.now() - startTime).toFixed(2);
+        logger(
+          `<-- ${request.method} ${url.pathname} ERROR ${duration}ms - ${error.message}`,
+        );
+        throw error;
       }
-    }
+    };
 
-    middleware._name = 'logger'
-    return middleware
+    middleware._name = "logger";
+    return middleware;
   },
 
   /**
@@ -664,41 +701,39 @@ export const Middleware = {
    * @returns {MiddlewareFunction}
    */
   errorHandler: (options = {}) => {
-    const {
-      onError = null,
-      expose = process.env.NODE_ENV !== 'production'
-    } = options
+    const { onError = null, expose = process.env.NODE_ENV !== "production" } =
+      options;
 
     const middleware = async (context, next) => {
       try {
-        return await next()
+        return await next();
       } catch (error) {
         // Call error callback if provided
         if (onError) {
-          onError(error, context)
+          onError(error, context);
         }
 
         // Determine status code
-        const status = error.status || error.statusCode || 500
+        const status = error.status || error.statusCode || 500;
 
         // Build error response
         const body = {
-          error: expose ? error.message : 'Internal Server Error'
-        }
+          error: expose ? error.message : "Internal Server Error",
+        };
 
         if (expose && error.stack) {
-          body.stack = error.stack.split('\n')
+          body.stack = error.stack.split("\n");
         }
 
         return new Response(JSON.stringify(body), {
           status,
-          headers: { 'Content-Type': 'application/json' }
-        })
+          headers: { "Content-Type": "application/json" },
+        });
       }
-    }
+    };
 
-    middleware._name = 'errorHandler'
-    return middleware
+    middleware._name = "errorHandler";
+    return middleware;
   },
 
   /**
@@ -715,62 +750,70 @@ export const Middleware = {
       windowMs = 60000, // 1 minute
       max = 100,
       keyGenerator = (context) => {
-        const request = context.request
-        return request.headers.get('x-forwarded-for') ||
-               request.headers.get('x-real-ip') ||
-               'unknown'
+        const request = context.request;
+        return (
+          request.headers.get("x-forwarded-for") ||
+          request.headers.get("x-real-ip") ||
+          "unknown"
+        );
       },
-      store = new Map()
-    } = options
+      store = new Map(),
+    } = options;
 
     const middleware = async (context, next) => {
-      const key = keyGenerator(context)
-      const now = Date.now()
+      const key = keyGenerator(context);
+      const now = Date.now();
 
       // Get or create rate limit entry
-      let entry = store.get(key)
+      let entry = store.get(key);
       if (!entry || now > entry.resetTime) {
         entry = {
           count: 0,
-          resetTime: now + windowMs
-        }
+          resetTime: now + windowMs,
+        };
       }
 
-      entry.count++
-      store.set(key, entry)
+      entry.count++;
+      store.set(key, entry);
 
       // Check if rate limit exceeded
       if (entry.count > max) {
-        const retryAfter = Math.ceil((entry.resetTime - now) / 1000)
-        return new Response(JSON.stringify({ error: 'Too many requests' }), {
+        const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
+        return new Response(JSON.stringify({ error: "Too many requests" }), {
           status: 429,
           headers: {
-            'Content-Type': 'application/json',
-            'Retry-After': String(retryAfter),
-            'X-RateLimit-Limit': String(max),
-            'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': String(Math.ceil(entry.resetTime / 1000))
-          }
-        })
+            "Content-Type": "application/json",
+            "Retry-After": String(retryAfter),
+            "X-RateLimit-Limit": String(max),
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": String(Math.ceil(entry.resetTime / 1000)),
+          },
+        });
       }
 
-      const response = await next()
+      const response = await next();
 
       // Add rate limit headers
-      const headers = new Headers(response.headers)
-      headers.set('X-RateLimit-Limit', String(max))
-      headers.set('X-RateLimit-Remaining', String(Math.max(0, max - entry.count)))
-      headers.set('X-RateLimit-Reset', String(Math.ceil(entry.resetTime / 1000)))
+      const headers = new Headers(response.headers);
+      headers.set("X-RateLimit-Limit", String(max));
+      headers.set(
+        "X-RateLimit-Remaining",
+        String(Math.max(0, max - entry.count)),
+      );
+      headers.set(
+        "X-RateLimit-Reset",
+        String(Math.ceil(entry.resetTime / 1000)),
+      );
 
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
-        headers
-      })
-    }
+        headers,
+      });
+    };
 
-    middleware._name = 'rateLimit'
-    return middleware
+    middleware._name = "rateLimit";
+    return middleware;
   },
 
   /**
@@ -781,36 +824,33 @@ export const Middleware = {
    * @returns {MiddlewareFunction}
    */
   authenticate: (options = {}) => {
-    const {
-      authenticate = async () => null,
-      excludePaths = []
-    } = options
+    const { authenticate = async () => null, excludePaths = [] } = options;
 
     const middleware = async (context, next) => {
-      const request = context.request
-      const url = new URL(request.url)
+      const request = context.request;
+      const url = new URL(request.url);
 
       // Skip excluded paths
-      if (excludePaths.some(path => url.pathname.startsWith(path))) {
-        return await next()
+      if (excludePaths.some((path) => url.pathname.startsWith(path))) {
+        return await next();
       }
 
       // Try to authenticate
-      const user = await authenticate(context)
+      const user = await authenticate(context);
 
       if (!user) {
-        return new Response(JSON.stringify({ error: 'Unauthorized' }), {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
           status: 401,
-          headers: { 'Content-Type': 'application/json' }
-        })
+          headers: { "Content-Type": "application/json" },
+        });
       }
 
-      context.currentUser = user
-      return await next()
-    }
+      context.currentUser = user;
+      return await next();
+    };
 
-    middleware._name = 'authenticate'
-    return middleware
+    middleware._name = "authenticate";
+    return middleware;
   },
 
   /**
@@ -820,30 +860,30 @@ export const Middleware = {
    * @returns {MiddlewareFunction}
    */
   cleanup: (options = {}) => {
-    const { cleaners = [] } = options
+    const { cleaners = [] } = options;
 
     const middleware = async (context, next) => {
       try {
-        return await next()
+        return await next();
       } finally {
         // Run cleanup tasks
         for (const cleaner of cleaners) {
           try {
-            await cleaner(context)
+            await cleaner(context);
           } catch (error) {
-            console.error('Cleanup error:', error.message)
+            console.error("Cleanup error:", error.message);
           }
         }
 
         // Clear temp data
         if (context.temp) {
-          context.temp.clear()
+          context.temp.clear();
         }
       }
-    }
+    };
 
-    middleware._name = 'cleanup'
-    return middleware
+    middleware._name = "cleanup";
+    return middleware;
   },
 
   /**
@@ -885,128 +925,143 @@ export const Middleware = {
     const {
       store = new Map(),
       keyGenerator = (context, controllerName, actionName) => {
-        const request = context.request
-        const ip = request.headers.get('x-forwarded-for') ||
-                   request.headers.get('x-real-ip') ||
-                   'unknown'
+        const request = context.request;
+        const ip =
+          request.headers.get("x-forwarded-for") ||
+          request.headers.get("x-real-ip") ||
+          "unknown";
         // Include controller and action in key for per-endpoint limiting
-        return `ratelimit:${controllerName}:${actionName}:${ip}`
+        return `ratelimit:${controllerName}:${actionName}:${ip}`;
       },
-      defaultLimits = null
-    } = options
+      defaultLimits = null,
+    } = options;
 
     // Helper to clean up expired entries periodically
-    let lastCleanup = Date.now()
-    const cleanupInterval = 60000 // 1 minute
+    let lastCleanup = Date.now();
+    const cleanupInterval = 60000; // 1 minute
 
     const cleanup = () => {
-      const now = Date.now()
-      if (now - lastCleanup < cleanupInterval) return
+      const now = Date.now();
+      if (now - lastCleanup < cleanupInterval) return;
 
-      lastCleanup = now
+      lastCleanup = now;
 
       // Clean up expired entries from Map store
       if (store instanceof Map) {
         for (const [key, entry] of store.entries()) {
           if (now > entry.resetTime) {
-            store.delete(key)
+            store.delete(key);
           }
         }
       }
-    }
+    };
 
     const middleware = async (context, next) => {
-      const { controller, ControllerClass, actionName } = context._controllerInfo || {}
+      const { controller, ControllerClass, actionName } =
+        context._controllerInfo || {};
 
       // If no controller info, skip rate limiting
       if (!controller || !ControllerClass) {
-        return await next()
+        return await next();
       }
 
       // Get rate limit configuration from controller
-      const rateLimitConfig = ControllerClass.rateLimit || {}
-      const controllerName = ControllerClass.name || 'UnknownController'
+      const rateLimitConfig = ControllerClass.rateLimit || {};
+      const controllerName = ControllerClass.name || "UnknownController";
 
       // Determine the rate limit for this action
-      let actionLimit = rateLimitConfig[actionName]
+      let actionLimit = rateLimitConfig[actionName];
 
       // If action-specific limit is false, skip rate limiting for this action
       if (actionLimit === false) {
-        return await next()
+        return await next();
       }
 
       // If no action-specific limit, use default from controller
       if (actionLimit === undefined) {
-        actionLimit = rateLimitConfig.default
+        actionLimit = rateLimitConfig.default;
       }
 
       // If still no limit, use middleware default limits
       if (actionLimit === undefined) {
-        actionLimit = defaultLimits
+        actionLimit = defaultLimits;
       }
 
       // If no limits configured at all, skip rate limiting
       if (!actionLimit) {
-        return await next()
+        return await next();
       }
 
       // Extract limit configuration
-      const { max = 100, windowMs = 60000, message = 'Too many requests' } = actionLimit
+      const {
+        max = 100,
+        windowMs = 60000,
+        message = "Too many requests",
+      } = actionLimit;
 
       // Generate the rate limit key
-      const key = keyGenerator(context, controllerName, actionName)
-      const now = Date.now()
+      const key = keyGenerator(context, controllerName, actionName);
+      const now = Date.now();
 
       // Periodic cleanup
-      cleanup()
+      cleanup();
 
       // Get or create rate limit entry
-      let entry = store.get(key)
+      let entry = store.get(key);
       if (!entry || now > entry.resetTime) {
         entry = {
           count: 0,
-          resetTime: now + windowMs
-        }
+          resetTime: now + windowMs,
+        };
       }
 
-      entry.count++
-      store.set(key, entry)
+      entry.count++;
+      store.set(key, entry);
 
       // Check if rate limit exceeded
       if (entry.count > max) {
-        const retryAfter = Math.ceil((entry.resetTime - now) / 1000)
-        return new Response(JSON.stringify({
-          error: message,
-          retryAfter
-        }), {
-          status: 429,
-          headers: {
-            'Content-Type': 'application/json',
-            'Retry-After': String(retryAfter),
-            'X-RateLimit-Limit': String(max),
-            'X-RateLimit-Remaining': '0',
-            'X-RateLimit-Reset': String(Math.ceil(entry.resetTime / 1000))
-          }
-        })
+        const retryAfter = Math.ceil((entry.resetTime - now) / 1000);
+        return new Response(
+          JSON.stringify({
+            error: message,
+            retryAfter,
+          }),
+          {
+            status: 429,
+            headers: {
+              "Content-Type": "application/json",
+              "Retry-After": String(retryAfter),
+              "X-RateLimit-Limit": String(max),
+              "X-RateLimit-Remaining": "0",
+              "X-RateLimit-Reset": String(Math.ceil(entry.resetTime / 1000)),
+            },
+          },
+        );
       }
 
-      const response = await next()
+      const response = await next();
 
       // Add rate limit headers to response
-      const headers = new Headers(response.headers)
-      headers.set('X-RateLimit-Limit', String(max))
-      headers.set('X-RateLimit-Remaining', String(Math.max(0, max - entry.count)))
-      headers.set('X-RateLimit-Reset', String(Math.ceil(entry.resetTime / 1000)))
+      const headers = new Headers(response.headers);
+      headers.set("X-RateLimit-Limit", String(max));
+      headers.set(
+        "X-RateLimit-Remaining",
+        String(Math.max(0, max - entry.count)),
+      );
+      headers.set(
+        "X-RateLimit-Reset",
+        String(Math.ceil(entry.resetTime / 1000)),
+      );
 
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
-        headers
-      })
-    }
+        headers,
+      });
+    };
 
-    middleware._name = 'controllerRateLimit'
-    return middleware
+    middleware._name = "controllerRateLimit";
+    return middleware;
   },
 
   /**
@@ -1016,40 +1071,40 @@ export const Middleware = {
    * @returns {MiddlewareFunction}
    */
   timeout: (options = {}) => {
-    const { timeout = 30000 } = options
+    const { timeout = 30000 } = options;
 
     const middleware = async (context, next) => {
-      const controller = new AbortController()
-      const timeoutId = setTimeout(() => controller.abort(), timeout)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeout);
 
       try {
         const response = await Promise.race([
           next(),
           new Promise((_, reject) => {
-            controller.signal.addEventListener('abort', () => {
-              reject(new Error('Request timeout'))
-            })
-          })
-        ])
+            controller.signal.addEventListener("abort", () => {
+              reject(new Error("Request timeout"));
+            });
+          }),
+        ]);
 
-        clearTimeout(timeoutId)
-        return response
+        clearTimeout(timeoutId);
+        return response;
       } catch (error) {
-        clearTimeout(timeoutId)
+        clearTimeout(timeoutId);
 
-        if (error.message === 'Request timeout') {
-          return new Response(JSON.stringify({ error: 'Request timeout' }), {
+        if (error.message === "Request timeout") {
+          return new Response(JSON.stringify({ error: "Request timeout" }), {
             status: 408,
-            headers: { 'Content-Type': 'application/json' }
-          })
+            headers: { "Content-Type": "application/json" },
+          });
         }
 
-        throw error
+        throw error;
       }
-    }
+    };
 
-    middleware._name = 'timeout'
-    return middleware
+    middleware._name = "timeout";
+    return middleware;
   },
 
   /**
@@ -1060,44 +1115,44 @@ export const Middleware = {
   securityHeaders: (options = {}) => {
     const {
       contentSecurityPolicy = "default-src 'self'",
-      xFrameOptions = 'DENY',
-      xContentTypeOptions = 'nosniff',
-      referrerPolicy = 'strict-origin-when-cross-origin',
-      permissionsPolicy = ''
-    } = options
+      xFrameOptions = "DENY",
+      xContentTypeOptions = "nosniff",
+      referrerPolicy = "strict-origin-when-cross-origin",
+      permissionsPolicy = "",
+    } = options;
 
     const middleware = async (context, next) => {
-      const response = await next()
-      const headers = new Headers(response.headers)
+      const response = await next();
+      const headers = new Headers(response.headers);
 
       if (contentSecurityPolicy) {
-        headers.set('Content-Security-Policy', contentSecurityPolicy)
+        headers.set("Content-Security-Policy", contentSecurityPolicy);
       }
       if (xFrameOptions) {
-        headers.set('X-Frame-Options', xFrameOptions)
+        headers.set("X-Frame-Options", xFrameOptions);
       }
       if (xContentTypeOptions) {
-        headers.set('X-Content-Type-Options', xContentTypeOptions)
+        headers.set("X-Content-Type-Options", xContentTypeOptions);
       }
       if (referrerPolicy) {
-        headers.set('Referrer-Policy', referrerPolicy)
+        headers.set("Referrer-Policy", referrerPolicy);
       }
       if (permissionsPolicy) {
-        headers.set('Permissions-Policy', permissionsPolicy)
+        headers.set("Permissions-Policy", permissionsPolicy);
       }
 
       // Always set these
-      headers.set('X-XSS-Protection', '1; mode=block')
+      headers.set("X-XSS-Protection", "1; mode=block");
 
       return new Response(response.body, {
         status: response.status,
         statusText: response.statusText,
-        headers
-      })
-    }
+        headers,
+      });
+    };
 
-    middleware._name = 'securityHeaders'
-    return middleware
+    middleware._name = "securityHeaders";
+    return middleware;
   },
 
   /**
@@ -1107,74 +1162,75 @@ export const Middleware = {
    * @returns {MiddlewareFunction}
    */
   compress: (options = {}) => {
-    const { threshold = 1024 } = options
+    const { threshold = 1024 } = options;
 
     const middleware = async (context, next) => {
-      const response = await next()
-      const request = context.request
+      const response = await next();
+      const request = context.request;
 
       // Check if compression is supported
-      const acceptEncoding = request.headers.get('accept-encoding') || ''
-      const contentType = response.headers.get('content-type') || ''
+      const acceptEncoding = request.headers.get("accept-encoding") || "";
+      const contentType = response.headers.get("content-type") || "";
 
       // Only compress text-based content
-      const compressible = contentType.includes('text/') ||
-                          contentType.includes('application/json') ||
-                          contentType.includes('application/javascript') ||
-                          contentType.includes('application/xml')
+      const compressible =
+        contentType.includes("text/") ||
+        contentType.includes("application/json") ||
+        contentType.includes("application/javascript") ||
+        contentType.includes("application/xml");
 
       if (!compressible) {
-        return response
+        return response;
       }
 
       // Get response body
-      const body = await response.text()
+      const body = await response.text();
 
       // Check threshold
       if (body.length < threshold) {
         return new Response(body, {
           status: response.status,
           statusText: response.statusText,
-          headers: response.headers
-        })
+          headers: response.headers,
+        });
       }
 
       // Compress based on accept-encoding
-      const headers = new Headers(response.headers)
+      const headers = new Headers(response.headers);
 
-      if (acceptEncoding.includes('gzip')) {
-        const compressed = Bun.gzipSync(Buffer.from(body))
-        headers.set('Content-Encoding', 'gzip')
-        headers.delete('Content-Length')
+      if (acceptEncoding.includes("gzip")) {
+        const compressed = Bun.gzipSync(Buffer.from(body));
+        headers.set("Content-Encoding", "gzip");
+        headers.delete("Content-Length");
 
         return new Response(compressed, {
           status: response.status,
           statusText: response.statusText,
-          headers
-        })
+          headers,
+        });
       }
 
-      if (acceptEncoding.includes('deflate')) {
-        const compressed = Bun.deflateSync(Buffer.from(body))
-        headers.set('Content-Encoding', 'deflate')
-        headers.delete('Content-Length')
+      if (acceptEncoding.includes("deflate")) {
+        const compressed = Bun.deflateSync(Buffer.from(body));
+        headers.set("Content-Encoding", "deflate");
+        headers.delete("Content-Length");
 
         return new Response(compressed, {
           status: response.status,
           statusText: response.statusText,
-          headers
-        })
+          headers,
+        });
       }
 
       return new Response(body, {
         status: response.status,
         statusText: response.statusText,
-        headers: response.headers
-      })
-    }
+        headers: response.headers,
+      });
+    };
 
-    middleware._name = 'compress'
-    return middleware
+    middleware._name = "compress";
+    return middleware;
   },
 
   /**
@@ -1207,58 +1263,121 @@ export const Middleware = {
     const middleware = async (context, next) => {
       // Ensure session exists
       if (!context.session) {
-        context.session = {}
+        context.session = {};
       }
 
       // Move "next request" messages to current flash
       // This handles the transition between requests
       if (context.session._flashNext) {
-        context.session._flash = context.session._flashNext
-        delete context.session._flashNext
+        context.session._flash = context.session._flashNext;
+        delete context.session._flashNext;
       }
 
       // Initialize flash storage if not present
       if (!context.session._flash) {
-        context.session._flash = {}
+        context.session._flash = {};
       }
 
       // Track controller for flash processing
-      const originalController = context._controllerInfo?.controller
+      const originalController = context._controllerInfo?.controller;
 
       // Execute the rest of the chain
-      const response = await next()
+      const response = await next();
 
       // Process flash messages after response
       // If controller set new flash messages, move them to "next request"
-      const controller = context._controllerInfo?.controller || originalController
+      const controller =
+        context._controllerInfo?.controller || originalController;
 
-      if (controller && typeof controller._processFlashAfterResponse === 'function') {
-        controller._processFlashAfterResponse()
+      if (
+        controller &&
+        typeof controller._processFlashAfterResponse === "function"
+      ) {
+        controller._processFlashAfterResponse();
       } else if (context.session) {
         // Direct session processing if no controller (e.g., static routes)
         if (context.session._flashRead) {
-          context.session._flash = {}
-          context.session._flashRead = false
-          context.session._flashAccessed = []
+          context.session._flash = {};
+          context.session._flashRead = false;
+          context.session._flashAccessed = [];
         } else if (context.session._flashAccessed?.length > 0) {
           for (const key of context.session._flashAccessed) {
-            delete context.session._flash[key]
+            delete context.session._flash[key];
           }
-          context.session._flashAccessed = []
+          context.session._flashAccessed = [];
         }
       }
 
-      return response
-    }
+      return response;
+    };
 
-    middleware._name = 'flash'
-    return middleware
-  }
-}
+    middleware._name = "flash";
+    return middleware;
+  },
+};
 
 // ==========================================
 // Helper Functions
 // ==========================================
+
+/**
+ * Resolve the configured session store into a Map-like store object.
+ *
+ * The configuration schema passes a store NAME (e.g. `session.store = 'memory'`),
+ * while the middleware is also used programmatically with a Map-like object.
+ * Both forms are accepted.
+ *
+ * 'memory' is the only built-in store. A named store the framework does not
+ * implement (e.g. 'redis') is rejected here, while the application is still
+ * starting, instead of being silently swapped for a private Map: an in-memory
+ * store is per-process, so serving several processes behind a load balancer
+ * would drop sessions - and the login state they carry - between requests.
+ *
+ * @param {string|Object|undefined} storeOption - Store name or Map-like store
+ * @returns {Object} A Map-like store with get/set/has
+ * @throws {Error} When a named store is not implemented by the framework, or
+ *   when a store object does not provide the Map-like API the middleware uses
+ */
+function resolveSessionStore(storeOption) {
+  if (storeOption && typeof storeOption === "object") {
+    // A programmatic store must provide the Map-like API the middleware calls.
+    const isMapLike =
+      typeof storeOption.get === "function" &&
+      typeof storeOption.set === "function" &&
+      typeof storeOption.has === "function";
+
+    if (!isMapLike) {
+      throw new Error(
+        "Invalid session store object: it must implement get(key), " +
+          "set(key, value) and has(key).",
+      );
+    }
+
+    return storeOption;
+  }
+
+  switch (storeOption) {
+    case "memory":
+    case undefined:
+    case null:
+    case "":
+      return new Map();
+    case "redis":
+      throw new Error(
+        "Session store 'redis' is not implemented. BunOnRails has no Redis " +
+          "session adapter, and falling back to the in-memory store would " +
+          "drop sessions between server processes. Use session.store = " +
+          "'memory' for a single-process deployment, or pass a Map-like " +
+          "store object to Middleware.session().",
+      );
+    default:
+      throw new Error(
+        `Unknown session store '${storeOption}'. The only built-in session ` +
+          "store is 'memory'; pass a Map-like store object to " +
+          "Middleware.session() to use another backend.",
+      );
+  }
+}
 
 /**
  * Parse cookies from cookie header string
@@ -1266,17 +1385,17 @@ export const Middleware = {
  * @returns {Object} - Parsed cookies
  */
 function parseCookies(cookieHeader) {
-  const cookies = {}
-  if (!cookieHeader) return cookies
+  const cookies = {};
+  if (!cookieHeader) return cookies;
 
-  for (const pair of cookieHeader.split(';')) {
-    const [key, ...values] = pair.trim().split('=')
+  for (const pair of cookieHeader.split(";")) {
+    const [key, ...values] = pair.trim().split("=");
     if (key) {
-      cookies[key.trim()] = values.join('=').trim()
+      cookies[key.trim()] = values.join("=").trim();
     }
   }
 
-  return cookies
+  return cookies;
 }
 
 /**
@@ -1284,11 +1403,11 @@ function parseCookies(cookieHeader) {
  * @returns {string}
  */
 function generateSessionId() {
-  const bytes = new Uint8Array(32)
-  crypto.getRandomValues(bytes)
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
   return Array.from(bytes)
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('')
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 /**
@@ -1297,80 +1416,82 @@ function generateSessionId() {
  * @returns {MiddlewareStack}
  */
 export function createDefaultMiddlewareStack(options = {}) {
-  const stack = new MiddlewareStack()
+  const stack = new MiddlewareStack();
 
   // Error handling should be first (wraps everything)
   if (options.errorHandler !== false) {
-    stack.use(Middleware.errorHandler(options.errorHandler || {}))
+    stack.use(Middleware.errorHandler(options.errorHandler || {}));
   }
 
   // Logging
   if (options.logger !== false) {
-    stack.use(Middleware.logger(options.logger || {}))
+    stack.use(Middleware.logger(options.logger || {}));
   }
 
   // Security headers
   if (options.securityHeaders !== false) {
-    stack.use(Middleware.securityHeaders(options.securityHeaders || {}))
+    stack.use(Middleware.securityHeaders(options.securityHeaders || {}));
   }
 
   // CORS
   if (options.cors) {
-    stack.use(Middleware.cors(options.cors))
+    stack.use(Middleware.cors(options.cors));
   }
 
   // Body parsing
   if (options.bodyParser !== false) {
-    stack.use(Middleware.bodyParser())
+    stack.use(Middleware.bodyParser());
   }
 
   // Session
   if (options.session) {
-    stack.use(Middleware.session(options.session))
+    stack.use(Middleware.session(options.session));
   }
 
   // Flash messages (requires session)
   if (options.flash !== false && options.session) {
-    stack.use(Middleware.flash(options.flash || {}))
+    stack.use(Middleware.flash(options.flash || {}));
   }
 
   // CSRF
   if (options.csrf) {
-    stack.use(Middleware.csrf(options.csrf))
+    stack.use(Middleware.csrf(options.csrf));
   }
 
   // Global rate limiting
   if (options.rateLimit) {
-    stack.use(Middleware.rateLimit(options.rateLimit))
+    stack.use(Middleware.rateLimit(options.rateLimit));
   }
 
   // Controller-level rate limiting (reads from Controller.rateLimit static property)
   // This is applied per-controller and per-action after controller info is available
   if (options.controllerRateLimit !== false) {
-    stack.use(Middleware.controllerRateLimit(options.controllerRateLimit || {}))
+    stack.use(
+      Middleware.controllerRateLimit(options.controllerRateLimit || {}),
+    );
   }
 
   // Authentication
   if (options.authenticate) {
-    stack.use(Middleware.authenticate(options.authenticate))
+    stack.use(Middleware.authenticate(options.authenticate));
   }
 
   // Request timeout
   if (options.timeout) {
-    stack.use(Middleware.timeout(options.timeout))
+    stack.use(Middleware.timeout(options.timeout));
   }
 
   // Compression (should be near the end to compress final response)
   if (options.compress) {
-    stack.use(Middleware.compress(options.compress))
+    stack.use(Middleware.compress(options.compress));
   }
 
   // Cleanup should be last
   if (options.cleanup) {
-    stack.use(Middleware.cleanup(options.cleanup))
+    stack.use(Middleware.cleanup(options.cleanup));
   }
 
-  return stack
+  return stack;
 }
 
 /**
