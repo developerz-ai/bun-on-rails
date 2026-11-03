@@ -4,8 +4,8 @@ on:
   push:
     branches: [main]
     paths:
-      - 'docs/**'
-      - '.github/workflows/docs.yml'
+      - "docs/**"
+      - ".github/workflows/docs.yml"
   workflow_dispatch:
 
 permissions:
@@ -37,8 +37,20 @@ jobs:
       - name: Build documentation
         run: bun run docs:build
 
-      - name: Setup Pages
+      - name: "Setup Pages - if this fails, set Settings > Pages > Source = GitHub Actions"
         uses: actions/configure-pages@v4
+        with:
+          # Enable (and provision, if needed) the Pages site for this repository
+          # instead of only performing a read-only site lookup. With the default
+          # `enablement: false` this action only LOOKS the site up, so a
+          # repository without a Pages site fails with a bare 404.
+          #
+          # Residual repository setting (outside this workflow's authority):
+          # GitHub Pages must be provisioned for this repository with
+          #   Settings > Pages > Build and deployment > Source = "GitHub Actions"
+          # If the token is not allowed to create Pages sites, that setting has
+          # to be applied in the repository settings.
+          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
