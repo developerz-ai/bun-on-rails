@@ -25,7 +25,8 @@ $ARGUMENTS
 3. Explore read-only, in parallel, into a ranked worklist of PR-sized batches.
 4. Build primitive-first: one reusable primitive with its first real caller. No
    abstraction before a consumer.
-5. **Prove it.** `bin/setup` after any dependency change, then `bin/check`, which here is
+5. **Prove it.** `bin/setup` after any dependency change, then `bin/check`, which `cd`s
+   into `apps/bun-on-rails` and runs, inside that directory,
    `bun lint && bun test && bun run build && (cd demo && bunx eslint --max-warnings=0 app/ config/ test/ db/)`.
    Red is not a pull request: fix the cause, never silence the gate. Add the failing test
    first — a green run that never went red proves nothing.

@@ -4,7 +4,7 @@
 version: 2
 updates:
   - package-ecosystem: "bun"
-    directory: "/"
+    directory: "/apps/bun-on-rails"
     schedule:
       interval: "weekly"
       day: "thursday"
@@ -16,7 +16,7 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
   - package-ecosystem: "docker"
-    directory: "/demo"
+    directory: "/apps/bun-on-rails/demo"
     schedule:
       interval: "weekly"
       day: "thursday"
@@ -28,7 +28,7 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
   - package-ecosystem: "docker-compose"
-    directory: "/demo"
+    directory: "/apps/bun-on-rails/demo"
     schedule:
       interval: "weekly"
       day: "thursday"
@@ -52,7 +52,7 @@ updates:
         patterns: ["*"]
         update-types: ["minor", "patch"]
   - package-ecosystem: "npm"
-    directory: "/demo"
+    directory: "/apps/bun-on-rails/demo"
     schedule:
       interval: "weekly"
       day: "thursday"

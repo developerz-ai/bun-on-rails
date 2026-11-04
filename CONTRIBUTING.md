@@ -31,8 +31,8 @@ By participating in this project, you agree to maintain a respectful and inclusi
 2. Create a feature branch: `git checkout -b feature/my-feature`
 3. Make your changes
 4. Add tests for new functionality
-5. Run the test suite: `bun test`
-6. Run linting: `bun lint`
+5. Run the test suite: `bun test` (from `apps/bun-on-rails/`)
+6. Run linting: `bun lint` (from `apps/bun-on-rails/`)
 7. Commit with descriptive messages
 8. Push to your fork
 9. Open a pull request
@@ -44,13 +44,12 @@ By participating in this project, you agree to maintain a respectful and inclusi
 git clone https://github.com/YOUR_USERNAME/bun-on-rails.git
 cd bun-on-rails
 
-# Install dependencies
+# Install dependencies (bun install at the workspace root)
 bun install
 
-# Run tests
+# Run tests and linting — from apps/bun-on-rails (or use bin/setup + bin/check from the root)
+cd apps/bun-on-rails
 bun test
-
-# Run linting
 bun lint
 ```
 
@@ -58,20 +57,22 @@ bun lint
 
 ```
 bun-on-rails/
-├── src/                    # Framework source code
-│   ├── cli/               # CLI commands
-│   ├── database/          # ORM and migrations
-│   ├── routing/           # Router implementation
-│   ├── controller/        # Controller base class
-│   ├── jobs/              # Background job system
-│   ├── websocket/         # WebSocket/channels
-│   ├── storage/           # File uploads
-│   ├── cache/             # Caching layer
-│   ├── mail/              # Email system
-│   └── testing/           # Test utilities
+├── apps/
+│   └── bun-on-rails/      # The framework (bun workspace member)
+│       ├── src/           # Framework source code
+│       │   ├── cli/       # CLI commands
+│       │   ├── database/  # ORM and migrations
+│       │   ├── routing/   # Router implementation
+│       │   ├── controller/ # Controller base class
+│       │   ├── jobs/      # Background job system
+│       │   ├── websocket/ # WebSocket/channels
+│       │   ├── storage/   # File uploads
+│       │   ├── cache/     # Caching layer
+│       │   ├── mail/      # Email system
+│       │   └── testing/   # Test utilities
+│       └── test/          # Framework tests
 ├── templates/             # Generator templates
-├── docs/                  # Documentation
-└── test/                  # Framework tests
+└── docs/                  # Documentation
 ```
 
 ## Coding Standards
@@ -122,7 +123,7 @@ test('Post.create validates presence of title', async () => {
 ## Release Process
 
 1. Update CHANGELOG.md
-2. Bump version in package.json
+2. Bump version in apps/bun-on-rails/package.json
 3. Create release PR
 4. After merge, tag release
 5. CI publishes to npm

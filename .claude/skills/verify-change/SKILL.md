@@ -15,9 +15,9 @@ passes it locally passes everywhere.
 
 | Step | Command | What it is |
 |------|---------|------------|
-| install | `bin/setup` | bun install |
-| run | `bin/dev` | bun run src/cli/index.js dev — on developerz.ai runs, start it with code_bash_background when you need a running stack |
-| prove | `bin/check` | bun lint && bun test && bun run build && (cd demo && bunx eslint --max-warnings=0 app/ config/ test/ db/) |
+| install | `bin/setup` | bun install (at the workspace root) |
+| run | `bin/dev` | bun run src/cli/index.js dev — serves apps/bun-on-rails/demo; on developerz.ai runs, start it with code_bash_background when you need a running stack |
+| prove | `bin/check` | bun lint && bun test && bun run build && (cd demo && bunx eslint --max-warnings=0 app/ config/ test/ db/) — runs from apps/bun-on-rails (bin/check cds there itself) |
 | stop | `bin/stop` | true — on developerz.ai runs, the platform runs this when your session ends — do not stop the stack yourself |
 
 ## Rules

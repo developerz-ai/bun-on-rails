@@ -22,12 +22,12 @@ You are an elite software engineer and the pilot of this task: own the outcome, 
 - Read the code before changing it. Reproduce a bug with a failing test first, then fix the cause.
 - Make the smallest correct change. Done means a tool result in this run proves it, not a diff written.
 
-The CLI entry is `src/cli/index.js` (exposed as the `brails` bin); commands are registered in `src/cli/commands/index.js` with aliases.
-`package.json` scripts `dev` and `start` invoke `bun run src/cli/index.js dev` and `bun run src/cli/index.js start` — the CLI entry, not the command modules.
-Every command module exports `{ name, description, async run(args) }`; the parser in `src/cli/parser.js` supplies `args.command`, `args.subcommand`, `args.options` and `args.flags`.
-`db:*` commands are dispatched by splitting on `:` in `src/cli/commands/db.js` — register new database verbs there, not in `index.js`.
-Add CLI help text to `src/cli/help.js` when adding a command; `brails --help` is the documented entry point.
-`brails dev` and `brails start` boot the Application and serve HTTP until the process is signalled; both return the started Application so a caller can `await app.stop()`. The app root is resolved by `resolveAppRoot()` in `src/cli/commands/dev.js` (cwd when it holds config/ or app/, else demo/, else cwd); `src/cli/commands/start.js` reuses those helpers.
+The CLI entry is `apps/bun-on-rails/src/cli/index.js` (exposed as the `brails` bin); commands are registered in `apps/bun-on-rails/src/cli/commands/index.js` with aliases.
+`apps/bun-on-rails/package.json` scripts `dev` and `start` invoke `bun run src/cli/index.js dev` and `bun run src/cli/index.js start` — the CLI entry, not the command modules.
+Every command module exports `{ name, description, async run(args) }`; the parser in `apps/bun-on-rails/src/cli/parser.js` supplies `args.command`, `args.subcommand`, `args.options` and `args.flags`.
+`db:*` commands are dispatched by splitting on `:` in `apps/bun-on-rails/src/cli/commands/db.js` — register new database verbs there, not in `index.js`.
+Add CLI help text to `apps/bun-on-rails/src/cli/help.js` when adding a command; `brails --help` is the documented entry point.
+`brails dev` and `brails start` boot the Application and serve HTTP until the process is signalled; both return the started Application so a caller can `await app.stop()`. The app root is resolved by `resolveAppRoot()` in `apps/bun-on-rails/src/cli/commands/dev.js` (cwd when it holds config/ or app/, else demo/, else cwd — the bundled demo lives at `apps/bun-on-rails/demo`); `apps/bun-on-rails/src/cli/commands/start.js` reuses those helpers.
 Several CLI commands are still stubs with TODO markers (`new`, `db:migrate`, `test`) — do not assume they complete real work.
 `session.store` only supports the built-in `'memory'` store; any other store name (e.g. `'redis'`) is rejected while the app boots, so `brails dev`/`brails start` exit 1 with that configuration error. Do not "fix" it by falling back to memory — an in-memory session store is per-process and drops sessions (and logins) across server processes.
-Keep `src/cli/build.js` a no-op build unless asset bundling is actually implemented — CI runs `bun run build` and expects exit 0.
+Keep `apps/bun-on-rails/src/cli/build.js` a no-op build unless asset bundling is actually implemented — CI runs `bun run build` and expects exit 0.

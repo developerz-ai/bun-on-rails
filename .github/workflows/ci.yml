@@ -27,9 +27,11 @@ jobs:
 
       - name: Lint (strict - no warnings)
         run: bun lint
+        working-directory: apps/bun-on-rails
 
       - name: Run tests
         run: bun test
+        working-directory: apps/bun-on-rails
 
   demo:
     name: Demo App (lint + tests + integration)
@@ -73,20 +75,20 @@ jobs:
 
       - name: Lint demo (strict - no warnings)
         run: bun lint
-        working-directory: demo
+        working-directory: apps/bun-on-rails/demo
 
       # Demo tests require database implementations (currently stubs)
       # TODO: Enable when framework is complete
       # - name: Run demo tests
       #   run: bun test
-      #   working-directory: demo
+      #   working-directory: apps/bun-on-rails/demo
       #   env:
       #     DATABASE_URL: postgres://postgres:postgres@localhost:5432/bun_on_rails_test
       #     REDIS_URL: redis://localhost:6379
       #
       # - name: Run demo integration tests
       #   run: bun test:integration
-      #   working-directory: demo
+      #   working-directory: apps/bun-on-rails/demo
       #   env:
       #     DATABASE_URL: postgres://postgres:postgres@localhost:5432/bun_on_rails_test
       #     REDIS_URL: redis://localhost:6379
@@ -109,9 +111,11 @@ jobs:
 
       - name: Build
         run: bun run build
+        working-directory: apps/bun-on-rails
 
       - name: Build documentation
         run: bun run docs:build
+        working-directory: apps/bun-on-rails
 
       - name: Upload docs artifact
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2

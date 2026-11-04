@@ -52,7 +52,7 @@ db/*.sqlite*
 
 # Uploads (local development)
 /storage/
-/demo/storage/
+/apps/bun-on-rails/demo/storage/
 
 # Documentation build
 docs/_build/

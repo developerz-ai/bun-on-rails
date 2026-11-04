@@ -7,7 +7,7 @@
 
 ## Stack
 
-Bun + JavaScript (ESM). The gate is `bin/check` (`bun lint && bun test && bun run build && (cd demo && bunx eslint --max-warnings=0 app/ config/ test/ db/)`): a change that does not pass it is not proven, whatever its description says.
+Bun + JavaScript (ESM). The gate is `bin/check`, which `cd`s into `apps/bun-on-rails` and runs `bun lint && bun test && bun run build && (cd demo && bunx eslint --max-warnings=0 app/ config/ test/ db/)` there: a change that does not pass it is not proven, whatever its description says.
 
 ## Review conventions
 
