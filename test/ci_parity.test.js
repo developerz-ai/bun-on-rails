@@ -12,6 +12,12 @@
  * drops what it cannot read would still pass against it. A gate the parser
  * cannot read must fail LOUD (thrown error or reported as missing), never
  * fail open.
+ *
+ * "Non-empty" is not enough on its own: a job whose whole gate list the
+ * parser skipped leaves the OTHER jobs' gates to keep the comparison
+ * non-empty, so the guard passes on a workflow it only half read. Every
+ * shape the parser cannot read is refused instead — and the multi-job
+ * fixture below proves a skipped job is caught.
  */
 
 import { test, expect } from "bun:test";
@@ -94,6 +100,51 @@ jobs:
 `;
 
 /**
+ * TWO jobs, and the first one's `steps:` header carries a trailing
+ * comment. A parser that skips a header it cannot read drops that job's
+ * whole gate list — the other job's gates keep the parse non-empty, so
+ * the guard still passes on a workflow it only half read.
+ */
+const FIXTURE_MULTI_JOB_COMMENT_HEADER = `name: CI
+jobs:
+  framework:
+    steps: # checks
+      - name: Audit
+        run: bun run audit
+  demo:
+    steps:
+      - name: Lint demo
+        run: bun lint
+        working-directory: demo
+`;
+
+/** A `steps:` header carrying a value this parser cannot read. */
+const FIXTURE_UNSUPPORTED_STEPS_HEADER = `name: CI
+jobs:
+  framework:
+    steps: [{ run: bun lint }]
+`;
+
+/** A `run:` key the parser reads into the wrong step — a command it cannot place. */
+const FIXTURE_UNREADABLE_RUN_KEY = `name: CI
+jobs:
+  framework:
+    steps:
+      - name: Lint
+        run: bun lint
+      run: bun test
+`;
+
+/** A command with a trailing comment on the same line. */
+const FIXTURE_COMMENTED_RUN = `name: CI
+jobs:
+  framework:
+    steps:
+      - name: Lint
+        run: bun lint # the lint gate
+`;
+
+/**
  * Split text on `&&` that is not nested inside parentheses, so a scoped gate
  * such as `(cd demo && bun lint)` stays one segment.
  */
@@ -162,6 +213,81 @@ function applyKey(step, content, rawLine) {
 }
 
 /**
+ * Strip the YAML comment from a line.
+ *
+ * A `#` opens a comment when it starts the line or follows whitespace,
+ * and never inside a quoted scalar. A comment carries no gate, but
+ * leaving it in place hid the key it trailed: `steps: # checks` did not
+ * match the `steps:` header, so the whole step list of that job was
+ * skipped while the other jobs' gates kept the comparison non-empty.
+ */
+function stripYamlComment(rawLine) {
+  let quote = null;
+
+  for (let index = 0; index < rawLine.length; index++) {
+    const char = rawLine[index];
+
+    if (quote) {
+      if (char === quote) quote = null;
+      continue;
+    }
+
+    if (char === '"' || char === "'") {
+      quote = char;
+      continue;
+    }
+
+    if (char === "#" && (index === 0 || /\s/.test(rawLine[index - 1]))) {
+      return rawLine.slice(0, index);
+    }
+  }
+
+  return rawLine;
+}
+
+/**
+ * Count the `run:` keys a workflow declares inside its step lists — the
+ * commands CI runs, before any filtering.
+ *
+ * The scan is deliberately independent of the parser: it finds a step
+ * list by any key that starts with `steps` and ends it at the next
+ * job-level key, so it still counts the commands of a list the parser
+ * skipped. The parser must read exactly this many — fewer means a job's
+ * gate list was skipped and the guard was comparing half a workflow,
+ * more means it read a command the workflow never declares.
+ */
+function countRunKeysInStepLists(source) {
+  let count = 0;
+  let listIndent = null; // indentation of the `steps:` key of the open list
+
+  for (const rawLine of source.split("\n")) {
+    const stripped = stripYamlComment(rawLine);
+    const line = stripped.trim();
+    if (line === "") continue;
+
+    const indent = stripped.length - stripped.trimStart().length;
+
+    // A job-level key ends the open step list...
+    if (listIndent !== null && indent <= listIndent) listIndent = null;
+
+    // ...and the next `steps:` header opens the next one.
+    if (/^steps\b/.test(line)) {
+      listIndent = indent;
+      continue;
+    }
+
+    if (listIndent === null) continue;
+
+    const item = line.match(/^-\s+(.*)$/);
+    const content = item ? item[1] : line;
+
+    if (/^run\s*:/.test(content)) count++;
+  }
+
+  return count;
+}
+
+/**
  * Read the `run:` steps of a GitHub Actions workflow.
  *
  * Every list item of a `steps:` list is a step, whatever key it starts
@@ -178,12 +304,25 @@ function parseWorkflowGates(source) {
   let itemIndent = null; // indentation of the step list items
 
   for (const rawLine of source.split("\n")) {
-    const line = rawLine.trim();
-    if (line === "" || line.startsWith("#")) continue;
+    const stripped = stripYamlComment(rawLine);
+    const line = stripped.trim();
+    if (line === "") continue;
 
-    const indent = rawLine.length - rawLine.trimStart().length;
+    const indent = stripped.length - stripped.trimStart().length;
 
-    if (/^steps:\s*$/.test(line)) {
+    // A `steps:` header opens a step list — with or without a trailing
+    // comment. A header carrying anything else (a flow sequence, a
+    // value) is a shape this parser cannot read: refusing it is loud,
+    // skipping it drops that job's gates and lets the guard pass on the
+    // other jobs' gates.
+    const header = line.match(/^steps\s*:\s*(.*)$/);
+    if (header && (current === null || indent <= stepsIndent)) {
+      if (header[1].trim() !== "") {
+        throw new Error(
+          `ci_parity: unsupported "steps:" header — extend parseWorkflowGates to read:\n${rawLine}`,
+        );
+      }
+
       // A new step list — its items may sit at another indentation.
       inSteps = true;
       stepsIndent = indent;
@@ -192,7 +331,7 @@ function parseWorkflowGates(source) {
       continue;
     }
 
-    const item = rawLine.match(/^(\s*)-\s+(.*)$/);
+    const item = stripped.match(/^(\s*)-\s+(.*)$/);
     if (
       item &&
       inSteps &&
@@ -223,6 +362,17 @@ function parseWorkflowGates(source) {
     }
 
     applyKey(current, line, rawLine);
+  }
+
+  // Every command the workflow declares must have been read: a step list
+  // the parser skipped would leave the guard comparing half a workflow.
+  const read = steps.filter((step) => step.run !== null).length;
+  const declared = countRunKeysInStepLists(source);
+
+  if (read !== declared) {
+    throw new Error(
+      `ci_parity: read ${read} of ${declared} "run:" steps — extend parseWorkflowGates to read the rest`,
+    );
   }
 
   return steps
@@ -381,4 +531,43 @@ test("unit: consecutive `- id:` steps are all gates", () => {
   );
 
   expect(missing).toEqual([{ workingDirectory: "", command: "bun test" }]);
+});
+
+test("unit: a `steps: # comment` header keeps that job's gates", () => {
+  const ciGates = parseWorkflowGates(FIXTURE_MULTI_JOB_COMMENT_HEADER);
+
+  // Both jobs' gates are read — the commented header used to drop the
+  // first job's whole list.
+  expect(ciGates).toEqual([
+    { workingDirectory: "", command: "bun run audit" },
+    { workingDirectory: "demo", command: "bun lint" },
+  ]);
+
+  // bin/check runs the demo gate but not the audit one. The missing gate
+  // of the commented-header job must be reported even though the other
+  // job's gate keeps the parse non-empty.
+  const missing = findMissingGates(
+    ciGates,
+    parseCheckGates("bun lint && (cd demo && bun lint)"),
+  );
+
+  expect(missing).toEqual([{ workingDirectory: "", command: "bun run audit" }]);
+});
+
+test("unit: an unreadable `steps:` header is refused, not skipped", () => {
+  expect(() => parseWorkflowGates(FIXTURE_UNSUPPORTED_STEPS_HEADER)).toThrow(
+    /unsupported "steps:" header/,
+  );
+});
+
+test("unit: a `run:` key the parser cannot place is refused, not skipped", () => {
+  expect(() => parseWorkflowGates(FIXTURE_UNREADABLE_RUN_KEY)).toThrow(
+    /read 1 of 2 "run:" steps/,
+  );
+});
+
+test("unit: a trailing comment is not part of the command", () => {
+  const ciGates = parseWorkflowGates(FIXTURE_COMMENTED_RUN);
+
+  expect(ciGates).toEqual([{ workingDirectory: "", command: "bun lint" }]);
 });
