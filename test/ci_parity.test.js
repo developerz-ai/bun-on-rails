@@ -67,6 +67,33 @@ jobs:
 `;
 
 /**
+ * A FIRST step headed by `- id:` — a step may start with any key, so the
+ * parser must not assume `- name:`/`- uses:`.
+ */
+const FIXTURE_ID_FIRST_STEP = `name: CI
+jobs:
+  audit:
+    steps:
+      - id: audit
+        run: bun run audit
+`;
+
+/**
+ * Two steps in a row headed by `- id:` — the second one's `run:` overwrote
+ * the first one's command, so all but the last gate vanished from the
+ * comparison.
+ */
+const FIXTURE_ID_STEPS = `name: CI
+jobs:
+  audit:
+    steps:
+      - id: lint
+        run: bun lint
+      - id: test
+        run: bun test
+`;
+
+/**
  * Split text on `&&` that is not nested inside parentheses, so a scoped gate
  * such as `(cd demo && bun lint)` stays one segment.
  */
@@ -108,7 +135,7 @@ function splitOnTopLevelAmpersands(text) {
  * and quietly pass. Refuse it instead.
  */
 function assignRun(step, command, rawLine) {
-  if (/^[|>][-+]?$/.test(command)) {
+  if (/^[|>][-+]?\d*$/.test(command)) {
     throw new Error(
       `ci_parity: multi-line "run:" steps are not supported — extend parseWorkflowGates to read:\n${rawLine}`,
     );
@@ -118,62 +145,84 @@ function assignRun(step, command, rawLine) {
 }
 
 /**
+ * Apply one key of a step mapping. Only two keys carry a gate: `run` (the
+ * command) and `working-directory` (where it runs). Every other key —
+ * `name`, `id`, `uses`, `env` — is metadata the guard does not care about.
+ */
+function applyKey(step, content, rawLine) {
+  const pair = content.match(/^([A-Za-z0-9_.-]+)\s*:\s*(.*)$/);
+  if (!pair) return;
+
+  const raw = pair[2].trim();
+  const quoted = raw.match(/^(['"])(.*)\1$/);
+  const value = quoted ? quoted[2] : raw;
+
+  if (pair[1] === "run") assignRun(step, value, rawLine);
+  else if (pair[1] === "working-directory") step.workingDirectory = value;
+}
+
+/**
  * Read the `run:` steps of a GitHub Actions workflow.
  *
- * Commented-out steps are skipped, and each step keeps the working
- * directory it runs in — a step without one runs at the repository root.
+ * Every list item of a `steps:` list is a step, whatever key it starts
+ * with — `- name:`, `- uses:`, `- run:`, `- id:` … A parser that assumes
+ * one shape drops the gates it cannot read, and the guard then fails OPEN.
+ * A step's command is its `run` key and its directory its
+ * `working-directory` key; a step without one runs at the repository root.
  */
 function parseWorkflowGates(source) {
   const steps = [];
-  let current = null;
-  let insideCommentedStep = false;
+  let current = null; // the step being read
+  let inSteps = false; // inside a `steps:` list
+  let stepsIndent = 0; // indentation of the `steps:` key
+  let itemIndent = null; // indentation of the step list items
 
   for (const rawLine of source.split("\n")) {
     const line = rawLine.trim();
-    if (line === "") continue;
+    if (line === "" || line.startsWith("#")) continue;
 
-    if (line.startsWith("#")) {
-      // A commented-out step owns the lines indented under it.
-      if (/^#\s*-\s*(?:name|uses):/.test(line)) {
-        current = null;
-        insideCommentedStep = true;
-      }
+    const indent = rawLine.length - rawLine.trimStart().length;
+
+    if (/^steps:\s*$/.test(line)) {
+      // A new step list — its items may sit at another indentation.
+      inSteps = true;
+      stepsIndent = indent;
+      itemIndent = null;
+      current = null;
       continue;
     }
 
-    const stepStart = line.match(/^-\s+(?:name|uses):\s*(.*)$/);
-    if (stepStart) {
+    const item = rawLine.match(/^(\s*)-\s+(.*)$/);
+    if (
+      item &&
+      inSteps &&
+      (itemIndent === null || item[1].length === itemIndent)
+    ) {
+      // A list item at the step indentation is a step, whatever key it
+      // starts with. Deeper items are values nested inside the step.
+      itemIndent = item[1].length;
       current = { run: null, workingDirectory: null };
       steps.push(current);
-      insideCommentedStep = false;
+      applyKey(current, item[2], rawLine);
       continue;
     }
 
-    // A step may carry `run` as its own key: `- run: <cmd>`. Such a line
-    // matches neither the step-start pattern nor the `run:` key pattern, so
-    // without this branch the whole gate would vanish from the comparison
-    // and the guard would fail OPEN.
-    const bareRun = line.match(/^-\s+run:\s*(.*)$/);
-    if (bareRun) {
-      current = { run: null, workingDirectory: null };
-      steps.push(current);
-      insideCommentedStep = false;
-      assignRun(current, bareRun[1].trim(), rawLine);
+    if (!inSteps) continue;
+
+    // A key at the job level ends the step list.
+    if (indent <= stepsIndent) {
+      inSteps = false;
+      current = null;
       continue;
     }
 
-    if (insideCommentedStep || !current) continue;
-
-    const run = line.match(/^run:\s*(.*)$/);
-    if (run) {
-      assignRun(current, run[1].trim(), rawLine);
-      continue;
+    if (!current) {
+      throw new Error(
+        `ci_parity: a step key outside any step — extend parseWorkflowGates to read:\n${rawLine}`,
+      );
     }
 
-    const workingDirectory = line.match(/^working-directory:\s*(.*)$/);
-    if (workingDirectory) {
-      current.workingDirectory = workingDirectory[1].trim();
-    }
+    applyKey(current, line, rawLine);
   }
 
   return steps
@@ -299,4 +348,37 @@ test("unit: a multi-line `run:` step is refused, not silently skipped", () => {
   expect(() => parseWorkflowGates(FIXTURE_MULTI_LINE_RUN)).toThrow(
     /multi-line "run:" steps are not supported/,
   );
+});
+
+test("unit: a first step headed by `- id:` is a gate, not a dropped step", () => {
+  const ciGates = parseWorkflowGates(FIXTURE_ID_FIRST_STEP);
+
+  expect(ciGates).toEqual([{ workingDirectory: "", command: "bun run audit" }]);
+
+  // A gate the parser cannot read must be reported as missing, never
+  // dropped — dropping it would fail the guard OPEN.
+  const missing = findMissingGates(
+    ciGates,
+    parseCheckGates("bun lint && bun test"),
+  );
+
+  expect(missing).toEqual([{ workingDirectory: "", command: "bun run audit" }]);
+});
+
+test("unit: consecutive `- id:` steps are all gates", () => {
+  const ciGates = parseWorkflowGates(FIXTURE_ID_STEPS);
+
+  expect(ciGates).toEqual([
+    { workingDirectory: "", command: "bun lint" },
+    { workingDirectory: "", command: "bun test" },
+  ]);
+
+  // A gate missing from bin/check must be reported: the second step used
+  // to overwrite the first one's command and vanish from the comparison.
+  const missing = findMissingGates(
+    ciGates,
+    parseCheckGates("bun lint && bun run build"),
+  );
+
+  expect(missing).toEqual([{ workingDirectory: "", command: "bun test" }]);
 });
