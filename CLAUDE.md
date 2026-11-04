@@ -20,7 +20,7 @@
 | -------------- | -------------------------------------------------------------------------- | ------------------------------------------------ |
 | Runtime        | Bun >= 1.0.0                                                               | `apps/bun-on-rails/package.json` engines         |
 | Language       | plain JavaScript, ES modules (`"type": "module"`), no TypeScript build     | `apps/bun-on-rails/package.json`                 |
-| Package        | `@bun-on-rails` — `main` `src/index.js`, bin `brails` → `src/cli/index.js` | `apps/bun-on-rails/package.json`                 |
+| Package        | `@bun-on-rails/framework` — `main` `src/index.js`, bin `brails` → `src/cli/index.js` | `apps/bun-on-rails/package.json`                 |
 | Tests          | Bun's own runner (`bun:test`)                                              | `apps/bun-on-rails/test/`                        |
 | ORM / database | Active-Record-style `Model` on a Postgres adapter (`postgres` driver)      | `apps/bun-on-rails/src/database/`                |
 | Jobs           | a `Job` base class; BullMQ is the intended queue                           | `apps/bun-on-rails/src/jobs/job.js`              |

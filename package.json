@@ -1,1 +1,1 @@
-{"name":"bun-on-rails","private":true,"workspaces":["apps/bun-on-rails"]}
+{"name":"bun-on-rails","private":true,"type":"module","workspaces":["apps/bun-on-rails"],"devDependencies":{"vitepress":"^1.0.0","vue":"^3.5.13"}}
