@@ -27,20 +27,20 @@ brails dev      # Server running with hot reload
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| **ORM** | Active Record-style with associations, validations, scopes |
-| **Migrations** | Clean JavaScript migrations with auto-schema sync |
-| **Routing** | Rails-like DSL with resources and namespaces |
-| **Controllers** | Class-based with automatic context injection |
-| **React Integration** | Built-in hooks for data fetching and real-time |
-| **Background Jobs** | BullMQ-powered with scheduling and priorities |
-| **WebSockets** | Native Bun WebSocket support with channels |
-| **Authentication** | One-command auth generation with OAuth support |
-| **File Uploads** | S3-compatible storage with image variants |
-| **Caching** | Redis-backed with fragment and HTTP caching |
-| **Email** | Mailer classes with React email templates |
-| **Testing** | Parallel tests with factories and transactions |
+| Feature               | Description                                                |
+| --------------------- | ---------------------------------------------------------- |
+| **ORM**               | Active Record-style with associations, validations, scopes |
+| **Migrations**        | Clean JavaScript migrations with auto-schema sync          |
+| **Routing**           | Rails-like DSL with resources and namespaces               |
+| **Controllers**       | Class-based with automatic context injection               |
+| **React Integration** | Built-in hooks for data fetching and real-time             |
+| **Background Jobs**   | BullMQ-powered with scheduling and priorities              |
+| **WebSockets**        | Native Bun WebSocket support with channels                 |
+| **Authentication**    | One-command auth generation with OAuth support             |
+| **File Uploads**      | S3-compatible storage with image variants                  |
+| **Caching**           | Redis-backed with fragment and HTTP caching                |
+| **Email**             | Mailer classes with React email templates                  |
+| **Testing**           | Parallel tests with factories and transactions             |
 
 ## Documentation
 
@@ -48,8 +48,8 @@ Full documentation available at [bunonrails.com](https://bunonrails.com) or in t
 
 - [Getting Started](./docs/eng/getting-started/introduction.md)
 - [Database & ORM](./docs/eng/database/overview.md)
-- [Routing & Controllers](./docs/eng/routing/overview.md)
-- [Frontend Integration](./docs/eng/frontend/overview.md)
+- Routing & Controllers — guide not yet available
+- Frontend Integration — guide not yet available
 - [Background Jobs](./docs/eng/jobs/overview.md)
 - [Authentication](./docs/eng/authentication/overview.md)
 - [Deployment](./docs/eng/deployment/overview.md)
@@ -60,14 +60,14 @@ Full documentation available at [bunonrails.com](https://bunonrails.com) or in t
 // app/controllers/posts_controller.js
 export default class PostsController {
   async index() {
-    const posts = await Post.findAll({ include: 'user' })
-    return this.render({ posts })
+    const posts = await Post.findAll({ include: "user" });
+    return this.render({ posts });
   }
 
   async create() {
-    const post = await Post.create(this.params.post)
-    this.broadcast('posts:new', { post })
-    return this.render({ post }, { status: 201 })
+    const post = await Post.create(this.params.post);
+    this.broadcast("posts:new", { post });
+    return this.render({ post }, { status: 201 });
   }
 }
 ```
@@ -76,14 +76,14 @@ export default class PostsController {
 // app/models/post.js
 export default class Post extends Model {
   static associations = {
-    belongsTo: ['user'],
-    hasMany: ['comments']
-  }
+    belongsTo: ["user"],
+    hasMany: ["comments"],
+  };
 
   static validations = {
     title: { presence: true, length: { max: 200 } },
-    body: { presence: true }
-  }
+    body: { presence: true },
+  };
 }
 ```
 
@@ -117,10 +117,10 @@ BunOnRails is designed to be the most AI-friendly framework:
 
 ```javascript
 // AI can understand and generate this instantly
-const post = await Post.create({ title, body, userId: currentUser.id })
-if (post.errors) return this.unprocessableEntity(post.errors)
-await NotifyFollowersJob.performLater({ postId: post.id })
-return this.render({ post }, { status: 201 })
+const post = await Post.create({ title, body, userId: currentUser.id });
+if (post.errors) return this.unprocessableEntity(post.errors);
+await NotifyFollowersJob.performLater({ postId: post.id });
+return this.render({ post }, { status: 201 });
 ```
 
 ## Contributing
