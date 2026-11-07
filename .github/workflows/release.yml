@@ -28,9 +28,11 @@ jobs:
 
       - name: Run tests
         run: bun test
+        working-directory: apps/bun-on-rails
 
       - name: Build
         run: bun run build
+        working-directory: apps/bun-on-rails
 
       - name: Setup Node.js for npm publish
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
@@ -40,6 +42,7 @@ jobs:
 
       - name: Publish to npm
         run: npm publish --access public
+        working-directory: apps/bun-on-rails
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 

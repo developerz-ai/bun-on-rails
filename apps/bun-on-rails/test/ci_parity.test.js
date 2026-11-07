@@ -25,7 +25,13 @@ import { readFileSync } from "fs";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
+
+const repoRoot = join(
+  dirname(fileURLToPath(import.meta.url)),
+  "..",
+  "..",
+  "..",
+);
 const workflowPath = join(repoRoot, ".github", "workflows", "ci.yml");
 const checkPath = join(repoRoot, "bin", "check");
 
@@ -387,23 +393,39 @@ function parseWorkflowGates(source) {
  * Read the gate chain of `bin/check` — its &&-joined command line — and split
  * it into (working directory, command) pairs.
  */
+/**
+ * Read the gate chain of `bin/check` — its &&-joined command line — and split
+ * it into (working directory, command) pairs. Fixture sources have no `cd`,
+ * so their unscoped segments keep "".
+ */
+const CHECK_CDS_APP = /^cd\s+\S+$/m;
+
 function parseCheckGates(source) {
   const chain = source
     .split("\n")
     .map((line) => line.trim())
     .filter((line) => line.includes("&&") && !line.startsWith("#"));
 
+  const baseDir = CHECK_CDS_APP.test(source) ? "apps/bun-on-rails" : "";
   const gates = [];
 
   for (const line of chain) {
     for (const segment of splitOnTopLevelAmpersands(line)) {
+      // A `cd dir &&` scope in bin/check. Besides an explicit segment, the
+      // gate's leading `cd apps/bun-on-rails` is the directory every
+      // unscoped segment runs in.
       const scoped = segment.match(/^\(\s*cd\s+(\S+)\s*&&\s*(.+)\)$/);
+      // A scoped segment's `cd dir` is relative to where the script already
+      // is — bin/check `cd`s into apps/bun-on-rails first, so its demo gate
+      // resolves to apps/bun-on-rails/demo.
+      const dir = scoped
+        ? baseDir
+          ? `${baseDir}/${scoped[1]}`
+          : scoped[1]
+        : baseDir;
+      const command = (scoped ? scoped[2] : segment).trim();
 
-      gates.push(
-        scoped
-          ? { workingDirectory: scoped[1], command: scoped[2].trim() }
-          : { workingDirectory: "", command: segment },
-      );
+      gates.push({ workingDirectory: dir, command });
     }
   }
 
@@ -448,7 +470,7 @@ test("unit: bin/check runs the docs:build gate CI runs", () => {
   const gates = parseCheckGates(check);
 
   expect(gates).toContainEqual({
-    workingDirectory: "",
+    workingDirectory: "apps/bun-on-rails",
     command: "bun run docs:build",
   });
 });

@@ -25,7 +25,8 @@ $ARGUMENTS
 3. Explore read-only, in parallel, into a ranked worklist of PR-sized batches.
 4. Build primitive-first: one reusable primitive with its first real caller. No
    abstraction before a consumer.
-5. **Prove it.** `bin/setup` after any dependency change, then `bin/check`, which here is
+5. **Prove it.** `bin/setup` after any dependency change, then `bin/check`, which `cd`s
+   into `apps/bun-on-rails` and runs, inside that directory,
    `bun lint && bun test && bun run build && bun run docs:build && (cd demo && bun lint)` —
    the gates CI runs as separate steps in `.github/workflows/ci.yml`.
    Red is not a pull request: fix the cause, never silence the gate. Add the failing test

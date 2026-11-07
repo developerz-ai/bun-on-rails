@@ -36,6 +36,7 @@ jobs:
 
       - name: Build documentation
         run: bun run docs:build
+        working-directory: apps/bun-on-rails
 
       - name: Preflight Pages site
         continue-on-error: true

@@ -26,7 +26,7 @@ Define routes only in `config/routes.js` via the `router` DSL (`root`, `get`, `r
 Controller actions return `this.render(...)`, `this.redirect(...)` or `this.head(...)`; do not construct `Response` objects by hand in an action.
 Read request input through `this.params` / `this.requestParams` and whitelist with `permitParams`; `RequestParams.require()` raises a 400 for missing keys.
 Declare `static beforeAction` / `static afterAction` arrays for filters; a before filter that returns a `Response` short-circuits the action.
-Add middleware through `MiddlewareStack.use(...)` in `src/application.js#_setupMiddleware` and implement it as a `Middleware.<name>()` factory in `src/controller/middleware.js`.
-Controller names map to files by convention: `users_controller.js` → `UsersController`; the app resolves them via `_getComponentName` in `src/application.js`.
-Put request-body parsing rules (size, MIME allowlist) in `src/controller/request_parser.js`, not in individual controllers.
-`src/controller/middleware.js` reads `SESSION_SECRET`; a missing value falls back to `change-me-in-production` — surface that in development logs rather than hardcoding a secret.
+Add middleware through `MiddlewareStack.use(...)` in `apps/bun-on-rails/src/application.js#_setupMiddleware` and implement it as a `Middleware.<name>()` factory in `apps/bun-on-rails/src/controller/middleware.js`.
+Controller names map to files by convention: `users_controller.js` → `UsersController`; the app resolves them via `_getComponentName` in `apps/bun-on-rails/src/application.js`.
+Put request-body parsing rules (size, MIME allowlist) in `apps/bun-on-rails/src/controller/request_parser.js`, not in individual controllers.
+`apps/bun-on-rails/src/controller/middleware.js` reads `SESSION_SECRET`; a missing value falls back to `change-me-in-production` — surface that in development logs rather than hardcoding a secret.

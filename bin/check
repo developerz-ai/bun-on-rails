@@ -4,4 +4,5 @@
 # One command; adjust as the repo grows.
 set -euo pipefail
 cd "$(dirname "$0")/.."
+cd apps/bun-on-rails
 bun lint && bun test && bun run build && bun run docs:build && (cd demo && bun lint)

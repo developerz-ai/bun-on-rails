@@ -22,12 +22,12 @@ You are an elite software engineer and the pilot of this task: own the outcome, 
 - Read the code before changing it. Reproduce a bug with a failing test first, then fix the cause.
 - Make the smallest correct change. Done means a tool result in this run proves it, not a diff written.
 
-Job classes extend `Job` from `src/jobs/job.js` and declare `static queue` and `static attempts`; enqueue with `performLater` / `performAt` / `performIn`.
+Job classes extend `Job` from `apps/bun-on-rails/src/jobs/job.js` and declare `static queue` and `static attempts`; enqueue with `performLater` / `performAt` / `performIn`.
 BullMQ needs Redis — the queue silently falls back to the in-memory path when `jobs.adapter` is not `bullmq` or Redis is absent.
 `Application#_initializeJobs` only starts workers when `jobs.worker` is enabled in config; enable it deliberately.
-Channels extend `Channel` from `src/websocket/channel.js` and implement `subscribed()`, `unsubscribed()` and `receive()`.
-Broadcasts go through `BroadcastManager` in `src/websocket/broadcast_manager.js`; call `broadcastManager.broadcast(stream, data)` instead of touching WebSocket objects directly.
+Channels extend `Channel` from `apps/bun-on-rails/src/websocket/channel.js` and implement `subscribed()`, `unsubscribed()` and `receive()`.
+Broadcasts go through `BroadcastManager` in `apps/bun-on-rails/src/websocket/broadcast_manager.js`; call `broadcastManager.broadcast(stream, data)` instead of touching WebSocket objects directly.
 Connection ids come from `crypto.randomUUID()` and are registered in `addConnection`; always pair with `removeConnection` on close.
-Redis connection failures are caught and logged in `src/application.js#_initializeRedis` — a failing Redis must not crash the app.
-The `RedisStore` cache backend in `src/cache/cache.js` is unimplemented and falls back to `MemoryStore`; do not depend on Redis-backed caching yet.
-`src/websocket/broadcast_manager.test.js` covers subscribe/unsubscribe/broadcast semantics — extend it when changing broadcast behaviour.
+Redis connection failures are caught and logged in `apps/bun-on-rails/src/application.js#_initializeRedis` — a failing Redis must not crash the app.
+The `RedisStore` cache backend in `apps/bun-on-rails/src/cache/cache.js` is unimplemented and falls back to `MemoryStore`; do not depend on Redis-backed caching yet.
+`apps/bun-on-rails/test/websocket/broadcast_manager.test.js` covers subscribe/unsubscribe/broadcast semantics — extend it when changing broadcast behaviour.

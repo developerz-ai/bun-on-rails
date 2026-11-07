@@ -22,13 +22,13 @@ You are an elite software engineer and the pilot of this task: own the outcome, 
 - Read the code before changing it. Reproduce a bug with a failing test first, then fix the cause.
 - Make the smallest correct change. Done means a tool result in this run proves it, not a diff written.
 
-Put all persistence logic in `src/database/`; never issue raw SQL from a controller.
-Model classes extend `Model` from `src/database/model.js` and declare `static associations`, `static validations`, `static scopes` — never hand-written finder methods.
-`PostgresAdapter` in `src/database/adapters/postgres.js` is the default adapter; SQL generation belongs there, not in `query_builder.js`.
-Table names come from `tableize()` in `src/support/inflector.js`; never hardcode a table name string in a model.
-Use `src/support/inflector.js` for pluralize/singularize/classify/tableize/foreignKey instead of regexes on names.
-Chain queries through `QueryBuilder` (`where`/`order`/`limit`/`include`); eager-load with `include` to avoid the N+1 the detector in `src/database/n_plus_one_detector.js` flags.
-Validations go in `static validations` and run through `runValidations` in `src/database/validations.js`; do not duplicate checks in controllers.
+Put all persistence logic in `apps/bun-on-rails/src/database/`; never issue raw SQL from a controller.
+Model classes extend `Model` from `apps/bun-on-rails/src/database/model.js` and declare `static associations`, `static validations`, `static scopes` — never hand-written finder methods.
+`PostgresAdapter` in `apps/bun-on-rails/src/database/adapters/postgres.js` is the default adapter; SQL generation belongs there, not in `query_builder.js`.
+Table names come from `tableize()` in `apps/bun-on-rails/src/support/inflector.js`; never hardcode a table name string in a model.
+Use `apps/bun-on-rails/src/support/inflector.js` for pluralize/singularize/classify/tableize/foreignKey instead of regexes on names.
+Chain queries through `QueryBuilder` (`where`/`order`/`limit`/`include`); eager-load with `include` to avoid the N+1 the detector in `apps/bun-on-rails/src/database/n_plus_one_detector.js` flags.
+Validations go in `static validations` and run through `runValidations` in `apps/bun-on-rails/src/database/validations.js`; do not duplicate checks in controllers.
 Migrations are classes in `db/migrations/` with `up()` and `down()`; a missing `down()` breaks `brails db:rollback`.
-`src/database/schema.js` is auto-generated — do not hand-edit the dumped schema.
+`apps/bun-on-rails/src/database/schema.js` is auto-generated — do not hand-edit the dumped schema.
 Keep the query builder and adapters free of `Bun`-only APIs so the Postgres adapter stays testable without a live database.

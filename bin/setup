@@ -3,7 +3,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 # Ensure bun (a CI runner image carries none). The floor is .bun-version, else the lowest
-# package.json engines.bun admits; on CI a missing or older bun is installed, verified.
+# apps/bun-on-rails/package.json engines.bun admits; on CI a missing or older bun is installed, verified.
 bun_floor=""
 bun_source=""
 if [ -s .bun-version ]; then
@@ -14,8 +14,8 @@ if [ -s .bun-version ]; then
   else
     echo "bin/setup: .bun-version holds '$bun_pin_text', not an exact x.y.z: no bun floor declared" >&2
   fi
-elif [ -f package.json ]; then
-  bun_range="$(tr -d '\n' < package.json | sed -n 's/.*"engines"[[:space:]]*:[[:space:]]*{[^}]*"bun"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
+elif [ -f apps/bun-on-rails/package.json ]; then
+  bun_range="$(tr -d '\n' < apps/bun-on-rails/package.json | sed -n 's/.*"engines"[[:space:]]*:[[:space:]]*{[^}]*"bun"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p')"
   bun_floor="$(printf '%s\n' "$bun_range" | sed -E 's/(>=|<=|>|<|\^|~|=)[[:space:]]+/\1/g' | awk '
     function part(p) { return (p == "" || p ~ /^[xX*]$/) ? 0 : p }
     function cmp(a, b,   x, y, i) {
@@ -42,7 +42,7 @@ elif [ -f package.json ]; then
       }
       print min
     }')"
-  if [ -n "$bun_floor" ]; then bun_source="package.json engines.bun '$bun_range'"; fi
+  if [ -n "$bun_floor" ]; then bun_source="apps/bun-on-rails/package.json engines.bun '$bun_range'"; fi
 fi
 # True when version $1 is below the release $2 (x.y.z): numeric parts, and a prerelease
 # (1.4.4-canary.1) below its own release. Pure bash: BSD sort has no version mode.
