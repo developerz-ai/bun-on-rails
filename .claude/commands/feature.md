@@ -26,7 +26,8 @@ $ARGUMENTS
 4. Build primitive-first: one reusable primitive with its first real caller. No
    abstraction before a consumer.
 5. **Prove it.** `bin/setup` after any dependency change, then `bin/check`, which here is
-   `bun lint && bun test && bun run build && (cd demo && bunx eslint --max-warnings=0 app/ config/ test/ db/)`.
+   `bun lint && bun test && bun run build && bun run docs:build && (cd demo && bun lint)` —
+   the gates CI runs as separate steps in `.github/workflows/ci.yml`.
    Red is not a pull request: fix the cause, never silence the gate. Add the failing test
    first — a green run that never went red proves nothing.
 6. **One pull request in flight, start to finish.** Open it, watch it to merged, run
