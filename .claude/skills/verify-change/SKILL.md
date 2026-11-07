@@ -10,14 +10,15 @@ applies: [typescript, javascript, bun]
 
 ## The one gate
 
-`bin/check` is the gate. CI runs it and the pre-commit hook runs it, so a change that
-passes it locally passes everywhere.
+`bin/check` is the gate. The pre-commit hook runs it, and CI runs the same gate
+commands as separate steps in `.github/workflows/ci.yml` — CI never invokes
+`bin/check` itself — so a change that passes it locally passes everywhere.
 
 | Step | Command | What it is |
 |------|---------|------------|
 | install | `bin/setup` | bun install (at the workspace root) |
 | run | `bin/dev` | bun run src/cli/index.js dev — serves apps/bun-on-rails/demo; on developerz.ai runs, start it with code_bash_background when you need a running stack |
-| prove | `bin/check` | bun lint && bun test && bun run build && (cd demo && bunx eslint --max-warnings=0 app/ config/ test/ db/) — runs from apps/bun-on-rails (bin/check cds there itself) |
+| prove | `bin/check` | bun lint && bun test && bun run build && bun run docs:build && (cd demo && bun lint) — runs from apps/bun-on-rails (bin/check cds there itself) |
 | stop | `bin/stop` | true — on developerz.ai runs, the platform runs this when your session ends — do not stop the stack yourself |
 
 ## Rules
@@ -31,11 +32,11 @@ A coding box runs this gate before it commits, and it has to tell a FAILING chan
 from a gate it could not run — otherwise correct work is thrown away as if it were
 red. Exit 1 cannot carry that difference, so one code is reserved:
 
-| Exit | Means | What the platform does |
-|------|-------|------------------------|
-| 0 | the change passes | commit it |
-| 75 | a resource the gate NEEDS is unreachable (a database, a service, a credential) — it refused to grade | refuse the commit, and blame the environment, never the change |
-| any other non-zero | the gate ran and the change is red | refuse the commit, and blame the change |
+| Exit               | Means                                                                                                | What the platform does                                         |
+| ------------------ | ---------------------------------------------------------------------------------------------------- | -------------------------------------------------------------- |
+| 0                  | the change passes                                                                                    | commit it                                                      |
+| 75                 | a resource the gate NEEDS is unreachable (a database, a service, a credential) — it refused to grade | refuse the commit, and blame the environment, never the change |
+| any other non-zero | the gate ran and the change is red                                                                   | refuse the commit, and blame the change                        |
 
 - Guard preconditions FIRST and `exit 75` when one is unmet. `exit 1` there tells the
   platform your change is broken when it is your environment that is.

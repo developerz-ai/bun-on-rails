@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# one-command check (typecheck + lint + test) — established by dz-runner setup mode. One command; adjust as the repo grows.
+# one-command gate — the same gate commands CI runs as separate steps in
+# .github/workflows/ci.yml (lint, test, build, docs build, demo lint).
+# One command; adjust as the repo grows.
 set -euo pipefail
 cd "$(dirname "$0")/.."
 cd apps/bun-on-rails
-bun lint && bun test && bun run build && (cd demo && bunx eslint --max-warnings=0 app/ config/ test/ db/)
+bun lint && bun test && bun run build && bun run docs:build && (cd demo && bun lint)

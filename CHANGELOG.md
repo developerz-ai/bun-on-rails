@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+
 - Initial framework implementation
 - ORM with Active Record-style API
 - Migration system with auto-schema sync
@@ -26,23 +27,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Comprehensive documentation
 
 ### Changed
+
 - N/A
 
 ### Deprecated
+
 - N/A
 
 ### Removed
+
 - N/A
 
 ### Fixed
-- N/A
+
+- Docs deployment: the `Deploy Documentation` workflow failed at the `Setup Pages` step with a Pages-site lookup 404 (run 41669345427) because `actions/configure-pages@v4` ran with its default `enablement: false`, which only looks the Pages site up and never enables or provisions it — the repository had no Pages site to look up. The step now runs the action pinned to `v6.0.0` with `enablement: true`, so it enables/provisions the Pages site, and a `Preflight Pages site` step reports the required repository setting (**Settings > Pages > Build and deployment > Source = "GitHub Actions"**) as a non-fatal warning — without blocking the run, so `Setup Pages` can still provision the site — instead of failing with a bare 404; the `Build documentation`, `Upload artifact` and `Deploy to GitHub Pages` steps remain required. Creating the site still needs a token the API allows to create Pages sites (the action asks for a token other than the default `GITHUB_TOKEN`), so when the workflow token is denied the setting must be applied in the repository. The failure was triggered by the docs merge 23ee9d66 / PR #22 (it matched the workflow's `docs/**` path filter) rather than caused by it — the documentation build step passed in that run.
 
 ### Security
+
 - N/A
 
 ## [0.1.0] - 2025-01-24
 
 ### Added
+
 - Initial release
 - Core framework architecture
 - Documentation site
