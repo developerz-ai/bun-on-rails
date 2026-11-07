@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
 
@@ -37,8 +37,41 @@ jobs:
       - name: Build documentation
         run: bun run docs:build
 
-      - name: Setup Pages
+      - name: Preflight Pages site
+        continue-on-error: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+          GH_API_URL: ${{ github.api_url }}
+        run: |
+          # Report the required repository setting as a NON-fatal warning, so a
+          # missing Pages site stays legible instead of failing the run with a
+          # bare lookup 404. This step never blocks: the `Setup Pages` step
+          # below still runs and can provision the site itself.
+          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+            --header "Authorization: Bearer ${GITHUB_TOKEN}" \
+            --header "X-GitHub-Api-Version: 2022-11-28" \
+            "${GH_API_URL}/repos/${GH_REPO}/pages" || true)
+          if [ "${status}" = "404" ]; then
+            echo "::warning title=Pages site not provisioned::GitHub Pages is not provisioned for ${GH_REPO}. Set Settings > Pages > Build and deployment > Source = \"GitHub Actions\", then re-run this workflow."
+          elif [ "${status}" != "200" ]; then
+            echo "::warning title=Pages site check inconclusive::Could not read the Pages site of ${GH_REPO} (HTTP ${status:-none}). If the deploy fails, set Settings > Pages > Build and deployment > Source = \"GitHub Actions\"."
+          fi
+
+      - name: "Setup Pages - if this fails, set Settings > Pages > Source = GitHub Actions"
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+        with:
+          # Enable (and provision, if needed) the Pages site for this repository
+          # instead of only performing a read-only site lookup. With the default
+          # `enablement: false` this action only LOOKS the site up, so a
+          # repository without a Pages site fails with a bare 404.
+          #
+          # Residual repository setting (outside this workflow's authority):
+          # GitHub Pages must be provisioned for this repository with
+          #   Settings > Pages > Build and deployment > Source = "GitHub Actions"
+          # If the token is not allowed to create Pages sites, that setting has
+          # to be applied in the repository settings.
+          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
@@ -55,4 +88,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e # v4
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1
