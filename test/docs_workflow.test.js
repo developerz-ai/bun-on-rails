@@ -151,16 +151,43 @@ function collect(text) {
       );
     }
 
-    // Both branches publish the verdict: an absent `ready` leaves the gates
-    // below comparing an empty string.
-    const probeText = probe.join("\n");
-    const published = ["ready=true", "ready=false", "GITHUB_OUTPUT"].every(
-      (part) => probeText.includes(part),
+    // Only executed shell counts: a `#` comment inside the run block is
+    // commentary, not code, so it must not be able to satisfy a rule — a
+    // dropped condition would otherwise hide behind a descriptive comment.
+    const probeLines = probe.filter((line) => !line.trim().startsWith("#"));
+    const probeText = probeLines.join("\n");
+
+    // Both branches publish the verdict — to the right one. The then branch
+    // writes ready=true and the else branch ready=false; swapping them leaves
+    // the gates green while a site-less (or not-Actions-built) run uploads the
+    // Pages artifact and deploys, the red run this workflow exists to avoid.
+    const branches = probeLines.reduce(
+      (at, line) => {
+        if (line.includes("ready=true")) at.then = true;
+        if (line.includes("ready=false")) at.writeFalse = true;
+        if (/^\s*else\s*$/.test(line)) at.sees_else = true;
+        if (at.then && at.sees_else && !at.writeFalse)
+          at.true_before_else = true;
+        return at;
+      },
+      {
+        then: false,
+        writeFalse: false,
+        sees_else: false,
+        true_before_else: false,
+      },
     );
+    const published =
+      ["ready=true", "ready=false", "GITHUB_OUTPUT"].every((part) =>
+        probeText.includes(part),
+      ) &&
+      branches.then &&
+      branches.writeFalse &&
+      branches.true_before_else;
     if (!published) {
       note(
         "probe-output",
-        "the probe does not write `ready` to $GITHUB_OUTPUT",
+        "the probe does not write ready=true before `else` and ready=false after it to $GITHUB_OUTPUT",
       );
     }
 
@@ -265,7 +292,7 @@ function mutate(from, to) {
   return mutated;
 }
 
-test("unit: the committed docs workflow satisfies every rule", () => {
+test("the committed docs workflow satisfies every rule", () => {
   expect(collect(workflow)).toEqual([]);
 });
 
@@ -315,6 +342,14 @@ const MUTATIONS = [
     '            echo "ready=false" >> "$GITHUB_OUTPUT"',
     '            echo "no site"',
   ],
+  // The writes are swapped: the else branch answers ready=true, so a site-less
+  // run still uploads the Pages artifact and deploys — the red run this
+  // workflow exists to avoid.
+  [
+    "probe-output",
+    '            echo "ready=true" >> "$GITHUB_OUTPUT"\n            echo "GitHub Pages site found for ${GH_REPO} (build_type ${build_type}) - the deploy will run."\n          else\n            echo "ready=false" >> "$GITHUB_OUTPUT"',
+    '            echo "ready=false" >> "$GITHUB_OUTPUT"\n            echo "GitHub Pages site found for ${GH_REPO} (build_type ${build_type}) - the deploy will run."\n          else\n            echo "ready=true" >> "$GITHUB_OUTPUT"',
+  ],
   // The body is discarded again: a site on "Deploy from a branch" answers 200,
   // so a status-only probe ships a green deploy step it cannot run.
   [
@@ -355,7 +390,7 @@ const MUTATIONS = [
 ];
 
 for (const [index, [rule, from, to]] of MUTATIONS.entries()) {
-  test(`unit: ${rule} fails on mutation ${index + 1}, and alone`, () => {
+  test(`${rule} fails on mutation ${index + 1}, and alone`, () => {
     expect(rules(mutate(from, to))).toEqual([rule]);
   });
 }
