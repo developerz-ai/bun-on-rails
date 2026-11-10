@@ -122,6 +122,19 @@ instead of the foreign key.
 
 ## Running migrations
 
+```bash
+brails db:migrate              # run every pending migration, then update db/schema.js
+brails db:rollback             # roll back the latest one
+brails db:rollback --step=3    # or the latest three
+```
+
+Both use the database `config/database.js` names (`DATABASE_URL` in a generated app). `db:migrate`
+runs every pending migration in `db/migrations` in file-name order and records each version in a
+`schema_migrations` table; `db:rollback` runs `down()` for the latest versions and removes them.
+Either way, `db/schema.js` is rewritten afterwards (see [Dump the schema](#dump-the-schema)).
+
+To run migrations from your own code, use `MigrationRunner`:
+
 **`db/migrate.js`**
 
 ```js
@@ -176,6 +189,7 @@ throws and names the tables.
 
 ## Not implemented yet
 
-- **`brails db:migrate`, `db:rollback`, `db:schema:dump` and `db:schema:load`** are registered but not implemented yet: each exits 1. Use `MigrationRunner` and `dumpSchema` as above.
+- **`brails db:schema:dump` and `db:schema:load`** are registered but not implemented yet: each exits 1. Use `dumpSchema` and `loadSchema` as above.
 - **`brails generate migration`** is not implemented yet: write the file by hand.
-- **Automatic schema dump.** `migrate()` does not update `db/schema.js`.
+- **Automatic schema dump from `MigrationRunner`.** `runner.migrate()` in your own script does not
+  update `db/schema.js`; `brails db:migrate` does.

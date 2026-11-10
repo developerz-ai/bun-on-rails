@@ -29,21 +29,29 @@ function brails(...args) {
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
 }
 
-const IMPLEMENTED = new Set(["new", "create", "dev", "server", "s", "start"]);
+const IMPLEMENTED = new Set([
+  "new",
+  "create",
+  "dev",
+  "server",
+  "s",
+  "start",
+  "db",
+  "db:migrate",
+  "db:rollback",
+]);
 
 const UNIMPLEMENTED_INVOCATIONS = [
   ["generate", "model", "User"],
   ["g", "scaffold", "Post", "title:string"],
   ["db:create"],
   ["db:drop"],
-  ["db:migrate"],
-  ["db:rollback"],
   ["db:reset"],
   ["db:seed"],
   ["db:setup"],
   ["db:schema:load"],
   ["db:schema:dump"],
-  ["db", "migrate"],
+  ["db", "create"],
   ["console"],
   ["c"],
   ["routes"],
@@ -58,7 +66,8 @@ describe("unimplemented commands fail loudly", () => {
     test(`brails ${args.join(" ")} exits 1 and claims nothing`, () => {
       const r = brails(...args);
       expect(r.code).toBe(1);
-      expect(r.stderr).toContain(`brails ${args[0]} is not implemented yet`);
+      const name = args[0] === "db" ? `db:${args[1]}` : args[0];
+      expect(r.stderr).toContain(`brails ${name} is not implemented yet`);
       expect(r.stdout).toBe("");
     });
   }
@@ -83,28 +92,40 @@ describe("registry", () => {
 describe("help", () => {
   test("brails help lists unimplemented commands only under Planned", () => {
     const out = brails("help").stdout;
-    const [available, planned] = out.split(/^Planned\b.*$/m);
+    const [available, rest] = out.split(/^Planned\b.*$/m);
+    const planned = rest?.split(/^Options:/m)[0];
     expect(planned).toBeDefined();
     for (const name of [
       "generate",
-      "db",
+      "db:create",
+      "db:schema:load",
       "console",
       "routes",
       "test",
       "credentials",
     ]) {
-      expect(planned).toMatch(new RegExp(`^  ${name}\\b`, "m"));
-      expect(available).not.toMatch(new RegExp(`^  ${name}\\b`, "m"));
+      expect(planned).toMatch(new RegExp(`^  .*\\b${name}\\b`, "m"));
+      expect(available).not.toMatch(new RegExp(`^  .*\\b${name}\\b`, "m"));
+    }
+    for (const name of ["db:migrate", "db:rollback"]) {
+      expect(available).toMatch(new RegExp(`^  ${name}\\b`, "m"));
+      expect(planned).not.toMatch(new RegExp(`\\b${name}\\b`));
     }
     expect(out).not.toContain("brails generate scaffold");
-    expect(out).not.toContain("brails db:migrate");
   });
 
   test("brails help <unimplemented> says it is not implemented yet", () => {
-    for (const name of ["generate", "db", "console"]) {
+    for (const name of ["generate", "db:create", "console"]) {
       expect(brails("help", name).stdout).toContain(
         `brails ${name} is not implemented yet`,
       );
     }
+  });
+
+  test("brails help db:migrate and db:rollback describe the commands", () => {
+    expect(brails("help", "db:migrate").stdout).toContain(
+      "Usage: brails db:migrate",
+    );
+    expect(brails("help", "db:rollback").stdout).toContain("--step=N");
   });
 });

@@ -6,7 +6,7 @@ chainable query builder, and migrations. It lives in `src/database/`.
 > **Status.**
 >
 > - The app connects at boot when `config/database.js` names a database (below).
-> - No database command is implemented. Every `brails db:*` command is registered but not implemented yet and exits 1. Run migrations from a script with `MigrationRunner` (see [Running migrations](./migrations.md#running-migrations)).
+> - `brails db:migrate` and `brails db:rollback` run migrations (see [Running migrations](./migrations.md#running-migrations)); the other `brails db:*` commands are not implemented yet and exit 1.
 > - PostgreSQL is the only adapter (`src/database/adapters/postgres.js`).
 
 ## Connect to PostgreSQL
@@ -94,9 +94,11 @@ with a stack trace is printed, pointing at `includes()` or a single `where({ id:
 
 ## Not implemented yet
 
-- **`brails db:*` commands.** `brails db:migrate`, `db:rollback`, `db:setup` and the rest are registered but not implemented yet: each exits 1.
-- **Automatic schema dump.** Running migrations does not update `db/schema.js`. Call
-  `dumpSchema` yourself (see [Dump the schema](./migrations.md#dump-the-schema)).
+- **The other `brails db:*` commands.** `db:create`, `db:drop`, `db:reset`, `db:seed`, `db:setup`,
+  `db:schema:load` and `db:schema:dump` are registered but not implemented yet: each exits 1.
+- **Automatic schema dump from `MigrationRunner`.** `brails db:migrate` and `db:rollback` rewrite
+  `db/schema.js`; a `MigrationRunner` you call from your own script does not, so call
+  `dumpSchema(connection, appRoot)` after it.
 - **Model annotations.** Nothing writes schema comments into model files.
 - **Many-to-many associations.** `hasAndBelongsToMany` does not load anything yet: its join
   query is a TODO, and `includes()` skips it with a warning.

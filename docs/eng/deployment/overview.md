@@ -81,12 +81,11 @@ with `{"status":"ok"}`. Point the platform's health check at it.
 
 Pass `DATABASE_URL` in the environment and the app connects at boot (see
 [Connect to PostgreSQL](../database/overview.md#connect-to-postgresql)); a database it cannot reach fails boot.
-Run migrations with your migration script before starting the new version:
-`bun run db/migrate.js` (see [Running migrations](../database/migrations.md#running-migrations)).
+Run migrations before starting the new version: `brails db:migrate` (see
+[Running migrations](../database/migrations.md#running-migrations)).
 
 ## Not implemented yet
 
-- **A migration command for the release step.** `brails db:migrate` is not implemented yet (it exits 1). Use a migration script.
 - **Background workers.** Jobs cannot be enqueued, so there is no worker process to run (see
   [Background Jobs](../jobs/overview.md)).
 - **Shared sessions and cache.** The Redis store raises an error for sessions, and the Redis

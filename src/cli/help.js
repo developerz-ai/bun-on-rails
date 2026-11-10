@@ -25,11 +25,13 @@ Commands:
   new <app-name>         Create a new BunOnRails application
   dev, server, s         Start development server
   start                  Start production server
+  db:migrate             Run pending migrations, then update db/schema.js
+  db:rollback            Roll back the latest migration (--step=N for more)
   help                   Show this help
 
 Planned (registered, not implemented yet; each exits with an error):
   generate, g            Generate code (model, controller, scaffold, etc.)
-  db:<command>           Database commands (migrate, rollback, seed, etc.)
+  db:create, db:drop, db:reset, db:seed, db:setup, db:schema:load, db:schema:dump
   console, c             Start interactive console
   routes                 List all routes
   test, t                Run tests (use \`bun test\` for now)
@@ -43,6 +45,7 @@ Options:
 Examples:
   brails new myapp
   brails dev
+  brails db:migrate
 
 Run \`brails help <command>\` for more information on a command.
 `)
@@ -62,6 +65,31 @@ function printCommandHelp(command) {
 }
 
 const commandHelp = {
+  db: `
+Usage: brails db:<command>   (or: brails db <command>)
+
+  db:migrate             Run pending migrations in db/migrations, then update db/schema.js
+  db:rollback [--step=N] Roll back the latest N migrations (default 1), then update db/schema.js
+
+Both use the database config/database.js names (DATABASE_URL in a generated app).
+The other db:* commands are planned and exit with an error.
+`,
+
+  'db:migrate': `
+Usage: brails db:migrate
+
+Run every pending migration in db/migrations, in file-name order, record each
+version in schema_migrations, then rewrite db/schema.js. Uses the database
+config/database.js names (DATABASE_URL in a generated app).
+`,
+
+  'db:rollback': `
+Usage: brails db:rollback [--step=N]
+
+Run down() for the latest N migrations (default 1), remove them from
+schema_migrations, then rewrite db/schema.js.
+`,
+
   new: `
 Usage: brails new <app-name> [--skip-install]
 
