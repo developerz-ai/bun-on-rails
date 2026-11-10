@@ -24,17 +24,20 @@ function taggedConnection() {
   const log = [];
   const result = () => Object.assign([], { count: 0 });
   const client = {
+    begins: 0,
     unsafe: async (sql) => {
       log.push(["global", sql]);
       return result();
     },
-    begin: async (fn) =>
-      fn({
+    begin: async (fn) => {
+      client.begins++;
+      return fn({
         unsafe: async (sql) => {
           log.push(["tx", sql]);
           return result();
         },
-      }),
+      });
+    },
   };
   const connection = new Connection({
     url: "postgres://u:p@localhost:5432/app",
@@ -42,7 +45,7 @@ function taggedConnection() {
   connection._client = client;
   connection._connected = true;
   connection._adapter = "postgres";
-  return { connection, log };
+  return { connection, log, client };
 }
 
 afterEach(() => setConnection(null));
@@ -83,6 +86,20 @@ describe("transactions", () => {
       });
     });
 
+    expect(log.map(([where]) => where)).toEqual(["tx"]);
+  });
+
+  test("connection.transaction() called inside a transaction joins it, not a second one", async () => {
+    const { connection, log, client } = taggedConnection();
+    setConnection(connection);
+
+    await connection.transaction(async () => {
+      await connection.transaction(async () => {
+        await Post.where({ id: 1 }).updateAll({ title: "inner" });
+      });
+    });
+
+    expect(client.begins).toBe(1);
     expect(log.map(([where]) => where)).toEqual(["tx"]);
   });
 

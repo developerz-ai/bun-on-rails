@@ -403,6 +403,13 @@ export class Connection {
       throw new ConnectionNotEstablishedError()
     }
 
+    // Already inside a transaction on this connection: join it. Opening a second
+    // one would let inner writes commit even when the outer callback throws.
+    const active = transactionScope.getStore()
+    if (active && active.owner === this) {
+      return await callback(active)
+    }
+
     try {
       return await this._runInTransaction(callback)
     } catch (error) {
@@ -426,6 +433,7 @@ export class Connection {
   async _runInTransaction(callback) {
     return await this._client.begin(async (sql) => {
       const txConn = {
+        owner: this,
         connected: true,
         query: async (query, params = []) => {
           if (params.length === 0) {
