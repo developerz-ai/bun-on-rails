@@ -1,212 +1,65 @@
 # Installation
 
-This guide will help you set up your development environment for BunOnRails.
-
 ## Prerequisites
 
-### Bun Runtime
-
-BunOnRails requires Bun 1.0 or later. Install Bun:
+BunOnRails runs on [Bun](https://bun.sh) 1.0 or later:
 
 ```bash
-# macOS, Linux, WSL
-curl -fsSL https://bun.sh/install | bash
-
-# Homebrew
-brew install oven-sh/bun/bun
-
-# Windows (via scoop)
-scoop install bun
-```
-
-Verify installation:
-
-```bash
+curl -fsSL https://bun.sh/install | bash   # macOS, Linux, WSL
 bun --version
-# Should output: 1.x.x
 ```
 
-### Docker (Recommended)
+Nothing else is needed to create and run an app.
 
-For local development with PostgreSQL and Redis:
+## Install the CLI
 
 ```bash
-# macOS
-brew install --cask docker
-
-# Linux
-sudo apt install docker.io docker-compose
-
-# Windows
-# Download Docker Desktop from docker.com
+bun add -g bun-on-rails
+brails --version   # BunOnRails v0.1.0
 ```
 
-### Database Options
+This puts the `brails` command on your `PATH`.
 
-**Development** (choose one):
-- SQLite - Zero setup, included with Bun
-- PostgreSQL via Docker - Recommended for production parity
-
-**Production**:
-- PostgreSQL (recommended)
-- MySQL/MariaDB (supported)
-
-## Installing BunOnRails
-
-### Global CLI Installation
-
-Install the BunOnRails CLI globally:
+## Create an app
 
 ```bash
-bun add -g @bun-on-rails
-```
-
-Verify installation:
-
-```bash
-bor --version
-# Should output: 0.x.x
-```
-
-### Project Creation
-
-Create a new BunOnRails application:
-
-```bash
-bun create bun-on-rails myapp
+brails new myapp
 cd myapp
+brails dev
 ```
 
-This creates a new project with the standard directory structure.
-
-## Development Environment Setup
-
-### With Docker (Recommended)
-
-Start all services and set up the database:
+`brails new` writes the app and runs `bun install` in it. `brails dev` serves it at
+`http://localhost:3000`:
 
 ```bash
-bun setup
+curl localhost:3000/health   # {"status":"ok"}
 ```
 
-This command:
-1. Generates `docker-compose.yml` with PostgreSQL, Redis, and Mailhog
-2. Starts all Docker containers with health checks
-3. Creates the development and test databases
-4. Runs all pending migrations
-5. Loads seed data
-6. Generates `.env.development.local`
+[Project Structure](./project-structure.md) shows what was generated, and the
+[Quick Start](./quick-start.md) adds your first resource.
 
-### Without Docker
+## Databases
 
-If you prefer to manage services yourself:
+Database support is not wired in yet. The app does not connect to a database when it boots,
+and the database commands (`brails db:create`, `brails db:migrate` and the rest) exit with an
+error. The ORM's query layer exists and targets PostgreSQL:
+[Database Overview](../database/overview.md) describes it. `brails help` lists every planned
+command.
 
-```bash
-# Create .env.development.local with your database URLs
-cat > .env.development.local << EOF
-DATABASE_URL=postgres://user:pass@localhost:5432/myapp_dev
-REDIS_URL=redis://localhost:6379
-EOF
-
-# Create database and run migrations
-bun db:create
-bun db:migrate
-bun db:seed
-```
-
-## Starting the Development Server
-
-```bash
-bun dev
-```
-
-Your application is now running at `http://localhost:3000`.
-
-The development server includes:
-- Hot module replacement
-- Automatic restart on config changes
-- Request logging
-- Error overlay
-
-## Editor Setup
-
-### VS Code
-
-Install recommended extensions:
-
-```bash
-code --install-extension bunlang.bun
-code --install-extension bradlc.vscode-tailwindcss
-code --install-extension dbaeumer.vscode-eslint
-```
-
-The project includes a `.vscode/settings.json` with optimal settings.
-
-### JetBrains IDEs
-
-BunOnRails projects work out of the box with WebStorm and other JetBrains IDEs. Install the Bun plugin for enhanced support.
-
-## Verifying Your Installation
-
-Create a simple test to verify everything works:
-
-```bash
-# Generate a scaffold
-bun generate scaffold Post title:string body:text
-
-# Run migrations
-bun db:migrate
-
-# Start the server
-bun dev
-```
-
-Visit `http://localhost:3000/posts` - you should see the posts index page.
+Configuration that should stay out of git goes in `.env`, which Bun loads automatically.
+`.env.example` lists the variable names, and `.env` is never committed.
 
 ## Troubleshooting
 
-### Bun Not Found
-
-If `bun` command is not found after installation:
-
-```bash
-# Add to your shell profile (.bashrc, .zshrc, etc.)
-export BUN_INSTALL="$HOME/.bun"
-export PATH="$BUN_INSTALL/bin:$PATH"
-```
-
-### Docker Permission Denied
-
-On Linux, you may need to add your user to the docker group:
+**`brails: command not found`**: Bun's global bin directory is not on your `PATH`. Add it to
+your shell profile:
 
 ```bash
-sudo usermod -aG docker $USER
-# Log out and back in
+export PATH="$HOME/.bun/bin:$PATH"
 ```
 
-### Port Already in Use
-
-If port 3000 is in use:
+**Port 3000 is taken**: pick another port:
 
 ```bash
-# Use a different port
-PORT=4000 bun dev
+PORT=4000 brails dev
 ```
-
-### Database Connection Failed
-
-Check that Docker services are running:
-
-```bash
-bun docker:status
-```
-
-Or check your `DATABASE_URL` in `.env.development.local`.
-
-## Next Steps
-
-Now that you have BunOnRails installed:
-
-1. Follow the [Quick Start](./quick-start.md) to build your first app
-2. Learn about the [Project Structure](./project-structure.md)
-3. Explore the [Core Concepts](../core-concepts/philosophy.md)

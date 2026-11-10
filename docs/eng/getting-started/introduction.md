@@ -1,90 +1,69 @@
 # Introduction to BunOnRails
 
-BunOnRails is a full-stack JavaScript framework built on [Bun](https://bun.sh) that captures the "Rails magic" - convention over configuration, batteries included, zero boilerplate.
+BunOnRails is a full-stack JavaScript framework built on [Bun](https://bun.sh) with Rails-like
+conventions: the file you need is where you expect it, and the framework wires it up.
 
-## What is BunOnRails?
+It is young. Version 0.1 runs an HTTP app with routes, controllers, params, filters and JSON
+responses. Most of the rest is designed and partly built, and this page says which is which.
 
-BunOnRails brings the productivity and joy of Ruby on Rails to the JavaScript ecosystem, powered by Bun's blazing-fast runtime. It's designed for developers who want to build production applications quickly without sacrificing quality or spending hours on configuration.
+## Convention over configuration
 
-## Core Philosophy
-
-### Convention Over Configuration
-
-Everything has a place, everything is predictable:
+Files live in predictable places and are picked up by name. There is nothing to register:
 
 ```
 app/
-├── models/          # Your data models
-├── controllers/     # Request handlers
-├── components/      # React components
-├── jobs/           # Background jobs
-├── mailers/        # Email templates
+├── controllers/   # posts_controller.js serves the posts#… routes
+├── models/        # post.js defines Post
+├── jobs/
+├── mailers/
+└── channels/
 config/
-├── routes.js       # URL routing
-├── database.js     # Database config
-db/
-├── migrations/     # Database changes
-├── seeds.js        # Initial data
+├── routes.js      # path -> controller#action
+├── <name>.js      # the config section <name>
+├── environments/  # per-environment overrides
+└── initializers/  # run once at boot
 ```
 
-### Batteries Included
+[Project Structure](./project-structure.md) covers each one.
 
-Ships everything you need to build production apps:
+## What works today
 
-- **Authentication** - User registration, login, password reset, OAuth
-- **File Uploads** - S3-compatible storage with image processing
-- **Background Jobs** - Reliable job processing with BullMQ
-- **Real-Time** - WebSocket channels for live updates
-- **Caching** - Redis-backed caching at multiple levels
-- **Email** - Transactional email with React templates
-- **Search** - Elasticsearch/MeiliSearch integration
-- **Admin Panel** - Auto-generated CRUD interfaces
+- **CLI**: `brails new` creates an app, `brails dev` and `brails start` serve it.
+- **Routing**: a Rails-like DSL with `resources`, `resource` and `namespace`.
+- **Controllers**: classes with params, JSON responses, redirects and before/after filters.
+- **Config**: per-section files, per-environment overrides and initializers.
+- **ORM query layer**: an Active-Record-style `Model` with a query builder, validations and
+  associations on a PostgreSQL adapter. It is not yet connected at app boot. See the
+  [Database Overview](../database/overview.md).
+- **Jobs**: a `Job` base class whose `performNow` runs a job inline.
+- **Caching**: an in-process memory store.
 
-### Bun-Powered Performance
+## Planned
 
-Leverages Bun's native speed for everything:
+These are designed and partly built, but not usable yet:
 
-- No webpack, no babel - Bun handles bundling and transpilation
-- Native SQLite driver for development
-- Built-in HTTP server and WebSocket support
-- Fast test runner with parallel execution
-- Minimal dependencies, no `node_modules` bloat
+- the code generators (`brails generate`), the database commands (`brails db:migrate` and the
+  rest), `brails console` and `brails routes`;
+- connecting to the database at boot, and test-database isolation;
+- queued jobs (`performLater`), mail delivery, S3 file storage, and the Redis cache;
+- WebSocket channels, the React hooks and forms, and HTML views;
+- authentication;
+- CSRF tokens. The check is on, but no token is issued yet, see
+  [CSRF protection](../routing/overview.md#csrf-protection).
 
-## Who Should Use BunOnRails?
+`brails help` lists the planned commands. Each exits with an error rather than pretending to
+work.
 
-BunOnRails is ideal for:
+## Getting started
 
-- **Full-stack developers** who want Rails productivity in JavaScript
-- **Startups** that need to ship features quickly
-- **Teams** that value convention and predictability
-- **Solo developers** who want batteries included
-- **Anyone** tired of configuring build tools
-
-## Key Features at a Glance
-
-| Feature | What You Get |
-|---------|--------------|
-| **Setup** | One command to create and run a new app |
-| **Database** | Migrations, ORM, validations, associations |
-| **Routes** | Rails-like DSL with resources and namespaces |
-| **Controllers** | Clean classes with automatic context |
-| **Frontend** | React with framework-aware hooks |
-| **Jobs** | Scheduled and async background processing |
-| **Auth** | Full auth system with one generator |
-| **Files** | Upload, process, and serve files |
-| **Testing** | Parallel tests with isolation |
-| **Deploy** | Works on any platform out of the box |
-
-## Getting Started
-
-Ready to dive in? Head to the [Installation](./installation.md) guide to set up your development environment, then follow the [Quick Start](./quick-start.md) to build your first app.
+Start with [Installation](./installation.md), then the [Quick Start](./quick-start.md).
 
 ## Community
 
 - **GitHub**: [github.com/developerz-ai/bun-on-rails](https://github.com/developerz-ai/bun-on-rails)
-- **Documentation**: [bunonrails.com](https://bunonrails.com)
-- **Discord**: Join our community for help and discussion
+- **Issues**: [github.com/developerz-ai/bun-on-rails/issues](https://github.com/developerz-ai/bun-on-rails/issues)
 
 ## License
 
-BunOnRails is open source software licensed under the [MIT License](https://opensource.org/licenses/MIT).
+BunOnRails is open source software licensed under the
+[MIT License](https://github.com/developerz-ai/bun-on-rails/blob/main/LICENSE).
