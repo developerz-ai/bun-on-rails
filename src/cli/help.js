@@ -63,19 +63,19 @@ function printCommandHelp(command) {
 
 const commandHelp = {
   new: `
-Usage: brails new <app-name> [options]
+Usage: brails new <app-name> [--skip-install]
 
-Create a new BunOnRails application.
+Create a new BunOnRails application in ./<app-name>: config/routes.js, a home
+and a health controller, package.json, .gitignore and .env.example. Then runs
+\`bun install\` there. The app runs with \`brails dev\` and needs no database.
+
+<app-name> is lowercase letters, digits, "-" and "_", starting with a letter.
 
 Options:
-  --database=TYPE        Database to use (postgres, mysql, sqlite)
-  --skip-git             Skip git initialization
-  --skip-docker          Skip Docker configuration
-  --api                  API-only application (no frontend)
+  --skip-install         Do not run bun install
 
 Examples:
   brails new myapp
-  brails new myapp --database=mysql
-  brails new myapp --api
+  brails new myapp --skip-install
 `
 }

@@ -40,7 +40,7 @@ Parts of the tree are stubs. Read the module before you rely on it.
 
 | Module                         | State                                                                                                                                                                               |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/cli/commands/`            | `new` is a stub, and `generate`, `db:*`, `console`, `routes`, `test`, `credentials` exit 1 as not implemented — see Commands                                                        |
+| `src/cli/commands/`            | `generate`, `db:*`, `console`, `routes`, `test`, `credentials` exit 1 as not implemented — see Commands                                                                             |
 | `src/jobs/job.js`              | `performNow` runs a job; `performLater` / `performAt` / `performIn` are TODO stubs (`src/jobs/job.js:29`)                                                                           |
 | `src/mail/mailer.js`           | `deliver()` and `deliverLater()` are TODO stubs (`src/mail/mailer.js:36`)                                                                                                           |
 | `src/storage/storage.js`       | upload, download and delete are TODO stubs (`src/storage/storage.js:17`)                                                                                                            |
@@ -79,11 +79,12 @@ Parts of the tree are stubs. Read the module before you rely on it.
 
 ### `brails` (entry `src/cli/index.js`)
 
-| Command                              | What it does                                          |
-| ------------------------------------ | ----------------------------------------------------- |
-| `brails dev` (aliases `server`, `s`) | boots the Application and serves HTTP                 |
-| `brails start`                       | production server                                     |
-| `--help`                             | command list and per-command help (`src/cli/help.js`) |
+| Command                              | What it does                                                                                                                                                                                                                                                                                    |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `brails new <app-name>` (`create`)   | writes `src/cli/templates/app/` into `./<app-name>` (routes, a home and a health controller, `package.json` depending on this package at its own version, `.gitignore`, `.env.example`), then `bun install`; `--skip-install` skips it. The app boots with no database (`test/cli/new.test.js`) |
+| `brails dev` (aliases `server`, `s`) | boots the Application and serves HTTP                                                                                                                                                                                                                                                           |
+| `brails start`                       | production server                                                                                                                                                                                                                                                                               |
+| `--help`                             | command list and per-command help (`src/cli/help.js`)                                                                                                                                                                                                                                           |
 
 Registered but not implemented. Each is built by `notImplemented()` (`src/cli/commands/not_implemented.js`) and exits 1 with `brails <cmd> is not implemented yet`, printing nothing to stdout. `brails help` lists them under Planned. Pinned by `test/cli/not_implemented.test.js`:
 
@@ -95,8 +96,6 @@ Registered but not implemented. Each is built by `notImplemented()` (`src/cli/co
 | `brails routes`                                                                                      | `src/cli/commands/routes.js`                                                   |
 | `brails test` (`t`)                                                                                  | `src/cli/commands/test.js`. The error says to use `bun test`                   |
 | `brails credentials` (`credentials:edit`)                                                            | `src/cli/commands/credentials.js`                                              |
-
-`brails new` (`create`) is still the old kind of stub: it prints "Application created successfully!" and creates nothing (`src/cli/commands/new.js:18`). Plan 101 task T3 replaces it.
 
 The CLI has no top-level `setup` verb — the registry (`src/cli/commands/index.js:15-49`) lists `db:setup`, and it exits 1 as not implemented.
 
@@ -114,7 +113,7 @@ The CLI has no top-level `setup` verb — the registry (`src/cli/commands/index.
 | `src/mail/mailer.js`, `src/storage/storage.js`, `src/cache/cache.js` | mail, S3 storage, cache                                                                                                                                                                                                                                                                                                       |
 | `src/react/`                                                         | `hooks.js`, `forms.js`                                                                                                                                                                                                                                                                                                        |
 | `src/testing/`                                                       | `factory.js`, `request.js`, `database.js` (stubs — see Conventions)                                                                                                                                                                                                                                                           |
-| `src/cli/`                                                           | `index.js` (entry), `parser.js`, `help.js`, `build.js`, `commands/`                                                                                                                                                                                                                                                           |
+| `src/cli/`                                                           | `index.js` (entry), `parser.js`, `help.js`, `build.js`, `commands/`, `templates/app/` (the `brails new` skeleton; a leading `_` in a template name becomes `.`)                                                                                                                                                               |
 | `src/support/inflector.js`                                           | `pluralize` / `singularize` / `classify` / `tableize` / `foreignKey`                                                                                                                                                                                                                                                          |
 | `src/config/loader.js`                                               | configuration loading                                                                                                                                                                                                                                                                                                         |
 | `demo/`                                                              | the only app in this repo — `demo/app/{models,controllers,jobs,mailers,channels,components}`, `demo/config/{routes.js,database.js,environments/}`, `demo/db/{migrations/,seeds.js}`, `demo/test/{factories,models}`. The framework also runs `config/initializers/*.js` when that directory exists (`src/application.js:487`) |

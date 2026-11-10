@@ -1,0 +1,11 @@
+import { Controller } from '{{FRAMEWORK_NAME}}'
+
+export default class HomeController extends Controller {
+  async index() {
+    return this.render({
+      app: '{{APP_NAME}}',
+      framework: 'BunOnRails',
+      message: 'Edit app/controllers/home_controller.js and config/routes.js to get started.'
+    })
+  }
+}
