@@ -71,6 +71,40 @@ const FK_ACTION_MAP = {
  * const generator = new SchemaGenerator(connection)
  * await generator.dump('./db/schema.js')
  */
+/**
+ * Order tables so each comes after every table its foreign keys reference, as
+ * a schema dump must be: it creates tables with their foreign keys inline.
+ * Independent tables come in alphabetical order, so dumps are stable. A self-reference, or a reference to a table outside `tables`, does
+ * not hold a table back. A cycle between tables throws, naming them, rather
+ * than writing a dump that cannot be loaded. Pinned by
+ * test/database/schema_order.test.js.
+ *
+ * @param {string[]} tables
+ * @param {Record<string, string[]>} dependsOn - table -> tables it references
+ * @returns {string[]}
+ */
+export function orderTablesForCreate(tables, dependsOn) {
+  const inDump = new Set(tables)
+  const waitingOn = new Map(
+    tables.map((t) => [t, new Set((dependsOn[t] || []).filter((d) => d !== t && inDump.has(d)))])
+  )
+  const byName = [...tables].sort()
+  const ordered = []
+  while (waitingOn.size > 0) {
+    const ready = byName.find((t) => waitingOn.has(t) && waitingOn.get(t).size === 0)
+    if (!ready) {
+      throw new Error(
+        `Cannot order the schema dump: foreign keys form a cycle between ${[...waitingOn.keys()].join(', ')}. ` +
+          'A dump creates each table with its foreign keys inline, so a cycle cannot be loaded.'
+      )
+    }
+    ordered.push(ready)
+    waitingOn.delete(ready)
+    for (const deps of waitingOn.values()) deps.delete(ready)
+  }
+  return ordered
+}
+
 export class SchemaGenerator {
   /**
    * Create a new SchemaGenerator
@@ -107,8 +141,13 @@ export class SchemaGenerator {
    * @returns {Promise<string>} Generated schema JavaScript
    */
   async generate() {
-    // Get all tables
-    const tables = await this.getTables()
+    // Tables in creation order: every referenced table before its referrers
+    const allTables = (await this.getTables()).filter(t => t !== 'schema_migrations')
+    const dependsOn = {}
+    for (const table of allTables) {
+      dependsOn[table] = (await this.getForeignKeys(table)).map(fk => fk.foreign_table)
+    }
+    const tables = orderTablesForCreate(allTables, dependsOn)
 
     // Get schema version (latest migration)
     const version = await this.getSchemaVersion()
