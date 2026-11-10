@@ -8,10 +8,18 @@ on:
       - ".github/workflows/docs.yml"
   workflow_dispatch:
 
-permissions:
-  contents: read
-  pages: write
-  id-token: write
+# A GitHub Pages site is a repository-administration object: no `permissions:`
+# block lets a workflow token create one. Run 42344720510 shows exactly that —
+# reading the Pages API returned 404 (read allowed, no site) while
+#   Create Pages site failed. Error: Resource not accessible by integration
+# was the answer to the create call. So this workflow never requires a site it
+# cannot provision: it probes read-only, names the one human setting, and gates
+# every Pages step on the probe's answer. Permissions are declared per job and
+# each job gets only what it uses.
+#
+# A site existing is not enough: one left on "Deploy from a branch" answers 200
+# with build_type "legacy", and actions/deploy-pages cannot deploy to it. The
+# probe therefore reads the body and is ready only for build_type "workflow".
 
 concurrency:
   group: pages
@@ -20,6 +28,12 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+
+    outputs:
+      pagesReady: ${{ steps.pages-site.outputs.ready }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -34,56 +48,83 @@ jobs:
       - name: Install dependencies
         run: bun install
 
-      - name: Build documentation
-        run: bun run docs:build
-
-      - name: Preflight Pages site
-        continue-on-error: true
+      # Read-only, first, and never fatal: a missing Pages site is a repository
+      # setting a human has to apply, not a bug in this workflow. Running it
+      # before the docs build reports that before an artifact is built that
+      # cannot be deployed. Ready needs both a 200 and build_type "workflow": a
+      # site still on "Deploy from a branch" answers 200 and cannot be deployed
+      # by actions/deploy-pages, which is why the body is read, not discarded.
+      - name: 'Check Pages site - if the deploy is skipped, set Settings > Pages > Build and deployment > Source = "GitHub Actions"'
+        id: pages-site
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
           GH_API_URL: ${{ github.api_url }}
         run: |
-          # Report the required repository setting as a NON-fatal warning, so a
-          # missing Pages site stays legible instead of failing the run with a
-          # bare lookup 404. This step never blocks: the `Setup Pages` step
-          # below still runs and can provision the site itself.
-          status=$(curl --silent --output /dev/null --write-out '%{http_code}' \
+          response=$(curl --silent --write-out '\n%{http_code}' \
             --header "Authorization: Bearer ${GITHUB_TOKEN}" \
             --header "X-GitHub-Api-Version: 2022-11-28" \
             "${GH_API_URL}/repos/${GH_REPO}/pages" || true)
-          if [ "${status}" = "404" ]; then
-            echo "::warning title=Pages site not provisioned::GitHub Pages is not provisioned for ${GH_REPO}. Set Settings > Pages > Build and deployment > Source = \"GitHub Actions\", then re-run this workflow."
-          elif [ "${status}" != "200" ]; then
-            echo "::warning title=Pages site check inconclusive::Could not read the Pages site of ${GH_REPO} (HTTP ${status:-none}). If the deploy fails, set Settings > Pages > Build and deployment > Source = \"GitHub Actions\"."
+
+          # The last line is the status code; everything before it is the body.
+          status=$(printf '%s' "${response}" | tail -n 1 | tr -d '[:space:]')
+          body=$(printf '%s' "${response}" | sed '$d')
+          build_type=$(printf '%s' "${body}" |
+            grep --only-matching '"build_type": *"[^"]*"' |
+            head -n 1 | sed 's/.*"\([a-z]*\)"$/\1/' || true)
+
+          # 200 only says a site exists. A site on "Deploy from a branch"
+          # answers 200 with build_type "legacy", and actions/deploy-pages
+          # cannot deploy it: ready is reserved for a site built by Actions.
+          if [ "${status}" = "200" ] && [ "${build_type}" = "workflow" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "GitHub Pages site found for ${GH_REPO} (build_type ${build_type}) - the deploy will run."
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo '::warning title=Pages site not provisioned::GitHub Pages is not deployable for '"${GH_REPO}"' (HTTP '"${status:-none}"', build_type '"${build_type:-none}"'): actions/deploy-pages needs the site built by GitHub Actions. The build still runs and uploads the docs artifact; the Pages deploy is skipped. One-time repository setting, outside the authority of this workflow: Settings > Pages > Build and deployment > Source = "GitHub Actions". Re-run this workflow once it is set.'
+            {
+              echo '### GitHub Pages is not built by GitHub Actions'
+              echo
+              echo 'HTTP '"${status:-none}"', build_type '"${build_type:-none}"'.'
+              echo
+              echo 'One-time repository setting, outside the authority of this workflow:'
+              echo
+              echo 'Settings > Pages > Build and deployment > Source = "GitHub Actions"'
+              echo
+              echo 'Re-run this workflow once it is set.'
+            } >> "$GITHUB_STEP_SUMMARY"
           fi
 
-      - name: "Setup Pages - if this fails, set Settings > Pages > Source = GitHub Actions"
-        uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
-        with:
-          # Enable (and provision, if needed) the Pages site for this repository
-          # instead of only performing a read-only site lookup. With the default
-          # `enablement: false` this action only LOOKS the site up, so a
-          # repository without a Pages site fails with a bare 404.
-          #
-          # Residual repository setting (outside this workflow's authority):
-          # GitHub Pages must be provisioned for this repository with
-          #   Settings > Pages > Build and deployment > Source = "GitHub Actions"
-          # If the token is not allowed to create Pages sites, that setting has
-          # to be applied in the repository settings.
-          enablement: true
+      - name: Build documentation
+        run: bun run docs:build
 
-      - name: Upload artifact
+      # Uploaded unconditionally: a maintainer still gets the built site, and a
+      # gated upload would turn "site missing" into "no artifact either".
+      - name: Upload docs artifact
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: docs
+          path: docs/.vitepress/dist
+
+      # Needs a Pages site: this uploads into the Pages API.
+      - name: Upload Pages artifact
+        if: steps.pages-site.outputs.ready == 'true'
         uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: docs/.vitepress/dist
 
   deploy:
+    # Skipped — not failed — without a site; the build job's warning names the
+    # setting that unblocks it.
+    if: needs.build.outputs.pagesReady == 'true'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    needs: build
-    runs-on: ubuntu-latest
 
     steps:
       - name: Deploy to GitHub Pages
