@@ -34,8 +34,9 @@ Use Bun's test runner, `bun test`, with `import { test, expect } from "bun:test"
 
 ## PostgreSQL
 
-The database connection tries Bun's built-in `Bun.sql` driver first and falls back to the
-`postgres` package when that fails (`src/database/connection.js`). See
+The database connection uses Bun's built-in SQL driver (`Bun.SQL`), and falls back to the
+`postgres` package only on a Bun without it, or with `useBunSql: false`
+(`src/database/connection.js`). See
 [Database Overview](../database/overview.md).
 
 ## Not implemented yet

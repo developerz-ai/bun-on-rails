@@ -36,8 +36,9 @@ If the initializer throws (a wrong password, a database that is down), boot fail
 exits 1 with `Initializer config/initializers/database.js failed: <the cause>`.
 
 `new Connection({...})` also takes `host`, `port`, `database`, `username`, `password` and `ssl`
-instead of `url`. It uses Bun's built-in `Bun.sql` driver when that works and falls back to the
-`postgres` package otherwise.
+instead of `url`. It uses Bun's built-in SQL driver (`Bun.SQL`), and the `postgres` package only
+on a Bun without it or with `useBunSql: false`. Both return the same results: `bigint` columns
+such as `id` come back as strings.
 
 ## A model in a controller
 
