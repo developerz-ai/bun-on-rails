@@ -1,162 +1,179 @@
 # Migrations
 
-Migrations are version-controlled database changes. Each migration describes what to add, remove, or modify.
+A migration is a file in `db/migrations/` that changes the schema in `up()` and undoes the change
+in `down()`. Nothing in the CLI runs migrations yet: you run them from a short script with
+`MigrationRunner` (see [Running migrations](#running-migrations)).
 
-## Creating Migrations
+Name each file `<version>_<name>.js`. The version is everything before the first `_`; use a
+timestamp such as `20260110120000`, so that file-name order is the order to run them in.
 
-### Using the Generator
+## Writing a migration
 
-```bash
-# Create a table
-brails g migration CreatePosts
+A migration is either two exported functions or a `Migration` subclass.
 
-# Add a column
-brails g migration AddSlugToPosts slug:string
+### Functions
 
-# Remove a column
-brails g migration RemovePublishedFromPosts published:boolean
+**`db/migrations/20260110120000_create_posts.js`**
 
-# Create a reference
-brails g migration AddUserToPosts user:references
-```
-
-### Manual Creation
-
-Create a file in `db/migrations/` with a timestamp prefix:
-
-```javascript
-// db/migrations/20250124120000_create_posts.js
+```js
 export async function up(db) {
-  await db.createTable('posts', (t) => {
-    t.id()
-    t.string('title').notNull()
-    t.text('body')
-    t.boolean('published').default(false)
-    t.references('user').notNull().onDelete('cascade')
-    t.timestamps()
-  })
+  await db.createTable("posts", (t) => {
+    t.id();
+    t.string("title").notNull();
+    t.text("body");
+    t.boolean("published").default(false);
+    t.references("user").notNull().onDelete("cascade");
+    t.timestamps();
+  });
 
-  await db.addIndex('posts', ['user_id'])
-  await db.addIndex('posts', ['published', 'created_at'])
+  await db.addIndex("posts", ["user_id"]);
 }
 
 export async function down(db) {
-  await db.dropTable('posts')
+  await db.dropTable("posts");
 }
 ```
 
-## Column Types
+`db` is the `Connection` you hand to `MigrationRunner`. It has:
 
-| Type | SQL | Example |
-|------|-----|---------|
-| `id()` | BIGSERIAL PRIMARY KEY | Auto-incrementing ID |
-| `string(name)` | VARCHAR(255) | `t.string('title')` |
-| `text(name)` | TEXT | `t.text('body')` |
-| `integer(name)` | INTEGER | `t.integer('count')` |
-| `bigint(name)` | BIGINT | `t.bigint('views')` |
-| `float(name)` | FLOAT | `t.float('rating')` |
-| `decimal(name)` | DECIMAL(p,s) | `t.decimal('price', 10, 2)` |
-| `boolean(name)` | BOOLEAN | `t.boolean('active')` |
-| `date(name)` | DATE | `t.date('published_on')` |
-| `datetime(name)` | TIMESTAMP | `t.datetime('starts_at')` |
-| `json(name)` | JSONB | `t.json('metadata')` |
-| `uuid(name)` | UUID | `t.uuid('token')` |
-| `references(name)` | BIGINT + FK | `t.references('user')` |
-| `timestamps()` | created_at, updated_at | Auto timestamps |
+| Method                                       | Does                                                                        |
+| -------------------------------------------- | --------------------------------------------------------------------------- |
+| `createTable(name, (t) => {...})`            | `CREATE TABLE`, with the columns below                                      |
+| `dropTable(name)`                            | `DROP TABLE IF EXISTS`                                                      |
+| `addColumn(table, column, sqlType, options)` | `sqlType` is SQL (`"varchar(255)"`); options `notNull`, `default`, `unique` |
+| `removeColumn(table, column)`                | `DROP COLUMN`                                                               |
+| `addIndex(table, columns, options)`          | options `unique`, `name`, `using`, `where`                                  |
+| `removeIndex(table, nameOrColumns)`          | an index name, or the column array it was created with                      |
+| `query(sql, params)`                         | any SQL, with `$1`-style parameters                                         |
 
-## Column Modifiers
+This `createTable` does not create the indexes that `t.references()` and `t.index()` ask for.
+Add them with `addIndex`, as above.
 
-```javascript
-t.string('email')
-  .notNull()              // NOT NULL constraint
-  .unique()               // UNIQUE constraint
-  .default('value')       // DEFAULT value
+### A Migration subclass
 
-t.references('user')
-  .notNull()
-  .onDelete('cascade')    // ON DELETE CASCADE
-  .onUpdate('restrict')   // ON UPDATE RESTRICT
+**`db/migrations/20260110120100_create_comments.js`**
+
+```js
+import { Migration } from "bun-on-rails";
+
+export default class CreateComments extends Migration {
+  async up() {
+    await this.createTable("comments", (t) => {
+      t.id();
+      t.text("body").notNull();
+      t.references("post").onDelete("cascade");
+      t.timestamps();
+    });
+  }
+
+  async down() {
+    await this.dropTable("comments");
+  }
+}
 ```
 
-## Running Migrations
+The subclass's `createTable` also creates the indexes, and it has more methods:
+
+| Method                                                              | Does                                                      |
+| ------------------------------------------------------------------- | --------------------------------------------------------- |
+| `createTable`, `dropTable(name)`, `renameTable(old, new)`           |                                                           |
+| `addColumn(table, column, type, options)`                           | `type` is a column type from the table below (`"string"`) |
+| `removeColumn(table, column)`, `renameColumn(table, old, new)`      |                                                           |
+| `changeColumn(table, column, type)`                                 | changes the type                                          |
+| `changeColumnNull(table, column, notNull)`                          | `true` sets `NOT NULL`, `false` drops it                  |
+| `changeColumnDefault(table, column, value, type)`                   |                                                           |
+| `addIndex(table, columns, options)`                                 | options `unique`, `name`, `using`, `where`                |
+| `removeIndex(table, { name })` or `{ column }`                      |                                                           |
+| `addForeignKey(fromTable, toTable, { column, onDelete, onUpdate })` | `column` defaults to `<singular toTable>_id`              |
+| `removeForeignKey(fromTable, { toTable, column })` or `{ name }`    |                                                           |
+| `execute(sql, params)`                                              | any SQL                                                   |
+
+## Column types
+
+Inside `createTable`, `t` is a table builder:
+
+| Method                                                                | PostgreSQL type                                                                   |
+| --------------------------------------------------------------------- | --------------------------------------------------------------------------------- |
+| `t.id()`                                                              | `BIGSERIAL PRIMARY KEY`                                                           |
+| `t.string(name, { limit })`                                           | `VARCHAR(255)`, or the limit                                                      |
+| `t.text(name)`                                                        | `TEXT`                                                                            |
+| `t.integer`, `t.bigint`, `t.smallint`                                 | `INTEGER`, `BIGINT`, `SMALLINT`                                                   |
+| `t.boolean(name)`                                                     | `BOOLEAN`                                                                         |
+| `t.decimal(name, { precision, scale })`                               | `NUMERIC(precision, scale)`                                                       |
+| `t.float`, `t.double`                                                 | `FLOAT`, `DOUBLE PRECISION`                                                       |
+| `t.date`, `t.time`                                                    | `DATE`, `TIME`                                                                    |
+| `t.datetime(name, { timezone })`                                      | `TIMESTAMP`, or `TIMESTAMPTZ` with `timezone: true`                               |
+| `t.json`, `t.jsonb`, `t.uuid`                                         | `JSON`, `JSONB`, `UUID`                                                           |
+| `t.binary`                                                            | `BYTEA`                                                                           |
+| `t.inet`, `t.cidr`, `t.macaddr`, `t.tsvector`, `t.point`, `t.polygon` | the type of the same name                                                         |
+| `t.array(name, type)`                                                 | an array of `type`: `t.array("tags", "string")` is `VARCHAR(255)[]`               |
+| `t.references(name, options)`                                         | `<name>_id BIGINT`, a foreign key to `<name>s (id)`, and an index (subclass form) |
+| `t.timestamps({ timezone })`                                          | `created_at` and `updated_at`, `NOT NULL DEFAULT NOW()`                           |
+| `t.index(columns, { unique, name })`                                  | an index on the table (subclass form)                                             |
+
+Each column method returns a builder for these modifiers, chained as in the examples:
+`notNull()`, `unique()`, `default(value)`, `check("x >= 0")`, `index()`, and on a reference
+`onDelete(action)` and `onUpdate(action)`.
+
+`t.references` names the referenced table by adding `s`, so `t.references("category")` points at
+`categorys`. Pass the table: `t.references("category", { table: "categories" })`. Its other
+options are `column`, `index: false` and `polymorphic: true`, which adds a `<name>_type` column
+instead of the foreign key.
+
+## Running migrations
+
+**`db/migrate.js`**
+
+```js
+import { Connection, MigrationRunner } from "bun-on-rails";
+
+const connection = new Connection({ url: process.env.DATABASE_URL });
+await connection.connect();
+
+const runner = new MigrationRunner(connection, `${import.meta.dir}/migrations`);
+await runner.migrate();
+
+await connection.disconnect();
+```
 
 ```bash
-# Run all pending migrations
-brails db:migrate
-
-# Rollback last migration
-brails db:rollback
-
-# Rollback multiple
-brails db:rollback --step=3
-
-# Reset database (drop, create, migrate)
-brails db:reset
-
-# Load schema without running migrations (fast)
-brails db:schema:load
+bun run db/migrate.js
 ```
 
-## Modifying Tables
+`migrate()` runs every pending migration in file-name order and records each version in a
+`schema_migrations` table. Pass the migrations directory as an absolute path: a relative one is
+resolved against the framework's own files and fails to import.
 
-```javascript
-export async function up(db) {
-  // Add column
-  await db.addColumn('posts', 'slug', 'string', { notNull: true })
+The runner also has:
 
-  // Remove column
-  await db.removeColumn('posts', 'legacy_field')
+- `rollback(steps = 1)` runs `down()` for the latest `steps` versions and removes them from
+  `schema_migrations`;
+- `status()` returns `{ version, file, status }` for each file, `status` being `"up"` or
+  `"down"`;
+- `getPending()` returns the files not run yet.
 
-  // Rename column
-  await db.renameColumn('posts', 'name', 'title')
+A migration that has run is history: change the schema with a new migration rather than by
+editing an old one.
 
-  // Change column type
-  await db.changeColumn('posts', 'views', 'bigint')
+## Dump the schema
 
-  // Add index
-  await db.addIndex('posts', ['slug'], { unique: true })
+`dumpSchema(connection, appRoot)` reads the database and writes `db/schema.js` under `appRoot`.
+To dump after every run, add it to `db/migrate.js`:
 
-  // Remove index
-  await db.removeIndex('posts', 'index_posts_on_slug')
+```js
+import { Connection, MigrationRunner, dumpSchema } from "bun-on-rails";
 
-  // Add foreign key
-  await db.addForeignKey('posts', 'users', {
-    column: 'author_id',
-    primaryKey: 'id',
-    onDelete: 'cascade'
-  })
-}
+// ...connect and migrate as above, then:
+await dumpSchema(connection, process.cwd());
 ```
 
-## Data Migrations
+`db/schema.js` is generated: never edit it by hand. Its header refers to a `db:schema:load` command, which is not implemented yet.
 
-For data changes, use the migration's database connection:
+`loadSchema(connection, appRoot)` applies a dumped schema to an empty database, but it creates
+the tables in alphabetical order, so it fails when a table references one that sorts after it.
 
-```javascript
-export async function up(db) {
-  // Update existing data
-  await db.query(`
-    UPDATE posts
-    SET slug = lower(replace(title, ' ', '-'))
-    WHERE slug IS NULL
-  `)
-}
-```
+## Not implemented yet
 
-## Best Practices
-
-1. **Keep migrations small** - One change per migration
-2. **Always write down()** - Enable rollback
-3. **Don't modify old migrations** - Create new ones instead
-4. **Use db:schema:load in CI** - Faster than running all migrations
-5. **Test rollbacks** - Verify down() works correctly
-
-## After Migration
-
-After each migration, BunOnRails automatically:
-
-1. **Updates `db/schema.js`** - Current database structure
-2. **Annotates models** - Adds schema comments to model files
-3. **Verifies integrity** - Checks for issues
-
-This keeps everything in sync without manual work.
+- **`brails db:migrate`, `db:rollback`, `db:schema:dump` and `db:schema:load`** are registered but not implemented yet: each exits 1. Use `MigrationRunner` and `dumpSchema` as above.
+- **`brails generate migration`** is not implemented yet: write the file by hand.
+- **Automatic schema dump.** `migrate()` does not update `db/schema.js`.

@@ -1,113 +1,105 @@
 # Database Overview
 
-BunOnRails provides a powerful, intuitive database layer inspired by Ruby on Rails' Active Record. Zero configuration, maximum productivity.
+BunOnRails has an Active Record-style ORM: models with validations, callbacks and scopes, a
+chainable query builder, and migrations. It lives in `src/database/`.
 
-## Philosophy
+> **Status.** The ORM works once your app hands it a connection, but nothing wires it up for
+> you yet:
+>
+> - The app does **not** connect to a database at boot. `config/database.js` is read into the
+>   config and nothing else uses it. You open the connection yourself (below).
+> - No database command is implemented. Every `brails db:*` command is registered but not implemented yet and exits 1. Run migrations from a script with `MigrationRunner` (see [Running migrations](./migrations.md#running-migrations)).
+> - PostgreSQL is the only adapter (`src/database/adapters/postgres.js`).
 
-The database layer is designed for **vibe coders** and **AI agents** - you describe what you want, and the framework handles the rest. No ORMs to configure, no query builders to learn, no boilerplate.
+## Connect to PostgreSQL
 
-## Quick Example
+Open a connection in an initializer. The app runs every `config/initializers/*.js` at boot, in
+file-name order, and passes each default-exported function the application:
 
-```javascript
-// Create a post with validation
-const post = await Post.create({
-  title: 'Hello World',
-  body: 'My first post'
-})
+**`config/initializers/database.js`**
 
-// Query with associations
-const posts = await Post
-  .published()
-  .includes('author', 'comments')
-  .order({ createdAt: 'desc' })
-  .limit(10)
+```js
+import { Connection, setConnection } from "bun-on-rails";
 
-// Update
-post.title = 'Updated Title'
-await post.save()
-
-// Delete
-await post.destroy()
+export default async function connectDatabase() {
+  const connection = new Connection({ url: process.env.DATABASE_URL });
+  await connection.connect();
+  setConnection(connection);
+}
 ```
 
-## Components
+Put `DATABASE_URL=postgres://user:password@localhost:5432/myapp` in `.env`: Bun loads it
+automatically. The URL must start with `postgres://`: a `postgresql://` URL is rejected as the
+unsupported adapter `postgre`. `setConnection` makes this the connection every model and query
+uses.
 
-### Models
+If the initializer throws (a wrong password, a database that is down), the error is logged and
+the app still boots. Every query then fails with `Database connection not established`, and the
+request answers `500`.
 
-Models represent your data and business logic. They live in `app/models/`:
+`new Connection({...})` also takes `host`, `port`, `database`, `username`, `password` and `ssl`
+instead of `url`. It uses Bun's built-in `Bun.sql` driver when that works and falls back to the
+`postgres` package otherwise.
 
-```javascript
-// app/models/post.js
+## A model in a controller
+
+**`app/models/post.js`**
+
+```js
+import { Model } from "bun-on-rails";
+
 export default class Post extends Model {
-  static associations = {
-    belongsTo: ['user'],
-    hasMany: ['comments']
-  }
-
   static validations = {
-    title: { presence: true, length: { max: 200 } }
-  }
+    title: { presence: true, length: { max: 200 } },
+  };
 
   static scopes = {
-    published: (q) => q.where({ published: true })
+    published: (query) => query.where({ published: true }),
+  };
+}
+```
+
+**`app/controllers/posts_controller.js`**
+
+```js
+import { Controller } from "bun-on-rails";
+import Post from "../models/post.js";
+
+export default class PostsController extends Controller {
+  async index() {
+    const posts = await Post.published()
+      .order({ created_at: "desc" })
+      .limit(10)
+      .all();
+    return this.render({ posts });
   }
 }
 ```
 
-### Migrations
+`render` serializes each record to its column values. The table (`posts`) has to exist first:
+see [Migrations](./migrations.md).
 
-Migrations define database changes. They live in `db/migrations/`:
+## Pages
 
-```javascript
-// db/migrations/20250124_create_posts.js
-export async function up(db) {
-  await db.createTable('posts', (t) => {
-    t.id()
-    t.string('title').notNull()
-    t.text('body')
-    t.references('user')
-    t.timestamps()
-  })
-}
-```
+- [Models](./models.md): defining models, saving, validations, callbacks, scopes and
+  associations.
+- [Queries](./queries.md): the query builder, aggregates, pagination and raw SQL.
+- [Migrations](./migrations.md): writing migrations, running them, and dumping the schema.
 
-### Schema
+## N+1 query warnings
 
-The schema file (`db/schema.js`) is auto-generated after each migration. It's the source of truth for your database structure.
+In development (`BUN_ENV`, else `NODE_ENV`, unset or `development`), queries run through `all()`
+and `count()` are tracked. When the same query shape runs 3 times within a second, a warning
+with a stack trace is printed, pointing at `includes()` or a single `where({ id: ids })`. Call
+`disableN1Detection()` (exported from `bun-on-rails`) to turn it off.
 
-## Key Features
+## Not implemented yet
 
-| Feature | Description |
-|---------|-------------|
-| **Auto Schema Sync** | Schema.js updates automatically after migrations |
-| **Model Annotations** | Models get comments showing their columns |
-| **N+1 Detection** | Warns about N+1 queries in development |
-| **Query Logging** | See all queries in development |
-| **Connection Pooling** | Automatic connection management |
-| **Transactions** | Simple transaction API |
-
-## AI-Agent Friendly
-
-The database layer is designed to work seamlessly with AI coding assistants:
-
-- **Predictable patterns** - Same API for all models
-- **Clear errors** - Validation errors explain what's wrong
-- **Self-documenting** - Model annotations show schema
-- **No hidden magic** - What you write is what happens
-
-```javascript
-// AI agents can understand and generate this
-const user = await User.findBy({ email: 'test@example.com' })
-if (!user) {
-  return { error: 'User not found' }
-}
-```
-
-## Documentation
-
-- [Migrations](./migrations.md) - Database schema changes
-- [Models](./models.md) - Defining and using models
-- [Associations](./associations.md) - Relationships between models
-- [Validations](./validations.md) - Data validation
-- [Queries](./queries.md) - Querying the database
-- [N+1 Detection](./n-plus-one-detection.md) - Performance monitoring
+- **Connecting at boot from `config/database.js`.** Use an initializer, as above.
+- **`brails db:*` commands.** `brails db:migrate`, `db:rollback`, `db:setup` and the rest are registered but not implemented yet: each exits 1.
+- **Automatic schema dump.** Running migrations does not update `db/schema.js`. Call
+  `dumpSchema` yourself (see [Dump the schema](./migrations.md#dump-the-schema)).
+- **Model annotations.** Nothing writes schema comments into model files.
+- **Many-to-many associations.** `hasAndBelongsToMany` does not load anything yet: its join
+  query is a TODO, and `includes()` skips it with a warning.
+- **Other databases.** PostgreSQL is the only adapter.

@@ -1,297 +1,240 @@
 # Models
 
-Models are the heart of your application's data layer. Each model represents a database table and provides methods to query and manipulate data.
+A model is a class that extends `Model`. Each one maps to a table. The examples assume the app
+has a connection (see [Connect to PostgreSQL](./overview.md#connect-to-postgresql)) and that the
+tables exist (see [Migrations](./migrations.md)).
 
-## Creating Models
+## Defining a model
 
-### Using the Generator
+**`app/models/post.js`**
 
-```bash
-brails g model Post title:string body:text published:boolean user:references
+```js
+import { Model } from "bun-on-rails";
+
+export default class Post extends Model {}
+
+Post.register();
 ```
 
-### Manual Creation
+The app imports every file under `app/models/` at boot. `Post.register()` adds the class to the
+registry that associations use to find a model by name; call it for every model that takes part
+in an association.
 
-```javascript
-// app/models/post.js
-import { Model } from '@bun-on-rails'
+| Setting             | Default                                                                           |
+| ------------------- | --------------------------------------------------------------------------------- |
+| `static tableName`  | the snake_case class name plus `s`: `Post` is `posts`, `BlogPost` is `blog_posts` |
+| `static primaryKey` | `id`                                                                              |
 
-export default class Post extends Model {
-  // Configuration is optional - conventions handle most cases
-}
-```
+Set `tableName` whenever the plural is not the name plus `s`. For `Category`, write
+`static tableName = "categories"`: without it, queries read a `categorys` table.
 
-## Model Annotations
-
-After running migrations, models are automatically annotated with their schema:
-
-```javascript
-/**
- * Post Model
- *
- * == Schema Information
- *
- * Table name: posts
- *
- *  id           :bigint           not null, primary key
- *  title        :string           not null
- *  body         :text
- *  published    :boolean          default(false)
- *  user_id      :bigint           not null
- *  created_at   :datetime         not null
- *  updated_at   :datetime         not null
- *
- * Indexes:
- *  index_posts_on_user_id  (user_id)
- */
-
-export default class Post extends Model {
-  // ...
-}
-```
-
-## CRUD Operations
-
-### Create
-
-```javascript
-// Create and save
-const post = await Post.create({
-  title: 'Hello',
-  body: 'World',
-  userId: 1
-})
-
-// Build without saving
-const post = new Post({ title: 'Hello' })
-await post.save()
-
-// Create multiple
-const posts = await Post.createMany([
-  { title: 'First' },
-  { title: 'Second' }
-])
-```
-
-### Read
-
-```javascript
-// Find by ID
-const post = await Post.find(1)
-
-// Find by attributes
-const post = await Post.findBy({ slug: 'hello-world' })
-
-// Find all
-const posts = await Post.findAll()
-
-// First/Last
-const first = await Post.first()
-const last = await Post.last()
-
-// With conditions
-const posts = await Post.where({ published: true }).all()
-```
-
-### Update
-
-```javascript
-// Update attributes
-post.title = 'New Title'
-await post.save()
-
-// Update with hash
-await post.update({ title: 'New Title' })
-
-// Update all matching
-await Post.where({ draft: true }).updateAll({ status: 'pending' })
-```
-
-### Delete
-
-```javascript
-// Delete single record
-await post.destroy()
-
-// Delete by ID
-await Post.destroy(1)
-
-// Delete all matching
-await Post.where({ spam: true }).destroyAll()
-```
+`save()` fills in `created_at` and `updated_at` when it inserts a row, so every table a model
+writes to needs both columns (`t.timestamps()` in a migration).
 
 ## Attributes
 
-### Accessing Attributes
+A record keeps its column values in `record.attributes`, under their column names
+(`created_at`, `user_id`). Read and write them with `get` and `set`:
 
-```javascript
-const post = await Post.find(1)
+```js
+const post = await Post.find(1);
+
+post.get("title"); // "Hello"
+post.set("title", "Updated");
+post.isDirty; // true
+post.changedAttributes; // ["title"]
+await post.save();
+```
+
+Assigning a property (`post.title = "x"`) does **not** change the attribute, and `save()` ignores
+it. Use `set` or `update`.
+
+`record.id` is the primary key value, and `record.persisted` (or its opposite, `record.isNew`)
+says whether the row exists. `bigint` columns, `id` included, come back as strings (`"1"`).
+
+## Create, read, update, delete
+
+```js
+// Create: returns the record. Check persisted or errors.
+const post = await Post.create({ title: "Hello", user_id: user.id });
+
+// Build, then save: save() returns true or false.
+const draft = new Post({ title: "Draft", user_id: user.id });
+await draft.save();
 
 // Read
-console.log(post.title)
-console.log(post.createdAt)
+await Post.find(1); // throws RecordNotFoundError when missing
+await Post.findById(1); // null when missing
+await Post.findBy({ title: "Hello" }); // first match or null
+await Post.findAll({
+  where: { published: true },
+  order: { created_at: "desc" },
+  limit: 10,
+});
+await Post.first(); // lowest primary key, or null
+await Post.last();
+await Post.findOrCreateBy({ title: "About" });
+await Post.findOrInitializeBy({ title: "Contact" }); // not saved
 
-// Write
-post.title = 'Updated'
+// Update
+await post.update({ title: "New title" }); // sets, then saves; true or false
+await post.reload();
 
-// All attributes
-console.log(post.attributes)
+// Delete
+await post.destroy(); // true or false
+await Post.deleteWhere({ published: false });
+await Post.updateWhere({ published: false }, { published: true });
 ```
 
-### Dirty Tracking
+`findAll` takes `where`, `order`, `limit`, `offset` and `include`. For anything more, use the
+[query builder](./queries.md).
 
-```javascript
-const post = await Post.find(1)
-post.title = 'Changed'
+`save()`, `update()` and `destroy()` return `false` instead of throwing. A failed validation puts
+messages in `record.errors`, and a database error puts its message in `record.errors.base`.
+`save_()` and `update_()` throw instead.
 
-post.changed()           // ['title']
-post.titleChanged()      // true
-post.titleWas            // 'Original'
-post.changes             // { title: ['Original', 'Changed'] }
+## Validations
+
+```js
+export default class User extends Model {
+  static validations = {
+    email: { presence: true, email: true, uniqueness: true },
+    name: { length: { min: 2, max: 100 } },
+    age: { numericality: { onlyInteger: true, greaterThanOrEqualTo: 0 } },
+    role: { inclusion: { in: ["admin", "member"] } },
+    username: { format: { with: /^[a-z0-9_]+$/ }, exclusion: { in: ["root"] } },
+    password: { presence: { on: "create" } },
+  };
+}
 ```
+
+| Validator      | Options                                                                                                                      |
+| -------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `presence`     | `allowBlank`, `allowNull`                                                                                                    |
+| `length`       | `min`, `max`, `is`, `in: [min, max]`                                                                                         |
+| `format`       | `with`, `without` (or a bare regular expression)                                                                             |
+| `numericality` | `onlyInteger`, `greaterThan`, `greaterThanOrEqualTo`, `lessThan`, `lessThanOrEqualTo`, `equalTo`, `otherThan`, `odd`, `even` |
+| `inclusion`    | `in`                                                                                                                         |
+| `exclusion`    | `in`                                                                                                                         |
+| `email`, `url` | none                                                                                                                         |
+| `uniqueness`   | `scope`, `caseSensitive`. Queries the database                                                                               |
+| `acceptance`   | none                                                                                                                         |
+| `confirmation` | `field` (default `<name>_confirmation`)                                                                                      |
+| `custom`       | `validate: (value, record) => message or null`                                                                               |
+
+Every validator also takes `message`, `on: "create"` or `on: "update"`, and `if` / `unless` (a
+function `(record, value) => boolean`, or the name of a method or attribute). Most validators,
+such as `length`, `format`, `numericality`, `inclusion` and `email`, pass a blank value: add
+`presence` to require one.
+
+Validations run on `save()`, and on `validate()` or `isValid()`, which return a boolean:
+
+```js
+const user = new User({ email: "nope", password: "secret" });
+await user.isValid(); // false
+user.errors; // { email: "email is invalid" }
+user.errorsFor("email"); // ["is not a valid email"]
+user.fullMessages(); // ["email is not a valid email"]
+```
+
+`record.errors` holds the first message per attribute. `errorsFor(name)` returns every message
+for one attribute, and `fullMessages()` all of them.
+
+`addValidator(name, (value, options) => message or null)` registers a validator of your own
+under `name`.
 
 ## Callbacks
 
-Callbacks run at specific points in the model lifecycle:
+Define a method with a callback's name:
 
-```javascript
+```js
 export default class Post extends Model {
-  async beforeValidate() {
-    // Runs before validation
-    if (!this.slug) {
-      this.slug = this.title.toLowerCase().replace(/\s+/g, '-')
+  beforeSave() {
+    if (!this.get("slug") && this.get("title")) {
+      this.set("slug", this.get("title").toLowerCase().replace(/\s+/g, "-"));
     }
-  }
-
-  async afterValidate() {
-    // Runs after validation passes
-  }
-
-  async beforeSave() {
-    // Runs before create or update
-  }
-
-  async afterSave() {
-    // Runs after successful save
-  }
-
-  async beforeCreate() {
-    // Runs only on new records
-  }
-
-  async afterCreate() {
-    // Runs after new record is saved
-    await SendWelcomeEmailJob.performLater({ userId: this.id })
-  }
-
-  async beforeUpdate() {
-    // Runs only on existing records
-  }
-
-  async afterUpdate() {
-    // Runs after update is saved
-  }
-
-  async beforeDestroy() {
-    // Runs before deletion
-  }
-
-  async afterDestroy() {
-    // Runs after deletion
-    await this.cleanupAttachments()
   }
 }
 ```
+
+Or list method names in `static callbacks`, which run after the method of the same name:
+
+```js
+export default class User extends Model {
+  static callbacks = { beforeSave: ["normalizeEmail"] };
+
+  normalizeEmail() {
+    this.set("email", this.get("email")?.toLowerCase());
+  }
+}
+```
+
+The order on save is `beforeValidation`, `afterValidation`, `beforeSave`, then `beforeCreate` and
+`afterCreate` (new record) or `beforeUpdate` and `afterUpdate` (existing record), then
+`afterSave`. `destroy()` runs `beforeDestroy` and `afterDestroy`. A `before` callback other than
+`beforeValidation` that returns `false` stops the save or destroy, which then returns `false`.
 
 ## Scopes
 
-Scopes encapsulate common queries:
-
-```javascript
+```js
 export default class Post extends Model {
   static scopes = {
     published: (query) => query.where({ published: true }),
-    draft: (query) => query.where({ published: false }),
-    recent: (query) => query.order({ createdAt: 'desc' }),
-    byAuthor: (query, userId) => query.where({ userId }),
-    popular: (query) => query.where('views > ?', 1000)
-  }
+    popular: (query, min = 100) => query.where({ views: { ">": min } }),
+  };
 }
 
-// Usage
-const posts = await Post.published().recent().limit(10)
-const drafts = await Post.byAuthor(currentUser.id).draft()
+await Post.published().all();
+await Post.published().scope("popular", 500).all();
 ```
 
-## Class Methods
+Each scope becomes a static method that returns a query builder. A builder does not have the
+scope methods, so chain a second scope with `.scope(name, ...args)`. A builder is not a promise:
+end the chain with `.all()`, `.first()` or another [terminal method](./queries.md#terminal-methods).
 
-Add custom class methods for domain logic:
+## Associations
 
-```javascript
+```js
 export default class Post extends Model {
-  static async findBySlugOrId(identifier) {
-    if (isNaN(identifier)) {
-      return await this.findBy({ slug: identifier })
-    }
-    return await this.find(identifier)
-  }
-
-  static async trending() {
-    return await this
-      .published()
-      .where('created_at > ?', oneWeekAgo())
-      .order({ views: 'desc' })
-      .limit(10)
-  }
+  static associations = {
+    belongsTo: ["user"], // posts.user_id
+    hasMany: ["comments"], // comments.post_id
+  };
 }
+
+Post.register();
 ```
 
-## Instance Methods
+`hasOne` works like `hasMany` and loads one record. An entry can also be an object:
+`{ name: "author", model: "User", foreignKey: "user_id" }`.
 
-Add custom instance methods:
+The associated class is found in the `register()` registry: `user` and `comments` resolve to the
+`User` and `Comment` classes.
 
-```javascript
-export default class Post extends Model {
-  get excerpt() {
-    return this.body.substring(0, 200) + '...'
-  }
+Load associations for many records with `includes()`. Each record gets a property named after
+the association:
 
-  get isPublished() {
-    return this.published && this.publishedAt <= new Date()
-  }
+```js
+const posts = await Post.includes("user", "comments").all();
+posts[0].user; // a User, or null
+posts[0].comments; // an array of Comment
 
-  async publish() {
-    this.published = true
-    this.publishedAt = new Date()
-    return await this.save()
-  }
-
-  async addComment(userId, body) {
-    return await Comment.create({
-      postId: this.id,
-      userId,
-      body
-    })
-  }
-}
+await Post.includes("comments.user").all(); // nested
 ```
 
-## Conventions
+These properties are not attributes, so `render` and `toJSON()` leave them out.
 
-| Convention | Example |
-|------------|---------|
-| Table name | `posts` (plural, snake_case) |
-| Primary key | `id` |
-| Foreign keys | `user_id` |
-| Timestamps | `created_at`, `updated_at` |
-| Model file | `app/models/post.js` |
-| Model class | `Post` (singular, PascalCase) |
+For one record, `await post.loadAssociation("user")` loads a `belongsTo` or `hasOne`
+association. It finds the class by capitalising the association name, so it does not resolve a
+`hasMany` like `comments`, nor a `model` given as a string; query those directly:
+`Comment.where({ post_id: post.id }).all()`.
 
-### Overriding Conventions
+## Not implemented yet
 
-```javascript
-export default class LegacyUser extends Model {
-  static tableName = 'tbl_users'
-  static primaryKey = 'user_id'
-}
-```
+- **Association methods** such as `post.user()` or `user.posts()` are not wired up. Use
+  `includes()` or `loadAssociation()`.
+- **`hasAndBelongsToMany`.** Its join query is a TODO.
+- **Refreshing `updated_at`.** Saving a record loaded from the database keeps its old
+  `updated_at`: set it yourself.
+- **Model annotations.** Nothing writes the schema into model files.
+- **Generators.** `brails generate model` is not implemented yet (it exits 1): write the file by hand.

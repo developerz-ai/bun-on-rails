@@ -1,266 +1,170 @@
 # Queries
 
-BunOnRails provides a powerful, chainable query interface. Queries are lazy - they don't execute until you call a terminal method.
+Queries are built by chaining methods on a query builder and run by a terminal method such as
+`all()` or `first()`. A builder is not a promise: `await Post.where({ published: true })`
+without a terminal method returns the builder, not records.
 
-## Basic Queries
+The examples assume a connection (see [Connect to PostgreSQL](./overview.md#connect-to-postgresql)).
 
-### Finding Records
+## Starting a query
 
-```javascript
-// Find by primary key
-const post = await Post.find(1)
-const posts = await Post.find([1, 2, 3])
+`Model.query()` returns a builder for the model's table. These shortcuts exist on the model
+itself: `where`, `order`, `limit`, `offset`, `select`, `includes`, `page`, `per`, `scope`, and
+the terminals `all`, `first`, `last`, `count`, `exists`, `pluck`, `ids` and `paginate`. Every
+other method is on the builder only, so start with `Post.query()`:
 
-// Find by attributes
-const post = await Post.findBy({ slug: 'hello' })
-
-// First/Last
-const first = await Post.first()
-const last = await Post.last()
-const oldest = await Post.order({ createdAt: 'asc' }).first()
-
-// All records
-const posts = await Post.findAll()
-const posts = await Post.all() // alias
+```js
+await Post.where({ published: true }).all();
+await Post.query().whereNot({ published: true }).all();
+await Post.query().sum("views");
 ```
 
-### Conditions
+## Conditions
 
-```javascript
-// Equality
-const posts = await Post.where({ published: true }).all()
+```js
+Post.where({ published: true, user_id: 1 }); // =, joined with AND
+Post.where({ title: ["Hello", "World"] }); // IN (...)
+Post.where({ body: null }); // IS NULL
+Post.where({ views: { ">": 100 } }); // >, >=, <, <=, !=
+Post.where({ title: { ilike: "%hello%" } }); // like, ilike
+Post.where({ views: { between: [100, 200] } });
+Post.where({ id: { in: [1, 2] } }); // in, not_in
 
-// Multiple conditions
-const posts = await Post.where({ published: true, userId: 1 }).all()
-
-// SQL string with placeholders
-const posts = await Post.where('views > ?', 100).all()
-const posts = await Post.where('title LIKE ?', '%hello%').all()
-
-// Array of values (IN)
-const posts = await Post.where({ status: ['draft', 'pending'] }).all()
-
-// NULL check
-const posts = await Post.where({ deletedAt: null }).all()
-
-// NOT conditions
-const posts = await Post.whereNot({ published: false }).all()
-
-// OR conditions
-const posts = await Post
-  .where({ published: true })
-  .or({ userId: currentUser.id })
-  .all()
+Post.query().whereNot({ published: true }); // !=, NOT IN, IS NOT NULL
+Post.where({ views: 50 }).orWhere({ views: 500 }); // (views = 50 OR views = 500)
 ```
 
-### Chaining
+`orWhere` joins its condition to the condition right before it with `OR`.
 
-Queries can be chained:
+A string condition is inserted into the SQL as written:
 
-```javascript
-const posts = await Post
-  .where({ published: true })
-  .where('created_at > ?', lastWeek)
-  .order({ createdAt: 'desc' })
-  .limit(10)
-  .offset(20)
-  .all()
+```js
+Post.where("views > 100 AND published");
 ```
 
-## Ordering
+It takes no parameters (`where("views > ?", 100)` produces invalid SQL), so never build one from
+user input. Pass values with the object forms above, which send them as query parameters.
 
-```javascript
-// Single column
-const posts = await Post.order({ createdAt: 'desc' }).all()
+Column names in the object forms are quoted as one identifier, so `{ "users.name": "Ada" }` does
+not reach a joined table. Use a string condition for that.
 
-// Multiple columns
-const posts = await Post.order({ published: 'desc', createdAt: 'asc' }).all()
+## Ordering, limits and columns
 
-// SQL string
-const posts = await Post.order('views DESC NULLS LAST').all()
-```
-
-## Limiting & Offset
-
-```javascript
-// Limit
-const posts = await Post.limit(10).all()
-
-// Offset
-const posts = await Post.offset(20).all()
-
-// Pagination
-const posts = await Post.limit(20).offset(40).all()
-```
-
-## Selecting Columns
-
-```javascript
-// Specific columns
-const posts = await Post.select('id', 'title').all()
-
-// Computed columns
-const stats = await Post.select('COUNT(*) as count', 'AVG(views) as avg_views').first()
-```
-
-## Aggregations
-
-```javascript
-// Count
-const count = await Post.count()
-const publishedCount = await Post.where({ published: true }).count()
-
-// Sum
-const totalViews = await Post.sum('views')
-
-// Average
-const avgViews = await Post.average('views')
-
-// Minimum/Maximum
-const firstPost = await Post.minimum('createdAt')
-const maxViews = await Post.maximum('views')
-
-// Exists
-const hasPublished = await Post.where({ published: true }).exists()
-```
-
-## Grouping
-
-```javascript
-// Group by
-const stats = await Post
-  .select('user_id', 'COUNT(*) as count')
-  .group('user_id')
-  .all()
-
-// Having
-const prolificAuthors = await Post
-  .select('user_id', 'COUNT(*) as count')
-  .group('user_id')
-  .having('COUNT(*) > ?', 10)
-  .all()
+```js
+Post.order("title"); // ASC
+Post.order({ created_at: "desc", id: "asc" });
+Post.order({ views: "desc" }).reorder("id"); // replaces the earlier order
+Post.limit(10).offset(20);
+Post.select("id", "title"); // plain column names
+Post.select("user_id").distinct();
 ```
 
 ## Joins
 
-```javascript
-// Inner join
-const posts = await Post
-  .joins('user')
-  .where({ 'users.active': true })
-  .all()
-
-// Left join
-const posts = await Post
-  .leftJoins('comments')
-  .select('posts.*', 'COUNT(comments.id) as comment_count')
-  .group('posts.id')
-  .all()
-
-// Custom join
-const posts = await Post
-  .joins('INNER JOIN users ON users.id = posts.user_id')
-  .all()
+```js
+await Post.query()
+  .join("users", "users.id = posts.user_id")
+  .where("users.name = 'Ada'")
+  .select("title")
+  .all();
 ```
 
-## Eager Loading
+`join(table, on)` is an inner join; `leftJoin`, `rightJoin` and `fullJoin` take the same
+arguments. Every joined column lands in the record's attributes, and a column name both tables
+share (`id`) keeps one of the two values, so select the columns you need. After a join,
+`first()` and `last()` fail because their default `ORDER BY "id"` is ambiguous: use
+`limit(1).all()`.
 
-Prevent N+1 queries by eager loading associations:
+## Eager loading
 
-```javascript
-// Single association
-const posts = await Post.includes('user').all()
-
-// Multiple associations
-const posts = await Post.includes('user', 'comments').all()
-
-// Nested associations
-const posts = await Post.includes('comments.author').all()
-
-// Complex nested
-const posts = await Post.includes({
-  user: true,
-  comments: { author: true }
-}).all()
+```js
+await Post.includes("user", "comments").all();
+await Post.includes("comments.user").all();
 ```
+
+Each record gets a property per association. See [Associations](./models.md#associations).
 
 ## Scopes
 
-Use predefined scopes:
-
-```javascript
-// Single scope
-const posts = await Post.published().all()
-
-// Chained scopes
-const posts = await Post.published().recent().limit(10)
-
-// Scope with argument
-const posts = await Post.byAuthor(userId).all()
+```js
+await Post.published().all();
+await Post.where({ user_id: 1 }).scope("published").all();
 ```
+
+See [Scopes](./models.md#scopes).
+
+## Terminal methods
+
+| Method                                | Returns                                                                   |
+| ------------------------------------- | ------------------------------------------------------------------------- |
+| `all()`                               | an array of records                                                       |
+| `first()` / `last()`                  | one record or `null`, by primary key unless ordered                       |
+| `count()`                             | a number                                                                  |
+| `exists()`                            | a boolean                                                                 |
+| `pluck(column)`                       | an array of that column's values                                          |
+| `ids()`                               | an array of primary keys                                                  |
+| `sum(column)` / `average(column)`     | a number                                                                  |
+| `minimum(column)` / `maximum(column)` | the column's value                                                        |
+| `paginate()`                          | a `PaginatedResult` (below)                                               |
+| `findEach(fn, { batchSize })`         | calls `fn` with each record, loading `batchSize` at a time (default 1000) |
+| `findInBatches(fn, { batchSize })`    | calls `fn` with each batch                                                |
+| `updateAll(attributes)`               | runs `UPDATE` on the matching rows                                        |
+| `deleteAll()`                         | runs `DELETE` on the matching rows                                        |
+
+`sum`, `average`, `minimum`, `maximum`, `findEach`, `findInBatches`, `updateAll` and `deleteAll`
+are on the builder only (`Post.query().sum("views")`). `updateAll` and `deleteAll` skip
+validations and callbacks, and the number they return is not the count of affected rows yet.
+
+`toSQL()` returns `{ sql, params }` without running the query, and `toSQLString()` the SQL with
+the parameters filled in, for debugging.
 
 ## Pagination
 
-Built-in pagination support:
+```js
+const result = await Post.where({ published: true }).page(2).per(20).paginate();
 
-```javascript
-// Page-based
-const posts = await Post.page(2).per(20)
-// Returns: { data: [...], meta: { page: 2, perPage: 20, total: 100, totalPages: 5 } }
+result.records; // the records on page 2
+result.currentPage; // 2
+result.perPage; // 20
+result.totalCount; // matching rows across all pages
+result.totalPages;
+result.hasNextPage;
+result.hasPreviousPage;
 
-// Access pagination info
-posts.meta.page        // 2
-posts.meta.totalPages  // 5
-posts.meta.total       // 100
+for (const post of result) {
+  // iterates the records
+}
+
+this.render(result.toJSON()); // in an action: { records: [...], pagination: {...} }
 ```
+
+`page` defaults to 1 and `per` to 25. `Post.paginate({ page: 2, perPage: 20 })` is a shortcut,
+and `page(2).per(20).all()` returns just the records.
 
 ## Raw SQL
 
-When needed, use raw SQL:
+The connection runs SQL with `$1`-style parameters and returns plain row objects:
 
-```javascript
-// Raw query
-const results = await Post.query('SELECT * FROM posts WHERE views > $1', [100])
+```js
+import { getConnection } from "bun-on-rails";
 
-// Find by SQL
-const posts = await Post.findBySql('SELECT * FROM posts WHERE published = true')
+const rows = await getConnection().query(
+  "SELECT user_id, count(*)::int AS posts FROM posts WHERE views > $1 GROUP BY user_id",
+  [100],
+);
 ```
 
-## Query Methods Reference
+`connection.transaction(async (tx) => { await tx.query(...) })` runs its callback in a
+transaction. If the callback throws, the transaction rolls back and `transaction` throws. Only
+`tx.query` runs inside the transaction: model methods keep using the global connection.
 
-| Method | Description |
-|--------|-------------|
-| `where()` | Add conditions |
-| `whereNot()` | Add NOT conditions |
-| `or()` | Add OR conditions |
-| `order()` | Set ordering |
-| `limit()` | Limit results |
-| `offset()` | Skip results |
-| `select()` | Select columns |
-| `group()` | Group results |
-| `having()` | Having clause |
-| `joins()` | Inner join |
-| `leftJoins()` | Left join |
-| `includes()` | Eager load |
-| `page()` | Pagination page |
-| `per()` | Pagination size |
+## Not implemented yet
 
-## Terminal Methods
-
-These methods execute the query:
-
-| Method | Returns |
-|--------|---------|
-| `all()` | Array of models |
-| `first()` | Single model or null |
-| `last()` | Single model or null |
-| `find(id)` | Single model |
-| `findBy(attrs)` | Single model or null |
-| `count()` | Number |
-| `sum(col)` | Number |
-| `average(col)` | Number |
-| `minimum(col)` | Value |
-| `maximum(col)` | Value |
-| `exists()` | Boolean |
-| `pluck(col)` | Array of values |
-| `ids()` | Array of IDs |
+- **Aggregate columns in `select`.** Every argument is quoted as a column name, so
+  `select("COUNT(*) AS n")` fails. Use raw SQL.
+- **Placeholders in string conditions** (`where("views > ?", 100)`).
+- **Affected-row counts** from `updateAll`, `deleteAll`, `Model.updateWhere` and
+  `Model.deleteWhere`.
+- **Model queries in a transaction.** Models always use the global connection, outside any
+  `connection.transaction`. For the same reason `lock()`, which adds `FOR UPDATE`, holds the
+  lock only for its own statement.
