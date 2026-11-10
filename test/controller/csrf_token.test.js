@@ -77,7 +77,8 @@ describe("a write through the app with CSRF on", () => {
       join(work, "app", "controllers", "notes_controller.js"),
       `import { Controller } from '${framework}'\nexport default class NotesController extends Controller {\n  create() { return this.render({ ok: true }, { status: 201 }) }\n}\n`,
     );
-    app = new Application({ root: work });
+    // CSRF is off by default in the test environment (csrf_default.test.js)
+    app = new Application({ root: work, config: { security: { csrf: true } } });
     await app.initialize();
     await app.start({ port: 0, hostname: "127.0.0.1" });
     base = `http://127.0.0.1:${app.server.port}`;

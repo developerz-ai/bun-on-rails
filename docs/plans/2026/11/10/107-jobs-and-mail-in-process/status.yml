@@ -2,14 +2,15 @@ plan: 107-jobs-and-mail-in-process
 title: Jobs and mail in-process
 status: in-progress
 owner: unassigned
-percent: 33
-current_focus: M1 (mail through the console and test adapters)
+percent: 67
+current_focus: G1 (scaffold), part 1: CSRF off by default in the test environment
 slices:
   - { id: J1, status: done }
-  - { id: M1, status: in-progress }
-  - { id: G1, status: todo }
+  - { id: M1, status: done }
+  - { id: G1, status: in-progress }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
   prs:
     - "#88 merged as a28870a (J1)"
+    - "#89 merged as 5f5fd31 (M1)"
 last_updated: 2026-11-10
