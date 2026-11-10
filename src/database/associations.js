@@ -10,6 +10,7 @@
  * @module bun-on-rails/database/associations
  */
 
+import { NotImplementedError } from '../support/not_implemented.js'
 import { singularize, classify, underscore } from '../support/inflector.js'
 
 /**
@@ -679,6 +680,7 @@ function defineHasAndBelongsToMany(modelClass, config) {
 
   modelClass.prototype[name] = async function () {
     // TODO: Query through join table
+    throw new NotImplementedError(`${modelClass.name}#${name}`, 'hasAndBelongsToMany')
   }
 }
 

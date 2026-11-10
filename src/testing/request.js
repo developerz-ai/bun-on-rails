@@ -2,6 +2,8 @@
  * Test Request - HTTP request testing utilities
  */
 
+import { NotImplementedError } from '../support/not_implemented.js'
+
 export class TestRequest {
   constructor(app) {
     this.app = app
@@ -27,7 +29,7 @@ export class TestRequest {
    */
   as(_user) {
     // TODO: Set auth headers/cookies
-    return this
+    throw new NotImplementedError('TestRequest#as', 'the request test helper')
   }
 
   /**
@@ -90,6 +92,7 @@ export class TestRequest {
     // TODO: Build Request object
     // TODO: Send to app.handle()
     // TODO: Return TestResponse
+    throw new NotImplementedError('TestRequest#request', 'the request test helper')
   }
 }
 

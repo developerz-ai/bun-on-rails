@@ -2,6 +2,8 @@
  * Form Components - Framework-aware form handling
  */
 
+import { NotImplementedError } from '../support/not_implemented.js'
+
 /**
  * Form - Smart form component
  * @param {Object} props
@@ -14,7 +16,7 @@ export function Form(_props) {
   // - Validate based on model validations
   // - Show errors
 
-  return null
+  throw new NotImplementedError('Form', 'the React hooks and forms')
 }
 
 /**
@@ -27,7 +29,7 @@ export function Field(_props) {
   // - Show validation errors
   // - Support various input types
 
-  return null
+  throw new NotImplementedError('Field', 'the React hooks and forms')
 }
 
 /**
@@ -36,7 +38,7 @@ export function Field(_props) {
  */
 export function TextField(_props) {
   // TODO: Implement
-  return null
+  throw new NotImplementedError('TextField', 'the React hooks and forms')
 }
 
 /**
@@ -45,7 +47,7 @@ export function TextField(_props) {
  */
 export function TextArea(_props) {
   // TODO: Implement
-  return null
+  throw new NotImplementedError('TextArea', 'the React hooks and forms')
 }
 
 /**
@@ -54,7 +56,7 @@ export function TextArea(_props) {
  */
 export function Select(_props) {
   // TODO: Implement
-  return null
+  throw new NotImplementedError('Select', 'the React hooks and forms')
 }
 
 /**
@@ -63,7 +65,7 @@ export function Select(_props) {
  */
 export function Checkbox(_props) {
   // TODO: Implement
-  return null
+  throw new NotImplementedError('Checkbox', 'the React hooks and forms')
 }
 
 /**
@@ -72,7 +74,7 @@ export function Checkbox(_props) {
  */
 export function RadioGroup(_props) {
   // TODO: Implement
-  return null
+  throw new NotImplementedError('RadioGroup', 'the React hooks and forms')
 }
 
 /**
@@ -85,7 +87,7 @@ export function FileInput(_props) {
   // - Show upload progress
   // - Preview images
 
-  return null
+  throw new NotImplementedError('FileInput', 'the React hooks and forms')
 }
 
 /**
@@ -97,7 +99,7 @@ export function Submit(_props) {
   // - Disable while submitting
   // - Show loading state
 
-  return null
+  throw new NotImplementedError('Submit', 'the React hooks and forms')
 }
 
 /**
@@ -106,7 +108,7 @@ export function Submit(_props) {
  */
 export function ErrorMessages(_props) {
   // TODO: Implement
-  return null
+  throw new NotImplementedError('ErrorMessages', 'the React hooks and forms')
 }
 
 /**
@@ -121,19 +123,7 @@ export function useForm(_options = {}) {
   // - Validate on change/blur
   // - Handle submission
 
-  return {
-    values: {},
-    errors: {},
-    touched: {},
-    isSubmitting: false,
-    isValid: true,
-    handleChange: () => {},
-    handleBlur: () => {},
-    handleSubmit: () => {},
-    setFieldValue: () => {},
-    setFieldError: () => {},
-    reset: () => {}
-  }
+  throw new NotImplementedError('useForm', 'the React hooks and forms')
 }
 
 /**
@@ -146,11 +136,5 @@ export function useFieldArray(_options = {}) {
   // - Add/remove items
   // - Move items
 
-  return {
-    fields: [],
-    append: () => {},
-    prepend: () => {},
-    remove: () => {},
-    move: () => {}
-  }
+  throw new NotImplementedError('useFieldArray', 'the React hooks and forms')
 }

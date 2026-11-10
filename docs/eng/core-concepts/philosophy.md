@@ -1,7 +1,7 @@
 # Core Philosophy
 
 BunOnRails brings Rails conventions to JavaScript on Bun. Three ideas shape it. Several parts are
-still scaffolds, so this page also says where each one stands today.
+planned but not built yet, so this page also says where each one stands today.
 
 ## Convention over configuration
 
@@ -12,20 +12,21 @@ See [Convention over Configuration](./convention-over-configuration.md).
 
 ## Batteries included
 
-The goal is one package with what a web app needs. Today:
+The goal is one package with what a web app needs. A planned API throws `NotImplementedError`, naming
+itself, rather than doing nothing. Today:
 
-| Area                    | Module                            | State                                                                                                            |
-| ----------------------- | --------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
-| Routing and controllers | `src/routing/`, `src/controller/` | Works. Actions return JSON; writes need the session's CSRF token ([how](../routing/overview.md#csrf-protection)) |
-| ORM and migrations      | `src/database/`                   | Works once the app opens a connection. PostgreSQL only ([Database](../database/overview.md))                     |
-| Cache                   | `src/cache/`                      | The in-memory store works (`this.cache` in a controller). The Redis store is stubs                               |
-| Background jobs         | `src/jobs/`                       | `performNow` runs a job inline. Nothing enqueues ([Jobs](../jobs/overview.md))                                   |
-| WebSockets              | `src/websocket/`                  | The broadcast manager is implemented, but no connection is upgraded and the channel class is a scaffold          |
-| Mail                    | `src/mail/`                       | `deliver` and `deliverLater` are stubs                                                                           |
-| File storage            | `src/storage/`                    | Upload, download and delete are stubs                                                                            |
-| React                   | `src/react/`                      | `useResource`, `useAction`, `useChannel`, `Form` and `Field` are scaffolds                                       |
-| Test helpers            | `src/testing/`                    | Stubs. Use `bun test` directly                                                                                   |
-| Authentication          | none                              | No module ships                                                                                                  |
+| Area                    | Module                            | State                                                                                                                    |
+| ----------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
+| Routing and controllers | `src/routing/`, `src/controller/` | Works. Actions return JSON; writes need the session's CSRF token ([how](../routing/overview.md#csrf-protection))         |
+| ORM and migrations      | `src/database/`                   | Works once the app opens a connection. PostgreSQL only ([Database](../database/overview.md))                             |
+| Cache                   | `src/cache/`                      | The in-memory store works (`this.cache` in a controller). The Redis store throws `NotImplementedError`                   |
+| Background jobs         | `src/jobs/`                       | `performNow` runs a job inline. Nothing enqueues ([Jobs](../jobs/overview.md))                                           |
+| WebSockets              | `src/websocket/`                  | The broadcast manager is implemented, but no connection is upgraded and `Channel` methods throw `NotImplementedError`    |
+| Mail                    | `src/mail/`                       | `deliver` and `deliverLater` throw `NotImplementedError`                                                                 |
+| File storage            | `src/storage/`                    | Upload, download and delete throw `NotImplementedError`                                                                  |
+| React                   | `src/react/`                      | `useResource`, `useAction`, `useChannel`, `Form` and `Field` throw `NotImplementedError`                                 |
+| Test helpers            | `src/testing/`                    | `request`, `setupDatabase`, `cleanDatabase` and `withinTransaction` throw `NotImplementedError`. Use `bun test` directly |
+| Authentication          | none                              | No module ships                                                                                                          |
 
 ## Plain JavaScript on Bun
 
@@ -48,6 +49,6 @@ views.
 
 - **Generators beyond migration, model and controller.** `brails generate scaffold`, `job`, `mailer`, `channel` and `auth` are not implemented yet.
 - **A console.** `brails console` is not implemented yet.
-- **HTML views and React integration.** `render` returns JSON, and the React helpers are
-  scaffolds.
+- **HTML views and React integration.** `render` returns JSON, and the React helpers throw
+  `NotImplementedError`.
 - **Authentication.**

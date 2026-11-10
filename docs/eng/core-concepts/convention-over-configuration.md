@@ -99,4 +99,4 @@ See [Routing & Controllers](../routing/overview.md) for every routing option.
 ## Not implemented yet
 
 - **Generators beyond migration, model and controller.** `brails generate migration`, `model` and `controller` write those files in place; scaffold, job, mailer, channel and auth generators are not implemented yet.
-- **Join tables for many-to-many associations.** `hasAndBelongsToMany` is a TODO.
+- **Join tables for many-to-many associations.** A `hasAndBelongsToMany` reader throws `NotImplementedError`; the join query is not written yet.

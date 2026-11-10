@@ -89,4 +89,4 @@ Run migrations before starting the new version: `brails db:migrate` (see
 - **Background workers.** Jobs cannot be enqueued, so there is no worker process to run (see
   [Background Jobs](../jobs/overview.md)).
 - **Shared sessions and cache.** The Redis store raises an error for sessions, and the Redis
-  cache store's methods are stubs.
+  cache store's methods throw `NotImplementedError`.
