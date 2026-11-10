@@ -106,6 +106,7 @@ describe("withinTransaction(callback)", () => {
       "tx: SAVEPOINT bun_on_rails_within_transaction",
       'tx: UPDATE "posts" SET',
       "tx: ROLLBACK TO SAVEPOINT",
+      "tx: RELEASE SAVEPOINT bun_on_rails_within_transaction",
       "tx: COMMIT",
     ]);
   });

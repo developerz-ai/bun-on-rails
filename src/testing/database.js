@@ -95,13 +95,16 @@ export async function cleanDatabase() {
 export async function withinTransaction(callback) {
   const connection = connected('withinTransaction')
   // Inside an open transaction, transaction() would join it and the outer
-  // COMMIT would keep what the callback wrote: roll back to a savepoint.
+  // COMMIT would keep what the callback wrote: roll back to a savepoint. ROLLBACK
+  // TO keeps the savepoint, so RELEASE it too, or an enclosing call's rollback
+  // would find this one (same name) and keep what was written before it.
   if (connection.owner) {
     await connection.query('SAVEPOINT bun_on_rails_within_transaction')
     try {
       return await callback(connection)
     } finally {
       await connection.query('ROLLBACK TO SAVEPOINT bun_on_rails_within_transaction')
+      await connection.query('RELEASE SAVEPOINT bun_on_rails_within_transaction')
     }
   }
   const rollback = new Error('withinTransaction rolls back')

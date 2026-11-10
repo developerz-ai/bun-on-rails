@@ -122,6 +122,21 @@ export async function down(db) {
     await cleanDatabase();
   });
 
+  test("two nested withinTransaction calls inside a committing transaction roll back everything they wrote", async () => {
+    await getConnection().transaction(async () => {
+      await Note.create({ body: "outer, committed" });
+      await withinTransaction(async () => {
+        await Note.create({ body: "first level, rolled back" });
+        await withinTransaction(() =>
+          Note.create({ body: "second level, rolled back" }),
+        );
+      });
+    });
+    const bodies = (await Note.all()).map((n) => n.get("body"));
+    expect(bodies).toEqual(["outer, committed"]);
+    await cleanDatabase();
+  });
+
   test("a failing assertion inside withinTransaction comes back unchanged, and is rolled back", async () => {
     const assertion = new Error("expect(received).toBe(expected)");
     const caught = await withinTransaction(async () => {
