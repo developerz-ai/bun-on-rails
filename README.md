@@ -1,5 +1,10 @@
 # BunOnRails
 
+> **Archived (2026-11-10). Use [Ultimate](https://github.com/developerz-ai/ultimate) instead.**
+> Ultimate is the improved successor to this project: still Bun-only, with a fuller full-stack
+> feature set, and AI-maintained by developerz.ai. This repository is kept read-only for reference
+> and receives no further updates.
+
 A full-stack JavaScript framework for [Bun](https://bun.sh) with Rails-like conventions: files go
 where you expect them, and the framework wires them up.
 
