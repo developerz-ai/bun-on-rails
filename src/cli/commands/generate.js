@@ -298,7 +298,9 @@ function routesWithResource(root, table) {
     throw new Error(`config/routes.js not found; scaffold adds ${line} to it`)
   }
   const routes = readFileSync(file, 'utf8')
-  if (new RegExp(`router\\.resources\\(\\s*['"]${table}['"]`).test(routes)) {
+  // A commented-out declaration is not a route: look at the code only.
+  const code = routes.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '')
+  if (new RegExp(`router\\.resources\\(\\s*['"]${table}['"]`).test(code)) {
     return null
   }
   if (!/\n\}\s*$/.test(routes)) {
@@ -311,6 +313,10 @@ function routesWithResource(root, table) {
 
 function generateScaffold(root, name, fields, now, created) {
   checkModelName(name, 'scaffold')
+  if (['Controller', 'StrongParams'].includes(name)) {
+    // The controller imports both from the framework; a model of the same name would clash.
+    throw new Error(`"${name}" is imported by the generated controller; choose another name`)
+  }
   const table = tableize(name)
   const files = [
     [join('app', 'models', `${underscore(name)}.js`), modelSource(name, fields)],

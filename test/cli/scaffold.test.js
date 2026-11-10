@@ -132,6 +132,34 @@ describe("brails generate scaffold", () => {
     ).toHaveLength(1);
   });
 
+  test("a commented-out route does not count: the route is added", () => {
+    const root = app(
+      ROUTES.replace(
+        "router.get('/health'",
+        "// router.resources('posts')\n  router.get('/health'",
+      ),
+    );
+    const created = generate(root, "scaffold", "Post", ["title:string"], {
+      now,
+    });
+    expect(created).toContain("config/routes.js");
+    expect(read(root, "config/routes.js")).toContain(
+      "  router.get('/health', 'health#index')\n  router.resources('posts')\n}\n",
+    );
+  });
+
+  test("a name the controller imports from the framework is refused before writing", () => {
+    for (const name of ["Controller", "StrongParams"]) {
+      const root = app();
+      expect(() =>
+        generate(root, "scaffold", name, ["title:string"], { now }),
+      ).toThrow(
+        `"${name}" is imported by the generated controller; choose another name`,
+      );
+      expect(existsSync(join(root, "app"))).toBe(false);
+    }
+  });
+
   test("a conflict writes nothing: an existing controller", () => {
     const root = app();
     mkdirSync(join(root, "app", "controllers"), { recursive: true });
