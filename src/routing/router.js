@@ -2,11 +2,14 @@
  * Router - Rails-like routing DSL
  */
 
+import { singularize } from '../support/inflector.js'
+
 export class Router {
   constructor() {
     this.routes = []
     this.namedRoutes = {}
-    this.currentNamespace = []
+    this.currentNamespace = [] // controller prefix: namespace() only
+    this.currentPath = [] // path prefix, in nesting order: namespace() and scope()
     this.currentMiddleware = []
 
     // Configuration for request handling
@@ -168,18 +171,32 @@ export class Router {
    */
   namespace(name, callback) {
     this.currentNamespace.push(name)
-    callback()
+    this._withPath(`/${name}`, callback)
     this.currentNamespace.pop()
   }
 
   /**
-   * Create a scope without controller namespace
+   * Prefix the paths of the routes defined in callback, leaving their
+   * controllers alone: scope('/api', ...) or scope(':locale', ...).
+   * Pinned by test/routing/scope_and_nesting.test.js.
    * @param {string} path
    * @param {Function} callback
    */
   scope(path, callback) {
-    // TODO: Implement scope
-    callback()
+    if (typeof path !== 'string') {
+      throw new TypeError(`scope(path, callback): path must be a string, got ${typeof path}`)
+    }
+    const trimmed = path.replace(/^\/+|\/+$/g, '')
+    this._withPath(trimmed ? `/${trimmed}` : '', callback)
+  }
+
+  _withPath(prefix, callback) {
+    this.currentPath.push(prefix)
+    try {
+      callback()
+    } finally {
+      this.currentPath.pop()
+    }
   }
 
   /**
@@ -196,9 +213,7 @@ export class Router {
    * Add a route to the routes table
    */
   addRoute(method, path, target, options) {
-    const fullPath = this.currentNamespace.length > 0
-      ? '/' + this.currentNamespace.join('/') + path
-      : path
+    const fullPath = this.currentPath.join('') + path
 
     const [controller, action] = target.split('#')
     const controllerName = this.currentNamespace.length > 0
@@ -779,9 +794,4 @@ export class Router {
       headers: { 'Content-Type': 'application/json' }
     })
   }
-}
-
-function singularize(str) {
-  if (str.endsWith('s')) return str.slice(0, -1)
-  return str
 }

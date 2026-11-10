@@ -109,7 +109,7 @@ The CLI has no top-level `setup` verb: `brails db:setup` creates, loads and seed
 | `src/application.js`                                                 | app bootstrap: middleware stack, jobs, redis, session store, request dispatch                                                                                                                                                                                                                                                 |
 | `src/database/`                                                      | `model.js` (Active Record), `query_builder.js`, `validations.js`, `associations.js`, `connection.js`, `migration.js`, `schema.js` (dump/load), `adapters/postgres.js`, `n_plus_one_detector.js`                                                                                                                               |
 | `src/controller/`                                                    | `base.js` (Controller, ControllerContext, RequestParams), `middleware.js` (Middleware factories), `request_parser.js`                                                                                                                                                                                                         |
-| `src/routing/router.js`                                              | the router DSL: `root`, `get`, `resources`, `namespace`                                                                                                                                                                                                                                                                       |
+| `src/routing/router.js`                                              | the router DSL: `root`, `get`, `resources` (a callback nests), `namespace`, `scope`                                                                                                                                                                                                                                           |
 | `src/jobs/job.js`                                                    | the Job base class                                                                                                                                                                                                                                                                                                            |
 | `src/websocket/`                                                     | `channel.js`, `broadcast_manager.js`                                                                                                                                                                                                                                                                                          |
 | `src/mail/mailer.js`, `src/storage/storage.js`, `src/cache/cache.js` | mail, S3 storage, cache                                                                                                                                                                                                                                                                                                       |
@@ -176,8 +176,9 @@ Router — `src/routing/router.js`, used from `config/routes.js`:
 ```
 export default (router) => {
   router.root('home#index')
-  router.resources('posts')
-  router.namespace('admin', () => router.resources('users'))
+  router.resources('posts', () => router.resources('comments')) // /posts/:post_id/comments
+  router.namespace('admin', () => router.resources('users'))     // admin/users controller
+  router.scope('/:locale', () => router.get('/about', 'pages#about')) // path only
 }
 ```
 
