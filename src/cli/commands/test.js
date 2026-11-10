@@ -1,34 +1,7 @@
 /**
- * brails test - Run tests
+ * brails test (t): planned test runner with per-worker test databases.
  */
 
-export const testCommand = {
-  name: 'test',
-  description: 'Run tests',
+import { notImplemented } from './not_implemented.js'
 
-  async run(args) {
-    const filter = args.subcommand
-    const watch = args.flags.watch || args.flags.w
-
-    console.log('Running tests...\n')
-
-    // TODO: Set up test environment
-    // TODO: Create test databases for parallel workers
-    // TODO: Run Bun test runner
-    // TODO: Show results
-
-    const bunArgs = ['test']
-
-    if (watch) {
-      bunArgs.push('--watch')
-    }
-
-    if (filter) {
-      bunArgs.push('--filter', filter)
-    }
-
-    // TODO: Execute: bun test ...args
-
-    console.log('Tests complete.')
-  }
-}
+export const testCommand = notImplemented('test', 'Run tests', 'Run `bun test` instead')

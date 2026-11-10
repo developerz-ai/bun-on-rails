@@ -29,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - The npm package is `bun-on-rails`. The old name, `@bun-on-rails`, was a scope with no package name: a clean `bun add -g` of the tarball failed with `invalid dependency name "@bun-on-rails"`. `files` now limits the tarball to `src/` plus the `package.json`, `README.md` and `LICENSE` that npm always adds: 47 files instead of 159 that included `test/`, `demo/`, `docs/` and the agent config. `homepage` points at the GitHub Pages docs site instead of the unresolvable bunonrails.com. `test/package_manifest.test.js` pins all three.
+- Unimplemented `brails` commands (`generate`, `db:*`, `console`, `routes`, `test`, `credentials`) no longer print the results of work they never did, such as "Migrations complete.", made-up routes or "Tests complete.". They exit 1 with `brails <cmd> is not implemented yet`, and `brails help` lists them under Planned. `test/cli/not_implemented.test.js` pins this, and it requires any new command to be implemented or declared unimplemented.
 
 ### Deprecated
 

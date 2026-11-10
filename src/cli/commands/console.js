@@ -1,28 +1,7 @@
 /**
- * brails console - Interactive REPL
+ * brails console (c): planned interactive REPL with the app's models loaded.
  */
 
-export const consoleCommand = {
-  name: 'console',
-  description: 'Start interactive console with models loaded',
+import { notImplemented } from './not_implemented.js'
 
-  async run(_args) {
-    console.log('Loading BunOnRails console...')
-
-    // TODO: Load application
-    // TODO: Load all models
-    // TODO: Connect to database
-    // TODO: Start Bun REPL with context
-
-    console.log(`
-BunOnRails Console (${process.env.NODE_ENV || 'development'})
-
-Models loaded: User, Post, Comment, ...
-Type .help for commands
-
->
-`)
-
-    // TODO: Start REPL
-  }
-}
+export const consoleCommand = notImplemented('console', 'Start interactive console with models loaded')
