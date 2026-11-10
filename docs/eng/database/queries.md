@@ -112,12 +112,12 @@ See [Scopes](./models.md#scopes).
 | `paginate()`                          | a `PaginatedResult` (below)                                               |
 | `findEach(fn, { batchSize })`         | calls `fn` with each record, loading `batchSize` at a time (default 1000) |
 | `findInBatches(fn, { batchSize })`    | calls `fn` with each batch                                                |
-| `updateAll(attributes)`               | runs `UPDATE` on the matching rows                                        |
-| `deleteAll()`                         | runs `DELETE` on the matching rows                                        |
+| `updateAll(attributes)`               | runs `UPDATE` on the matching rows; returns how many changed              |
+| `deleteAll()`                         | runs `DELETE` on the matching rows; returns how many were deleted         |
 
 `sum`, `average`, `minimum`, `maximum`, `findEach`, `findInBatches`, `updateAll` and `deleteAll`
 are on the builder only (`Post.query().sum("views")`). `updateAll` and `deleteAll` skip
-validations and callbacks, and the number they return is not the count of affected rows yet.
+validations and callbacks, and return the number of affected rows.
 
 `toSQL()` returns `{ sql, params }` without running the query, and `toSQLString()` the SQL with
 the parameters filled in, for debugging.
@@ -166,8 +166,6 @@ transaction. If the callback throws, the transaction rolls back and `transaction
 
 - **Aggregate columns in `select`.** Every argument is quoted as a column name, so
   `select("COUNT(*) AS n")` fails. Use raw SQL.
-- **Affected-row counts** from `updateAll`, `deleteAll`, `Model.updateWhere` and
-  `Model.deleteWhere`.
 - **Model queries in a transaction.** Models always use the global connection, outside any
   `connection.transaction`. For the same reason `lock()`, which adds `FOR UPDATE`, holds the
   lock only for its own statement.

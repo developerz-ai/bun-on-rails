@@ -13,6 +13,23 @@ import { trackQuery } from './n_plus_one_detector.js'
 import { tableize } from '../support/inflector.js'
 
 /**
+ * The number of rows an UPDATE or DELETE changed. Both drivers (postgres.js and
+ * Bun.sql) report it as `count` on the result; the result's length is the rows
+ * *returned*, which is 0 without RETURNING. A result without a numeric `count`
+ * throws instead of reporting 0. Pinned by test/database/write_counts.test.js.
+ *
+ * @param {Array & { count?: number }} result
+ * @param {string} sql
+ * @returns {number}
+ */
+function affectedRows(result, sql) {
+  if (typeof result?.count !== 'number') {
+    throw new Error(`The database driver returned no affected-row count for: ${sql}`)
+  }
+  return result.count
+}
+
+/**
  * Record not found error
  */
 export class RecordNotFoundError extends Error {
@@ -1124,7 +1141,7 @@ export class QueryBuilder {
     }
 
     const result = await connection.query(sql, whereClause.params)
-    return result.length || 0
+    return affectedRows(result, sql)
   }
 
   /**
@@ -1154,7 +1171,7 @@ export class QueryBuilder {
     }
 
     const result = await connection.query(sql, params)
-    return result.length || 0
+    return affectedRows(result, sql)
   }
 
   /**
