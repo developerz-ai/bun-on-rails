@@ -129,6 +129,37 @@ export default async function seed() {
 The file can also do its work at the top level; a default-exported function is called with the
 connection.
 
+## Tests with a database
+
+`bun test` sets `NODE_ENV=test`, so `config/database.js` gives its `test` block. In a generated app
+that reads `DATABASE_URL`: point it at a test database. Three helpers from `bun-on-rails` set the
+database up and keep tests apart:
+
+**`test/models/post.test.js`**
+
+```js
+import { beforeAll, test, expect } from "bun:test";
+import { setupDatabase, withinTransaction } from "bun-on-rails";
+import Post from "../../app/models/post.js";
+
+beforeAll(() => setupDatabase());
+
+test("a post can be created", () =>
+  withinTransaction(async () => {
+    await Post.create({ title: "Hello" });
+    expect(await Post.count()).toBe(1);
+  }));
+```
+
+| Helper                        | Does                                                                                                                                                                                      |
+| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `setupDatabase({ root })`     | connects to the database `config/database.js` names (a connection already set is used as it is), loads `db/schema.js` into an empty database, then runs pending migrations. Drops nothing |
+| `withinTransaction(callback)` | runs `callback` in a transaction and rolls it back afterwards, even when it succeeds. Models use the transaction, and a failing assertion comes back unchanged                            |
+| `cleanDatabase()`             | empties every table except `schema_migrations` and restarts their ids. Refuses unless `NODE_ENV` is `test`, so it cannot empty a development database                                     |
+
+A `connection.transaction()` that the code under test opens inside `withinTransaction` joins the
+test's transaction, so it is rolled back with the test.
+
 ## Not implemented yet
 
 - **Automatic schema dump from `MigrationRunner`.** `brails db:migrate` and `db:rollback` rewrite

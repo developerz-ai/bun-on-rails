@@ -2,19 +2,21 @@ plan: 105-silent-stubs
 title: No silent stubs; test support that works
 status: in-progress
 owner: unassigned
-percent: 17
-current_focus: S2 (boot refuses a backend it does not have)
+percent: 33
+current_focus: S3 (test-database isolation)
 slices:
   - { id: S1, status: done }
-  - { id: S2, status: in-progress }
-  - { id: S3, status: todo }
+  - { id: S2, status: done }
+  - { id: S3, status: in-progress }
   - { id: S4, status: todo }
   - { id: S5, status: todo }
   - { id: S6, status: todo }
+  - { id: S7, status: todo }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
   census:
     - "2026-11-10: 96 TODO-only function bodies under src/ in 10 files (espree scan: no statements, or only a return, and a TODO comment inside)"
   prs:
     - "#68 merged as 498f0a9 (S1)"
+    - "#69 merged as 7bc7d63 (S2)"
 last_updated: 2026-11-10

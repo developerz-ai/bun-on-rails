@@ -363,10 +363,7 @@ export class Connection {
         return await this._queryPostgresJs(sql, params)
       }
     } catch (error) {
-      throw new DatabaseError(
-        `Query failed: ${error.message}`,
-        { code: sqlState(error), query: sql, params }
-      )
+      throw queryFailed(error, sql, params)
     }
   }
 
@@ -425,10 +422,15 @@ export class Connection {
       return await callback(active)
     }
 
+    const failure = { threw: false, error: undefined }
     try {
-      return await this._runInTransaction(callback)
+      return await this._runInTransaction(callback, failure)
     } catch (error) {
-      if (error instanceof DatabaseError) {
+      // The callback's own error, which the driver rethrows after its ROLLBACK,
+      // comes back unchanged so it keeps its type: a RecordNotFoundError or a
+      // failing test assertion, not "Transaction failed: ...". Pinned by
+      // test/database/transaction_errors.test.js.
+      if ((failure.threw && error === failure.error) || error instanceof DatabaseError) {
         throw error
       }
       throw new DatabaseError(
@@ -443,22 +445,31 @@ export class Connection {
    * share `begin` and `unsafe`). The callback gets a transaction connection,
    * and getConnection() returns it for the callback's whole async extent, so
    * models use it too. A nested transaction() joins the open transaction.
+   * What the callback throws is recorded in `failure`, so transaction() can
+   * tell it from a failure of the transaction itself.
    * @private
    */
-  async _runInTransaction(callback) {
+  async _runInTransaction(callback, failure) {
     return await this._client.begin(async (sql) => {
       const txConn = {
         owner: this,
         connected: true,
         query: async (query, params = []) => {
-          if (params.length === 0) {
-            return await sql.unsafe(query)
+          try {
+            return params.length === 0 ? await sql.unsafe(query) : await sql.unsafe(query, params)
+          } catch (error) {
+            throw queryFailed(error, query, params)
           }
-          return await sql.unsafe(query, params)
         },
         transaction: async (nested) => await nested(txConn)
       }
-      return await transactionScope.run(txConn, () => callback(txConn))
+      try {
+        return await transactionScope.run(txConn, () => callback(txConn))
+      } catch (error) {
+        failure.threw = true
+        failure.error = error
+        throw error
+      }
     })
   }
 
@@ -1242,6 +1253,15 @@ export class ConnectionPool {
 
 // Global connection instance
 let _globalConnection = null
+
+/**
+ * A driver error from running `sql`, as the DatabaseError callers catch, with
+ * the SQLSTATE, the statement and its params. Used inside and outside a
+ * transaction, so a failing statement reads the same in both.
+ */
+function queryFailed(error, sql, params) {
+  return new DatabaseError(`Query failed: ${error.message}`, { code: sqlState(error), query: sql, params })
+}
 
 /**
  * Get or create the global database connection

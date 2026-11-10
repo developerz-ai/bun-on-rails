@@ -24,18 +24,21 @@ that describes the API change in the same PR; database features are also run aga
 
 ## Tasks
 
-| Id  | What                                                                                                         | Where                                              |
-| --- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------- |
-| S1  | a guard rejects a TODO-only body under `src/`; every planned API throws `NotImplementedError` naming itself  | `src/support/`, the modules above, `test/support/` |
-| S2  | a config naming a backend that is not built (`cache.store: 'redis'`, `jobs.adapter: 'bullmq'`) fails at boot | `src/application.js`                               |
-| S3  | test-database isolation: `withinTransaction`, `cleanDatabase`, `setupDatabase` work                          | `src/testing/database.js`                          |
-| S4  | the exported `request` (a `TestRequest`) sends through an app and returns a `TestResponse`                   | `src/testing/request.js`                           |
-| S5  | `hasAndBelongsToMany` loads through its join table                                                           | `src/database/associations.js`                     |
-| S6  | `brails test` runs `bun test` with `NODE_ENV=test`                                                           | `src/cli/commands/test.js`                         |
+| Id  | What                                                                                                         | Where                                                                            |
+| --- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| S1  | a guard rejects a TODO-only body under `src/`; every planned API throws `NotImplementedError` naming itself  | `src/support/`, the modules above, `test/support/`                               |
+| S2  | a config naming a backend that is not built (`cache.store: 'redis'`, `jobs.adapter: 'bullmq'`) fails at boot | `src/application.js`                                                             |
+| S3  | test-database isolation: `withinTransaction`, `cleanDatabase`, `setupDatabase` work                          | `src/testing/database.js`                                                        |
+| S4  | the exported `request` (a `TestRequest`) sends through an app and returns a `TestResponse`                   | `src/testing/request.js`                                                         |
+| S5  | `hasAndBelongsToMany` loads through its join table                                                           | `src/database/associations.js`                                                   |
+| \1  | S7                                                                                                           | the demo's test suite runs in CI on its PostgreSQL service, with `setupDatabase` | `demo/test/`, `.github/workflows/ci.yml` |
 
 Boot has the same defect one seam earlier: with `cache.store: 'redis'` (the demo's production
 config) it logs a warning and uses the memory store, and with `jobs.adapter: 'bullmq'` it logs "Job
 queue initialized with BullMQ" and initializes nothing. S2 makes both refuse to boot.
+
+S7 came out of S3: the demo job's test steps are commented out ("Demo tests require database
+implementations"), so the demo's tests have never run.
 
 Order: S1 first, so that S3 to S5 each replace a loud `NotImplementedError` with the working
 feature, and the guard keeps a new silent stub from landing meanwhile.
