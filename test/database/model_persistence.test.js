@@ -19,7 +19,9 @@ class MockConnection {
 
   async query(sql, params = []) {
     this.queries.push({ sql, params })
-    return this.mockResults.shift() || []
+    const rows = this.mockResults.shift() || []
+    // Like postgres.js and Bun.sql: the result carries the affected-row count.
+    return Object.assign(rows, { count: rows.count ?? rows.length })
   }
 
   setMockResults(results) {

@@ -46,7 +46,8 @@ const mockConnection = {
   connected: true,
   query: mock(async (sql, params) => {
     // Return mock data based on query
-    return []
+    // Like postgres.js and Bun.sql: the result carries the affected-row count.
+    return Object.assign([], { count: 0 })
   })
 }
 
@@ -1083,7 +1084,7 @@ describe('Query Execution', () => {
 
   describe('deleteAll()', () => {
     test('executes DELETE query', async () => {
-      mockConnection.query.mockImplementation(async () => [])
+      mockConnection.query.mockImplementation(async () => Object.assign([], { count: 0 }))
 
       await builder.where({ status: 'deleted' }).deleteAll()
 
@@ -1096,7 +1097,7 @@ describe('Query Execution', () => {
 
   describe('updateAll()', () => {
     test('executes UPDATE query', async () => {
-      mockConnection.query.mockImplementation(async () => [])
+      mockConnection.query.mockImplementation(async () => Object.assign([], { count: 0 }))
 
       await builder.where({ status: 'pending' }).updateAll({ status: 'active' })
 
