@@ -14,6 +14,7 @@ import { MiddlewareStack, Middleware } from './controller/middleware.js'
 import { ControllerContext } from './controller/base.js'
 import { BroadcastManager } from './websocket/broadcast_manager.js'
 import { Connection, getConnection, setConnection } from './database/connection.js'
+import { selectDatabaseConfig } from './database/config.js'
 
 /**
  * Application - Main framework entry point
@@ -344,11 +345,9 @@ export class Application {
 
   async _initializeDatabase() {
     // config/database.js holds one config, or one per environment
-    const section = this.config.section('database')
-    const forEnvironment = section[getEnvironment()]
-    const dbConfig = forEnvironment && typeof forEnvironment === 'object' ? forEnvironment : section
+    const dbConfig = selectDatabaseConfig(this.config.section('database'), getEnvironment())
 
-    if (!dbConfig.url && !dbConfig.database) {
+    if (!dbConfig) {
       this.logger.debug('No database configured (config/database.js), skipping')
       return
     }

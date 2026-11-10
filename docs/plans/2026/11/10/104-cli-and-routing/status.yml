@@ -1,0 +1,18 @@
+plan: 104-cli-and-routing
+title: The planned CLI commands and routing gaps
+status: in-progress
+owner: unassigned
+percent: 0
+current_focus: C1 (db:migrate, db:rollback)
+slices:
+  - { id: C1, status: in-progress }
+  - { id: C2, status: todo }
+  - { id: C3, status: todo }
+  - { id: C4, status: todo }
+  - { id: C5, status: todo }
+  - { id: R1, status: todo }
+  - { id: R2, status: todo }
+milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
+evidence:
+  prs: []
+last_updated: 2026-11-10
