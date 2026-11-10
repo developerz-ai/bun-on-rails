@@ -11,6 +11,7 @@ import { createConfig, getEnvironment, isDevelopment, isProduction } from './con
 import { Router } from './routing/router.js'
 import { Cache, MemoryStore } from './cache/cache.js'
 import { MiddlewareStack, Middleware, ControllerMiddleware } from './controller/middleware.js'
+import { parseQueryString } from './controller/request_parser.js'
 import { ControllerContext } from './controller/base.js'
 import { BroadcastManager } from './websocket/broadcast_manager.js'
 import { Connection, getConnection, setConnection } from './database/connection.js'
@@ -774,33 +775,16 @@ export class Application {
   async _buildContext(request, match, server) {
     const url = new URL(request.url)
 
-    // Parse body
-    let body = {}
-    if (['POST', 'PUT', 'PATCH'].includes(request.method)) {
-      const contentType = request.headers.get('content-type') || ''
-
-      if (contentType.includes('application/json')) {
-        try {
-          body = await request.json()
-        } catch {
-          body = {}
-        }
-      } else if (contentType.includes('application/x-www-form-urlencoded')) {
-        const formData = await request.formData()
-        body = Object.fromEntries(formData)
-      }
-    }
-
-    // Merge params
-    const params = {
-      ...match.params,
-      ...Object.fromEntries(url.searchParams),
-      ...body
-    }
+    // Route params, then the query string with nested keys (filter[status]=x).
+    // The body is not read here: the bodyParser middleware parses it once and
+    // merges it over these. Pinned by test/core/dispatch_params.test.js.
+    const query = parseQueryString(url.searchParams)
+    const params = { ...match.params, ...query }
 
     return new ControllerContext({
       request,
       params,
+      query,
       session: {}, // Will be populated by session middleware
       currentUser: null, // Will be populated by auth middleware
       http: { request, server },
