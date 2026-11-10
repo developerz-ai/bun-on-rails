@@ -1,0 +1,61 @@
+plan: 101-public-release
+title: Public release of bun-on-rails v0.1.0
+status: in-progress
+owner: unassigned
+percent: 0
+current_focus: T10 (bin/qa-release)
+slices:
+  - id: T10
+    title: Land the QA script as bin/qa-release
+    status: in-progress
+    depends_on: []
+  - id: T1
+    title: Package manifest (name, files, homepage)
+    status: todo
+    depends_on: [D1, D2]
+  - id: T2
+    title: Stub commands fail loudly
+    status: todo
+    depends_on: []
+  - id: T3
+    title: brails new generates a bootable app
+    status: todo
+    depends_on: [D5]
+  - id: T8
+    title: Routing & Controllers guide
+    status: todo
+    depends_on: [D4]
+  - id: T5
+    title: Getting-started docs
+    status: blocked
+    depends_on: [T3, T8]
+  - id: T6
+    title: Rest of docs sweep
+    status: blocked
+    depends_on: [T8]
+  - id: T4
+    title: README rewrite
+    status: blocked
+    depends_on: [T3]
+  - id: T7
+    title: VitePress base, srcExclude, dead-link guard, Pages
+    status: blocked
+    depends_on: [T5, T6, T8, pages-admin-setting]
+  - id: T9
+    title: release.yml first-release fixes and QA gate
+    status: blocked
+    depends_on: [T10]
+decisions:
+  D1: bun-on-rails
+  D2: github-pages
+  D3: team call, not blocking
+  D4: write routing and controllers guide, drop the other dead links
+  D5: minimal brails new, no brails setup
+  D6: "#32 merged, #28 drafted"
+  D7: manual first publish, then npm trusted publishing
+evidence:
+  baseline: "bin/qa-release on main 77c00e9, 2026-11-10: install FAIL, links FAIL, licence PASS, ci FAIL"
+  after_pr_32: "bin/qa-release on main 880b79e + the T10 branch, 2026-11-10: install FAIL, links FAIL, licence PASS, ci PASS"
+  prs:
+    - "#32 merged as 880b79e (D6)"
+last_updated: 2026-11-10

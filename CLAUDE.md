@@ -69,12 +69,13 @@ Parts of the tree are stubs. Read the module before you rely on it.
 
 ### Repo scripts (`bin/`)
 
-| Command     | What it does                                                                                 |
-| ----------- | -------------------------------------------------------------------------------------------- |
-| `bin/setup` | ensures bun meets the floor — it installs bun on CI, otherwise exits 69 — then `bun install` |
-| `bin/dev`   | dev server                                                                                   |
-| `bin/check` | the gate (see Non-negotiables)                                                               |
-| `bin/stop`  | stops what the session started — currently a no-op                                           |
+| Command          | What it does                                                                                                                                                                                                                                                                                                 |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `bin/setup`      | ensures bun meets the floor — it installs bun on CI, otherwise exits 69 — then `bun install`                                                                                                                                                                                                                 |
+| `bin/dev`        | dev server                                                                                                                                                                                                                                                                                                   |
+| `bin/check`      | the gate (see Non-negotiables)                                                                                                                                                                                                                                                                               |
+| `bin/stop`       | stops what the session started — currently a no-op                                                                                                                                                                                                                                                           |
+| `bin/qa-release` | the public-release bar from a fresh clone: packs, installs from README in a clean `oven/bun` container, boots the app, checks links, licence and CI on main — PASS/FAIL per item; exits 75 when docker is unreachable. Needs docker with compose, git, gh. Plan: `docs/plans/2026/11/10/101-public-release/` |
 
 ### `brails` (entry `src/cli/index.js`)
 
