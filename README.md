@@ -1,132 +1,106 @@
 # BunOnRails
 
-> **Built for Vibe Coders & AI Agents** - Focus on features and delivery, not infrastructure.
-
-A full-stack JavaScript framework built on Bun that captures the "Rails magic" - convention over configuration, batteries included, zero boilerplate. Designed from the ground up to be the most productive framework for both human developers and AI coding assistants.
+A full-stack JavaScript framework for [Bun](https://bun.sh) with Rails-like conventions: files go
+where you expect them, and the framework wires them up.
 
 [![CI](https://github.com/developerz-ai/bun-on-rails/actions/workflows/ci.yml/badge.svg)](https://github.com/developerz-ai/bun-on-rails/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
-## Why BunOnRails?
-
-- **Vibe Coder Friendly** - Stay in flow, ship features, not configurations
-- **AI Agent Ready** - Predictable patterns that AI assistants understand instantly
-- **Zero-Config Setup** - `brails new myapp && brails dev` gets you running in seconds
-- **Batteries Included** - Authentication, file uploads, background jobs, caching, real-time, email, search
-- **Bun-Powered** - Native speed for everything: bundler, transpiler, test runner, HTTP server
-- **Rails-Like DX** - Convention over configuration, generators, migrations, ORM
+> **Status: 0.1, early.** The HTTP core works: routing, controllers, params, filters and JSON
+> responses. Generators, database commands, queued jobs, mail, storage, WebSockets, React
+> integration and authentication are planned. The [list below](#planned) says which is which.
 
 ## Quick Start
 
 ```bash
+bun add -g bun-on-rails
 brails new myapp
 cd myapp
-brails setup    # Starts Docker services, creates DB, runs migrations
-brails dev      # Server running with hot reload
+brails dev
 ```
 
-## Features
-
-| Feature               | Description                                                |
-| --------------------- | ---------------------------------------------------------- |
-| **ORM**               | Active Record-style with associations, validations, scopes |
-| **Migrations**        | Clean JavaScript migrations with auto-schema sync          |
-| **Routing**           | Rails-like DSL with resources and namespaces               |
-| **Controllers**       | Class-based with automatic context injection               |
-| **React Integration** | Built-in hooks for data fetching and real-time             |
-| **Background Jobs**   | BullMQ-powered with scheduling and priorities              |
-| **WebSockets**        | Native Bun WebSocket support with channels                 |
-| **Authentication**    | One-command auth generation with OAuth support             |
-| **File Uploads**      | S3-compatible storage with image variants                  |
-| **Caching**           | Redis-backed with fragment and HTTP caching                |
-| **Email**             | Mailer classes with React email templates                  |
-| **Testing**           | Parallel tests with factories and transactions             |
-
-## Documentation
-
-Full documentation available at [bunonrails.com](https://bunonrails.com) or in the [docs/](./docs) directory.
-
-- [Getting Started](./docs/eng/getting-started/introduction.md)
-- [Database & ORM](./docs/eng/database/overview.md)
-- Routing & Controllers — guide not yet available
-- Frontend Integration — guide not yet available
-- [Background Jobs](./docs/eng/jobs/overview.md)
-- [Authentication](./docs/eng/authentication/overview.md)
-- [Deployment](./docs/eng/deployment/overview.md)
+Then open `http://localhost:3000`. `brails new` writes the app and runs `bun install`.
+`brails dev` serves it, with no database or other services needed.
 
 ## Example
 
-```javascript
-// app/controllers/posts_controller.js
-export default class PostsController {
-  async index() {
-    const posts = await Post.findAll({ include: "user" });
+Routes map a path to `controller#action`, and the controller file is found by name:
+
+**`config/routes.js`**
+
+```js [config/routes.js]
+export default (router) => {
+  router.root("home#index");
+  router.resources("posts", { only: ["index", "show"] });
+};
+```
+
+**`app/controllers/posts_controller.js`**
+
+```js [app/controllers/posts_controller.js]
+import { Controller } from "bun-on-rails";
+
+const posts = [{ id: "1", title: "Hello, BunOnRails" }];
+
+export default class PostsController extends Controller {
+  index() {
     return this.render({ posts });
   }
 
-  async create() {
-    const post = await Post.create(this.params.post);
-    this.broadcast("posts:new", { post });
-    return this.render({ post }, { status: 201 });
+  show() {
+    const post = posts.find((p) => p.id === this.params.id);
+    return post ? this.render({ post }) : this.notFound();
   }
 }
 ```
 
-```javascript
-// app/models/post.js
-export default class Post extends Model {
-  static associations = {
-    belongsTo: ["user"],
-    hasMany: ["comments"],
-  };
+`GET /posts` returns `{"posts":[…]}`, `GET /posts/1` returns that post, and `GET /posts/9`
+returns a `404`.
 
-  static validations = {
-    title: { presence: true, length: { max: 200 } },
-    body: { presence: true },
-  };
-}
-```
+## What works today
 
-## CLI Commands
+| Area        | What you get                                                                                                                         |
+| ----------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| CLI         | `brails new` creates an app, `brails dev` and `brails start` serve it, and `brails help` lists every command                         |
+| Routing     | a Rails-like DSL: `root`, the HTTP verbs, `resources` with `only` / `except`, `resource`, `namespace`                                |
+| Controllers | classes found by file name, with merged params, JSON responses, redirects, and before/after filters                                  |
+| Config      | one file per section in `config/`, per-environment overrides, initializers                                                           |
+| ORM         | an Active-Record-style `Model` with a query builder, validations and associations on PostgreSQL. It is not connected at app boot yet |
+| Jobs        | a `Job` base class. `performNow` runs a job inline                                                                                   |
+| Cache       | an in-process memory store                                                                                                           |
 
-```bash
-# Database
-brails db:migrate          # Run migrations
-brails db:rollback         # Rollback last migration
-brails db:seed             # Load seed data
+## Planned
 
-# Generators
-brails g scaffold Post title:string body:text
-brails g model User
-brails g auth              # Full authentication system
+These are designed and partly built, but not usable yet:
 
-# Development
-brails dev                 # Development server
-brails test                # Run tests
-brails console             # Interactive REPL
-```
+- **CLI**: `brails generate`, the `brails db:*` commands, `brails console`, `brails routes`,
+  `brails test` and `brails credentials`. Each exits with an error until it lands.
+- **Database**: connecting at app boot, running migrations, and test-database isolation.
+- **Jobs**: queueing with BullMQ (`performLater`, `performAt`, `performIn`).
+- **Mail delivery**, **S3 file storage**, and the **Redis cache**.
+- **Real-time**: WebSocket channels (the broadcast manager exists, the channel server does
+  not).
+- **Frontend**: the React hooks and forms, and HTML views. Controllers render JSON.
+- **Authentication**.
+- **CSRF tokens**: the check is on, but no token is issued yet, so writes need
+  `security.csrf: false` for now. See
+  [CSRF protection](./docs/eng/routing/overview.md#csrf-protection).
 
-## For AI Agents
+## Documentation
 
-BunOnRails is designed to be the most AI-friendly framework:
+The guides live in [`docs/`](./docs):
 
-- **Predictable patterns** - Same structure in every project
-- **Clear conventions** - AI knows where files go and how to name them
-- **Self-documenting** - Models show their schema, routes are explicit
-- **No hidden magic** - What you write is what happens
-
-```javascript
-// AI can understand and generate this instantly
-const post = await Post.create({ title, body, userId: currentUser.id });
-if (post.errors) return this.unprocessableEntity(post.errors);
-await NotifyFollowersJob.performLater({ postId: post.id });
-return this.render({ post }, { status: 201 });
-```
+- [Getting Started](./docs/eng/getting-started/introduction.md): installation, quick start,
+  project structure
+- [Routing & Controllers](./docs/eng/routing/overview.md)
+- [Database & ORM](./docs/eng/database/overview.md)
+- [Background Jobs](./docs/eng/jobs/overview.md)
+- [Deployment](./docs/eng/deployment/overview.md)
 
 ## Contributing
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for guidelines.
+See [CONTRIBUTING.md](./CONTRIBUTING.md). `bin/check` is the gate every change passes.
 
 ## License
 
-MIT License - see [LICENSE](./LICENSE) for details.
+MIT. See [LICENSE](./LICENSE).

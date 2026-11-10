@@ -2,8 +2,8 @@ plan: 101-public-release
 title: Public release of bun-on-rails v0.1.0
 status: in-progress
 owner: unassigned
-percent: 50
-current_focus: T5 (getting-started docs)
+percent: 60
+current_focus: T4 (README), T6 (rest of docs) prepared in parallel
 slices:
   - id: T10
     title: Land the QA script as bin/qa-release
@@ -27,7 +27,7 @@ slices:
     depends_on: [D4]
   - id: T5
     title: Getting-started docs
-    status: in-progress
+    status: done
     depends_on: [T3, T8]
   - id: T6
     title: Rest of docs sweep
@@ -35,7 +35,7 @@ slices:
     depends_on: [T8]
   - id: T4
     title: README rewrite
-    status: blocked
+    status: in-progress
     depends_on: [T3]
   - id: T7
     title: VitePress base, srcExclude, dead-link guard, Pages
@@ -67,5 +67,6 @@ evidence:
     - "#35 merged as 892d649 (T2)"
     - "#36 merged as 13faa0a (T3)"
     - "#37 merged as ba772a0 (T8)"
+    - "#38 merged as 1f24a3d (T5)"
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 last_updated: 2026-11-10
