@@ -32,7 +32,7 @@
 | Docs           | VitePress, pages in `docs/eng/<section>/<page>.md`                        | `docs/`                            |
 | Lint / format  | ESLint (`--max-warnings=0`) / Prettier                                    | `eslint.config.js`, `package.json` |
 
-No auth module ships in `src/` — bcrypt is a dependency only, and the demo's password check is still a TODO (`demo/app/models/user.js:56`).
+No auth module ships in `src/` — the hashing dependency is `bcryptjs` ^3.0.3, plain JavaScript with zero dependencies and no native build chain (API-compatible with native bcrypt, so no stored digest changes shape) — and authentication is planned: the demo's `User` model has no password logic (`demo/app/models/user.js`, 48 lines) and its `password_digest` is the placeholder `'not-a-real-digest'`, marked "authentication is planned" (`demo/db/seeds.js:16`, `demo/test/factories/index.js:12`). Pinned by `test/dependencies.test.js`.
 
 ## Scaffolds
 
