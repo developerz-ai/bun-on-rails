@@ -216,11 +216,12 @@ Suggested order (one PR in flight at a time): **T10, T1, T2, T3, T8, T5 ∥ T6, 
   4. The CLI section lists only `new`, `dev`, `start` and `--help`; the rest go under Planned.
   5. Change the "For AI Agents" example to `performNow`.
   6. Docs link goes to the D2 URL; the guide list follows D4.
-- **Acceptance:**
-  ```bash
-  ! grep -nE 'brails (setup|g |generate|db:|console|test|credentials)|bunonrails\.com|not yet available|@bun-on-rails|performLater' README.md \
-    && grep -qE '^bun add -g [a-z@]' README.md
-  ```
+- **Acceptance:** `bun test test/docs/readme.test.js`. It checks three things:
+  - the Quick Start's first line is `bun add -g <package.json name>`;
+  - every `brails …` line in a README bash block is an implemented command (planned ones may only be named in prose);
+  - the README's example files, written over a fresh `brails new` app, answer as described.
+
+  Integration: `bin/qa-release` bar 1. The docs link goes to `docs/` in the repo until the Pages site is live; T7 adds the site URL, so the README never carries a link that is known to be broken.
 
 ### T5 — Getting-started docs follow the working path
 
