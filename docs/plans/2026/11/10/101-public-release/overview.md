@@ -112,7 +112,7 @@ file-set and one PR.
    compares the request's `X-CSRF-Token` with `session.csrfToken`, but nothing in `src/`
    ever sets `session.csrfToken`. So every `POST`/`PUT`/`PATCH`/`DELETE` answers `403`
    `{"error":"CSRF token mismatch"}` unless the app sets `security.csrf: false`.
-   `test/docs/routing_guide.test.js` pins the current behaviour; T11 fixes it.
+   T11 fixed it: the session middleware issues `session.csrfToken`, and actions read it as `this.csrfToken`.
 9. **The database is not connected at app boot, and initializer errors are swallowed (found
    while writing T5).**
    - `Application._initializeDatabase` only stores the database config, and `getConnection()`

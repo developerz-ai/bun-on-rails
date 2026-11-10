@@ -63,7 +63,7 @@ returns a `404`.
 | ----------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | CLI         | `brails new` creates an app, `brails dev` and `brails start` serve it, and `brails help` lists every command                         |
 | Routing     | a Rails-like DSL: `root`, the HTTP verbs, `resources` with `only` / `except`, `resource`, `namespace`                                |
-| Controllers | classes found by file name, with merged params, JSON responses, redirects, and before/after filters                                  |
+| Controllers | classes found by file name, with merged params, JSON responses, redirects, before/after filters, and per-session CSRF tokens         |
 | Config      | one file per section in `config/`, per-environment overrides, initializers                                                           |
 | ORM         | an Active-Record-style `Model` with a query builder, validations and associations on PostgreSQL. It is not connected at app boot yet |
 | Jobs        | a `Job` base class. `performNow` runs a job inline                                                                                   |
@@ -82,9 +82,6 @@ These are designed and partly built, but not usable yet:
   not).
 - **Frontend**: the React hooks and forms, and HTML views. Controllers render JSON.
 - **Authentication**.
-- **CSRF tokens**: the check is on, but no token is issued yet, so writes need
-  `security.csrf: false` for now. See
-  [CSRF protection](./docs/eng/routing/overview.md#csrf-protection).
 
 ## Documentation
 

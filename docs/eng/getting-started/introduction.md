@@ -30,7 +30,8 @@ config/
 
 - **CLI**: `brails new` creates an app, `brails dev` and `brails start` serve it.
 - **Routing**: a Rails-like DSL with `resources`, `resource` and `namespace`.
-- **Controllers**: classes with params, JSON responses, redirects and before/after filters.
+- **Controllers**: classes with params, JSON responses, redirects, before/after filters and
+  per-session [CSRF tokens](../routing/overview.md#csrf-protection).
 - **Config**: per-section files, per-environment overrides and initializers.
 - **ORM query layer**: an Active-Record-style `Model` with a query builder, validations and
   associations on a PostgreSQL adapter. It is not yet connected at app boot. See the
@@ -47,9 +48,7 @@ These are designed and partly built, but not usable yet:
 - connecting to the database at boot, and test-database isolation;
 - queued jobs (`performLater`), mail delivery, S3 file storage, and the Redis cache;
 - WebSocket channels, the React hooks and forms, and HTML views;
-- authentication;
-- CSRF tokens. The check is on, but no token is issued yet, see
-  [CSRF protection](../routing/overview.md#csrf-protection).
+- authentication.
 
 `brails help` lists the planned commands. Each exits with an error rather than pretending to
 work.

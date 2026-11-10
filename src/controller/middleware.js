@@ -505,6 +505,12 @@ export const Middleware = {
 
       context.session = session;
 
+      // Every session carries the token the csrf middleware checks writes
+      // against; an action hands it to the client as `this.csrfToken`.
+      if (!session.csrfToken) {
+        session.csrfToken = generateSessionId();
+      }
+
       // Execute the rest of the chain
       const response = await next();
 
