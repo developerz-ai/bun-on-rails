@@ -3,7 +3,7 @@ title: No silent stubs; test support that works
 status: in-progress
 owner: unassigned
 percent: 73
-current_focus: S10 (one dispatch path), part 2: params parsed once
+current_focus: S10 (one dispatch path), part 3: the unused Router#handle pipeline goes
 slices:
   - { id: S1, status: done }
   - { id: S2, status: done }
@@ -30,4 +30,5 @@ evidence:
     - "#74 merged as 6ce242a (S8)"
     - "#75 merged as f7b8444 (S11)"
     - "#76 merged as ca1cce3 (S10 part 1)"
+    - "#77 merged as 5e4c530 (S10 part 2)"
 last_updated: 2026-11-10
