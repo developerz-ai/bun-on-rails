@@ -59,6 +59,35 @@ How a request is matched:
 - No match answers `404` with `{"error":"Not Found"}`. So does a route whose controller file
   or action does not exist.
 
+### Nesting and scopes
+
+```js
+router.resources("posts", { only: ["show"] }, () => {
+  router.resources("comments", { only: ["index", "create"] });
+});
+
+router.scope("/:locale", () => {
+  router.get("/about", "pages#about");
+});
+```
+
+defines:
+
+| Verb   | Path                       | Controller#action |
+| ------ | -------------------------- | ----------------- |
+| `GET`  | `/posts/:id`               | `posts#show`      |
+| `GET`  | `/posts/:post_id/comments` | `comments#index`  |
+| `POST` | `/posts/:post_id/comments` | `comments#create` |
+| `GET`  | `/:locale/about`           | `pages#about`     |
+
+- A `resources` callback, as its last argument, nests the routes it defines under
+  `/posts/:post_id`. The parent param is the singular of the name (`categories` nests under
+  `:category_id`), and the controller keeps its plain name: `comments#index` reads
+  `this.params.post_id`.
+- `scope(path, callback)` prefixes the path only, where `namespace` prefixes the path and the
+  controller. A scope segment can be a param, so `GET /fr/about` gives `this.params.locale`
+  `"fr"`. Scopes, namespaces and nested resources stack in the order they are written.
+
 ## Controllers
 
 A controller lives in `app/controllers/<name>_controller.js` and default-exports a class that
@@ -220,9 +249,5 @@ curl localhost:3000/admin/users/7                           # 200 {"user":{"id":
 
 ## Not implemented yet
 
-- **Nested resources.** `resources('posts', () => router.resources('comments'))` defines
-  `/comments`, not `/posts/:post_id/comments`, because `scope()` ignores its path for now.
-  Write nested paths out with `get` / `post`, as `/posts/:id/publish` does above.
-- **`scope(path, callback)`** and **`middleware(list, callback)`** run the callback without a
-  path prefix or middleware.
+- **`middleware(list, callback)`** runs the callback without adding the middleware.
 - **HTML views.** `render` returns JSON only.

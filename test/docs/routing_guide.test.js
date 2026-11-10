@@ -4,8 +4,9 @@
  * docs/eng/routing/overview.md promises that its examples run as shown. This
  * test makes that true: it takes every fenced block titled with a path
  * (```js [config/routes.js]), writes it over a fresh `brails new` app, boots
- * the app, and checks the responses the guide's "Try it" section lists, plus
- * the behaviour its "Not implemented yet" section describes. Change the guide
+ * the app, and checks the responses the guide's "Try it" section lists, the
+ * routes its "Nesting and scopes" table lists, and the behaviour its "Not
+ * implemented yet" section describes. Change the guide
  * and this test reads the new code; change the framework and the guide's
  * claims are re-checked.
  */
@@ -13,7 +14,9 @@
 import { test, expect, describe, beforeAll, afterAll } from "bun:test";
 import { Application } from "../../src/application.js";
 import { Router } from "../../src/routing/router.js";
-import { bootGuideApp } from "./support/guide_app.js";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { bootGuideApp, repoRoot } from "./support/guide_app.js";
 
 let guide;
 const call = (...args) => guide.call(...args);
@@ -160,13 +163,36 @@ describe("the rest of the guide's claims", () => {
     }
   });
 
-  test("Not implemented yet: nested resources define /comments, not /posts/:post_id/comments", () => {
+  test("Not implemented yet: middleware(list, callback) adds no middleware", () => {
     const router = new Router();
-    router.resources("posts", () =>
-      router.resources("comments", { only: ["index"] }),
+    router.middleware(["auth"], () => router.get("/inbox", "inbox#index"));
+    expect(router.routes[0].middleware).toEqual([]);
+  });
+
+  test("Nesting and scopes: the section's code defines the routes its table lists", () => {
+    const markdown = readFileSync(
+      join(repoRoot, "docs/eng/routing/overview.md"),
+      "utf8",
     );
-    const paths = router.routes.map((r) => r.path);
-    expect(paths).toContain("/comments");
-    expect(paths).not.toContain("/posts/:post_id/comments");
+    const section = markdown.match(/^### Nesting and scopes\n([\s\S]*?)^#/m)[1];
+    const code = section.match(/^```js\n([\s\S]*?)^```$/m)[1];
+    const router = new Router();
+    new Function("router", code)(router);
+
+    const rows = [
+      ...section.matchAll(/^\| `(\w+)` +\| `(\S+)` +\| `(\S+)` +\|$/gm),
+    ];
+    expect(rows.length).toBeGreaterThan(0);
+    expect(
+      router.routes.map(
+        (r) => `${r.method} ${r.path} ${r.controller}#${r.action}`,
+      ),
+    ).toEqual(
+      rows.map(([, verb, path, target]) => `${verb} ${path} ${target}`),
+    );
+    expect(router.match("GET", "/fr/about").params).toEqual({ locale: "fr" });
+    expect(router.match("POST", "/posts/7/comments").params).toEqual({
+      post_id: "7",
+    });
   });
 });
