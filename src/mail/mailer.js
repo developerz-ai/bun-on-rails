@@ -1,8 +1,50 @@
 /**
  * Mailer - Email sending system
+ *
+ * Mail#deliver() hands the message to the adapter mail.adapter names:
+ * 'console' (the default) prints it, 'test' keeps it in mailDeliveries().
+ * deliverLater() queues it through the job queue. The transports (smtp,
+ * sendgrid, postmark, ses) are planned and refused at boot. Pinned by
+ * test/mail/delivery.test.js.
  */
 
 import { NotImplementedError } from '../support/not_implemented.js'
+import { Job } from '../jobs/job.js'
+
+const BUILT_ADAPTERS = ['console', 'test']
+const PLANNED_ADAPTERS = ['smtp', 'sendgrid', 'postmark', 'ses']
+let mailConfig = { adapter: 'console', from: null }
+
+/**
+ * Set the mail adapter and default sender (Application boot passes the mail
+ * config section). An adapter that is not built throws.
+ * @param {{ adapter?: string, from?: string }} config
+ */
+export function configureMail({ adapter = 'console', from = null } = {}) {
+  if (PLANNED_ADAPTERS.includes(adapter)) {
+    throw new NotImplementedError(`mail.adapter '${adapter}'`, 'mail delivery')
+  }
+  if (!BUILT_ADAPTERS.includes(adapter)) {
+    throw new Error(`Unknown mail.adapter '${adapter}'. The built-in adapters are 'console' and 'test'.`)
+  }
+  mailConfig = { adapter, from }
+}
+
+/** Hand a built message to the configured adapter. */
+async function deliverMessage(message) {
+  await MailAdapters[mailConfig.adapter].send(message)
+  return message
+}
+
+/** The messages the test adapter has kept, oldest first. */
+export function mailDeliveries() {
+  return [...MailAdapters.test.deliveries]
+}
+
+/** Forget the messages the test adapter has kept (between tests). */
+export function clearMailDeliveries() {
+  MailAdapters.test.clear()
+}
 
 export class Mailer {
   static defaults = {
@@ -32,20 +74,41 @@ export class Mail {
   }
 
   /**
-   * Send the email immediately
+   * Send the email now, through the configured adapter
+   * @returns {Promise<Object>} the message delivered
    */
   async deliver() {
-    // TODO: Render template if specified
-    // TODO: Send via configured adapter
-    throw new NotImplementedError('Mail#deliver', 'mail delivery')
+    return deliverMessage(this.message())
   }
 
   /**
-   * Queue the email for background delivery
+   * Queue the email: a DeliverMailJob sends it from the job queue. The
+   * message is built now, so a missing recipient fails here.
+   * @returns {Promise<string>} the job id
    */
   async deliverLater() {
-    // TODO: Enqueue SendEmailJob
-    throw new NotImplementedError('Mail#deliverLater', 'mail delivery')
+    return DeliverMailJob.performLater({ message: this.message() })
+  }
+
+  /**
+   * The message as plain data: from (the mailer's default, else mail.from),
+   * to, cc, bcc, replyTo, subject, text, html, attachments.
+   * @returns {Object}
+   */
+  message() {
+    const { template, from, to, cc, bcc, replyTo, subject, text, html, attachments } = this.options
+    if (template) {
+      throw new NotImplementedError('Mail#template', 'HTML views')
+    }
+    if (!to || (Array.isArray(to) && to.length === 0)) {
+      throw new Error('Mail has no recipient: give it `to`')
+    }
+    const sender = from ?? mailConfig.from
+    if (!sender) {
+      throw new Error('Mail has no sender: give the mailer `static defaults = { from }`, or set mail.from in config')
+    }
+    const message = { from: sender, to, cc, bcc, replyTo, subject, text, html, attachments }
+    return Object.fromEntries(Object.entries(message).filter(([, value]) => value !== undefined && value !== null))
   }
 
   /**
@@ -179,6 +242,19 @@ export const MailAdapters = {
   },
 
   /**
+   * Console adapter - prints each message (the default)
+   */
+  console: {
+    async send(message) {
+      const headers = ['From', 'To', 'Cc', 'Bcc', 'Subject'].map((name) => {
+        const value = message[name.toLowerCase()]
+        return value === undefined ? null : `${name}: ${[].concat(value).join(', ')}`
+      })
+      console.log(['--- mail ---', ...headers.filter(Boolean), '', message.text ?? message.html ?? '', '------------'].join('\n'))
+    }
+  },
+
+  /**
    * Test adapter - stores emails for inspection
    */
   test: {
@@ -211,5 +287,12 @@ export class MailRenderer {
     // TODO: Render to static HTML
     // TODO: Apply email layout
     throw new NotImplementedError('MailRenderer#render', 'mail delivery')
+  }
+}
+
+/** Sends a message queued by Mail#deliverLater(). */
+export class DeliverMailJob extends Job {
+  async perform({ message }) {
+    return deliverMessage(message)
   }
 }

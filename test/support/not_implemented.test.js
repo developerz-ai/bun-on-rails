@@ -47,10 +47,13 @@ describe("a planned API throws instead of resolving undefined", () => {
   test("JobWorker#start: the BullMQ worker is planned", () =>
     refuses(() => new JobWorker(["default"], null).start(), "JobWorker#start"));
 
-  test("Mail#deliver: sends nothing", () =>
+  test("a mail template: HTML views are planned", () =>
     refuses(
-      () => Mailer.mail({ to: "a@example.com", subject: "Hi" }).deliver(),
-      "Mail#deliver",
+      () =>
+        Mailer.mail({ to: "a@example.com", from: "b@example.com" })
+          .template("welcome")
+          .deliver(),
+      "Mail#template",
     ));
 
   test("Storage#upload: stores nothing", () =>
