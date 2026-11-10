@@ -69,7 +69,7 @@ Tell your assistant, or it will write code against these. Each fails when used: 
 - **`brails console`, `brails credentials`** are not implemented yet either. (`brails routes` lists the routes.)
 - **Background jobs.** `performLater` queues a job in the app's own process; a persistent queue
   (BullMQ) is not implemented (see [Background Jobs](../jobs/overview.md)).
-- **Authentication, mail delivery, file storage, WebSocket channels, HTML views and React
+- **Authentication, mail transports, file storage, WebSocket channels, HTML views and React
   helpers.** See the status table in [Core Philosophy](../core-concepts/philosophy.md#batteries-included).
 
 ## A note for AI agents

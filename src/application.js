@@ -17,6 +17,7 @@ import { BroadcastManager } from './websocket/broadcast_manager.js'
 import { Connection, getConnection, setConnection } from './database/connection.js'
 import { selectDatabaseConfig } from './database/config.js'
 import { NotImplementedError } from './support/not_implemented.js'
+import { configureMail } from './mail/mailer.js'
 
 /**
  * Application - Main framework entry point
@@ -90,6 +91,7 @@ export class Application {
     // 1. Load configuration, and refuse a backend the framework does not have
     await this._loadConfiguration()
     this._refuseUnbuiltBackends()
+    configureMail(this.config.section('mail'))
 
     // 2. Initialize Redis (if configured)
     await this._initializeRedis()

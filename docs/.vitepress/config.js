@@ -52,6 +52,12 @@ export default defineConfig({
         ]
       },
       {
+        text: 'Mail',
+        items: [
+          { text: 'Overview', link: '/eng/mail/overview' },
+        ]
+      },
+      {
         text: 'Core Concepts',
         items: [
           { text: 'Philosophy', link: '/eng/core-concepts/philosophy' },
