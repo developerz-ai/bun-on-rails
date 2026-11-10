@@ -1,17 +1,18 @@
 plan: 107-jobs-and-mail-in-process
 title: Jobs and mail in-process
-status: in-progress
+status: done
 owner: unassigned
-percent: 67
-current_focus: G1 (scaffold), part 2: brails generate scaffold
+percent: 100
+current_focus: done; jobs queue in-process, mail goes through console/test, brails generate scaffold works
 slices:
   - { id: J1, status: done }
   - { id: M1, status: done }
-  - { id: G1, status: in-progress }
+  - { id: G1, status: done }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
   prs:
     - "#88 merged as a28870a (J1)"
     - "#89 merged as 5f5fd31 (M1)"
     - "#90 merged as 6fc98f8 (G1 part 1)"
+    - "#92 merged as 89e6c37 (G1 part 2)"
 last_updated: 2026-11-10

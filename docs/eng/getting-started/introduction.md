@@ -44,7 +44,7 @@ config/
 These are designed and partly built, but not usable yet. Each fails when used, rather than doing
 nothing: a planned command exits with an error, and a planned API throws `NotImplementedError`.
 
-- the job, mailer, channel and auth generators, and `brails console`;
+- the channel and auth generators, and `brails console`;
 - a persistent job queue (BullMQ), mail transports (SMTP and the like), S3 file storage, and the Redis cache;
 - WebSocket channels, the React hooks and forms, and HTML views;
 - authentication.

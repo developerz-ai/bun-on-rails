@@ -197,8 +197,8 @@ describe("refusals", () => {
   });
 
   test("generators that do not exist yet say so", () => {
-    expect(() => generate(app("job"), "job", "SendDigest", [])).toThrow(
-      /brails generate job is not implemented yet\. Available: migration, model, controller, scaffold/,
+    expect(() => generate(app("channel"), "channel", "Chat", [])).toThrow(
+      /brails generate channel is not implemented yet\. Available: migration, model, controller, scaffold, job, mailer/,
     );
   });
 });

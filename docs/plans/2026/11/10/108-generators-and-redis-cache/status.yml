@@ -1,0 +1,13 @@
+plan: 108-generators-and-redis-cache
+title: Generators for what works, and the Redis cache
+status: in-progress
+owner: unassigned
+percent: 0
+current_focus: G2 (job and mailer generators)
+slices:
+  - { id: G2, status: in-progress }
+  - { id: C1, status: todo }
+milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
+evidence:
+  prs: []
+last_updated: 2026-11-10
