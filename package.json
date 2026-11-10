@@ -1,5 +1,5 @@
 {
-  "name": "@bun-on-rails",
+  "name": "bun-on-rails",
   "version": "0.1.0",
   "description": "A full-stack JavaScript framework built on Bun with Rails-like conventions",
   "type": "module",
@@ -7,6 +7,9 @@
   "bin": {
     "brails": "./src/cli/index.js"
   },
+  "files": [
+    "src/"
+  ],
   "scripts": {
     "dev": "bun run src/cli/index.js dev",
     "start": "bun run src/cli/index.js start",
@@ -40,7 +43,7 @@
   "bugs": {
     "url": "https://github.com/developerz-ai/bun-on-rails/issues"
   },
-  "homepage": "https://bunonrails.com",
+  "homepage": "https://developerz-ai.github.io/bun-on-rails/",
   "engines": {
     "bun": ">=1.0.0"
   },

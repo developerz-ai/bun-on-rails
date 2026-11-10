@@ -3,7 +3,7 @@
  *
  * Exports all database adapter implementations.
  *
- * @module @bun-on-rails/database/adapters
+ * @module bun-on-rails/database/adapters
  */
 
 export {

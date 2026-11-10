@@ -9,7 +9,7 @@
  * - `brails db:schema:dump` - Manually dump current schema
  * - `brails db:schema:load` - Load schema without running migrations (fast CI setup)
  *
- * @module @bun-on-rails/database/schema
+ * @module bun-on-rails/database/schema
  */
 
 import { PostgresAdapter, TYPE_ALIASES } from './adapters/postgres.js'

@@ -4,7 +4,7 @@
  * Provides a fluent interface for building SQL queries with support
  * for eager loading associations.
  *
- * @module @bun-on-rails/database/query_builder
+ * @module bun-on-rails/database/query_builder
  */
 
 import { getConnection } from './connection.js'

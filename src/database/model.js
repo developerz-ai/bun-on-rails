@@ -4,7 +4,7 @@
  * Provides Rails-like Active Record pattern for database interactions
  * with support for associations, validations, query building, and callbacks.
  *
- * @module @bun-on-rails/database/model
+ * @module bun-on-rails/database/model
  */
 
 import { QueryBuilder, RecordNotFoundError, PaginatedResult } from './query_builder.js'

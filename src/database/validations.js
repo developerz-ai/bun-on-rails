@@ -20,7 +20,7 @@
  * - String: Attribute name (truthy check) if no method with that name exists
  * - Boolean or any value: Direct truthy check
  *
- * @module @bun-on-rails/database/validations
+ * @module bun-on-rails/database/validations
  *
  * @example
  * // Basic validations

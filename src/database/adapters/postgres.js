@@ -4,7 +4,7 @@
  * Provides PostgreSQL-specific SQL generation for migrations,
  * queries, and type mapping. Compatible with YugabyteDB.
  *
- * @module @bun-on-rails/database/adapters/postgres
+ * @module bun-on-rails/database/adapters/postgres
  */
 
 /**

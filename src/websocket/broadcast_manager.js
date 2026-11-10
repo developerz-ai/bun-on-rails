@@ -6,7 +6,7 @@
  * - Redis pub/sub for multi-server deployments (horizontal scaling)
  * - Channel-based subscriptions
  *
- * @module @bun-on-rails/websocket/broadcast_manager
+ * @module bun-on-rails/websocket/broadcast_manager
  */
 
 /**

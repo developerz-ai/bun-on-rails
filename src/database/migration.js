@@ -4,7 +4,7 @@
  * Provides Rails-like migration DSL for creating and modifying database schema.
  * Works with PostgreSQL and YugabyteDB.
  *
- * @module @bun-on-rails/database/migration
+ * @module bun-on-rails/database/migration
  */
 
 import { PostgresAdapter } from './adapters/postgres.js'

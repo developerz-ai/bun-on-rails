@@ -4,7 +4,7 @@
  * Supports PostgreSQL and YugabyteDB with Bun.sql native driver
  * and postgres.js fallback for enhanced compatibility.
  *
- * @module @bun-on-rails/database/connection
+ * @module bun-on-rails/database/connection
  */
 
 import { getConfig } from '../config/loader.js'

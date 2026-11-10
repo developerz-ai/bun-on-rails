@@ -152,7 +152,7 @@ Suggested order (one PR in flight at a time): **T10, T1, T2, T3, T8, T5 ∥ T6, 
 - **Files:** `package.json:2,43`, a new `files` key. `CLAUDE.md:23` (Stack "Package" row).
 - **Steps:**
   1. Set `name` to the D1 choice.
-  2. Add `"files": ["src/"]`. npm always adds `package.json`, `README.md`, `LICENSE` and `CHANGELOG.md`.
+  2. Add `"files": ["src/"]`. npm adds `package.json`, `README.md` and `LICENSE` on its own, but not `CHANGELOG.md` (measured).
   3. Set `homepage` to the D2 URL.
   4. Update the CLAUDE.md row.
 - **Acceptance** (set `N` to the D1 name):
@@ -227,13 +227,13 @@ Suggested order (one PR in flight at a time): **T10, T1, T2, T3, T8, T5 ∥ T6, 
 - **Depends on:** D4, D5, and T8 if D4 writes the guide.
 - **Files:** `docs/eng/core-concepts/{bun-runtime,philosophy}.md`, `docs/eng/guides/vibe-coding.md`, `docs/eng/authentication/overview.md`, `docs/eng/database/overview.md`, `docs/README.md`.
 - **Steps:**
-  1. Replace `bun dev` / `bun generate` / `brails setup` / `brails g auth`.
+  1. Replace `bun dev` / `bun generate` / `brails setup` / `brails g auth`. Imports of `@bun-on-rails` become `bun-on-rails`, the name T1 set. Subpath imports (`/react`, `/search`, `/test`) do not exist, so drop them.
   2. Remove the SQLite claims.
   3. Mark `authentication/overview.md` as Planned at the top, or remove it and its README link (D4).
   4. Drop `database/overview.md:110-113` links to missing pages, and the `docs/README.md:7-8` rows.
 - **Acceptance:**
   ```bash
-  ! grep -rnE 'bun (dev|generate|setup|create)|brails (setup|g auth)|SQLite' docs/eng --exclude-dir=getting-started \
+  ! grep -rnE 'bun (dev|generate|setup|create)|brails (setup|g auth)|SQLite|@bun-on-rails' docs/eng --exclude-dir=getting-started \
     && docker run --rm -v "$PWD":/i:ro -w /i lycheeverse/lychee:0.24.2 --offline --no-progress --root-dir /i docs/
   ```
 
