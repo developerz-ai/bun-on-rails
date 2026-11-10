@@ -117,8 +117,8 @@ describe("the rest of the guide's claims", () => {
     expect(r.json.post.title).toBe("FromBody");
   });
 
-  test("matching is segment by segment: a trailing slash or a route left out by `only` does not match", async () => {
-    expect((await call("GET", "/posts/1/")).status).toBe(404);
+  test("matching is segment by segment: a trailing slash matches, a route left out by `only` does not", async () => {
+    expect((await call("GET", "/posts/1/")).status).toBe(200);
     expect((await call("DELETE", "/posts/1", { headers: token })).status).toBe(
       404,
     );

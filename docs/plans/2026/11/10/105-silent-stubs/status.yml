@@ -2,8 +2,8 @@ plan: 105-silent-stubs
 title: No silent stubs; test support that works
 status: in-progress
 owner: unassigned
-percent: 64
-current_focus: S11 (boot fails when an app file fails to import)
+percent: 73
+current_focus: S10 (one dispatch path), part 1: Router#match
 slices:
   - { id: S1, status: done }
   - { id: S2, status: done }
@@ -14,8 +14,8 @@ slices:
   - { id: S7, status: todo }
   - { id: S8, status: done }
   - { id: S9, status: done }
-  - { id: S10, status: todo }
-  - { id: S11, status: in-progress }
+  - { id: S10, status: in-progress }
+  - { id: S11, status: done }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
   census:
@@ -28,4 +28,5 @@ evidence:
     - "#72 merged as 6269b38 (S5)"
     - "#73 merged as d38dede (S9)"
     - "#74 merged as 6ce242a (S8)"
+    - "#75 merged as f7b8444 (S11)"
 last_updated: 2026-11-10
