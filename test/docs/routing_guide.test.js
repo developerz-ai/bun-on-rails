@@ -11,88 +11,26 @@
  */
 
 import { test, expect, describe, beforeAll, afterAll } from "bun:test";
-import { spawnSync } from "child_process";
-import {
-  mkdirSync,
-  mkdtempSync,
-  readFileSync,
-  rmSync,
-  symlinkSync,
-  writeFileSync,
-} from "fs";
-import { tmpdir } from "os";
-import { dirname, join } from "path";
-import { fileURLToPath } from "url";
 import { Application } from "../../src/application.js";
 import { Router } from "../../src/routing/router.js";
+import { bootGuideApp } from "./support/guide_app.js";
 
-const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
-const guidePath = join(repoRoot, "docs", "eng", "routing", "overview.md");
-const pkg = JSON.parse(readFileSync(join(repoRoot, "package.json"), "utf8"));
-
-const guide = readFileSync(guidePath, "utf8");
-const files = [...guide.matchAll(/^```js \[([^\]]+)\]\n([\s\S]*?)^```$/gm)].map(
-  ([, path, code]) => ({ path, code }),
-);
-
-const work = mkdtempSync(join(tmpdir(), "routing-guide-"));
-const app = join(work, "guide");
-let application;
-let base;
+let guide;
+const call = (...args) => guide.call(...args);
 
 beforeAll(async () => {
-  const made = spawnSync(
-    process.execPath,
-    [
-      join(repoRoot, "src", "cli", "index.js"),
-      "new",
-      "guide",
-      "--skip-install",
-    ],
-    {
-      cwd: work,
-      encoding: "utf8",
-    },
-  );
-  if (made.status !== 0) throw new Error(`brails new failed: ${made.stderr}`);
-  for (const { path, code } of files) {
-    mkdirSync(dirname(join(app, path)), { recursive: true });
-    writeFileSync(join(app, path), code);
-  }
-  mkdirSync(join(app, "node_modules"), { recursive: true });
-  symlinkSync(repoRoot, join(app, "node_modules", pkg.name), "dir");
-
-  application = new Application({ root: app });
-  await application.initialize();
-  await application.start({ port: 0, hostname: "127.0.0.1" });
-  base = `http://127.0.0.1:${application.server.port}`;
+  guide = await bootGuideApp("docs/eng/routing/overview.md");
 });
 
 afterAll(async () => {
-  await application?.stop();
-  rmSync(work, { recursive: true, force: true });
+  await guide?.close();
 });
-
-async function call(method, path, { headers = {}, body } = {}) {
-  const res = await fetch(base + path, {
-    method,
-    headers,
-    body,
-    redirect: "manual",
-  });
-  const text = await res.text();
-  return {
-    status: res.status,
-    location: res.headers.get("location"),
-    json: text ? JSON.parse(text) : null,
-  };
-}
 
 const token = { authorization: "Bearer secret" };
 
 describe("the guide's code", () => {
   test("has the files the guide shows", () => {
-    expect(files.map((f) => f.path).sort()).toEqual(
+    expect([...guide.files].sort()).toEqual(
       [
         "app/controllers/admin/users_controller.js",
         "app/controllers/posts_controller.js",
@@ -191,7 +129,7 @@ describe("the rest of the guide's claims", () => {
 
   test("CSRF is on by default and nothing issues a token: every write gets 403", async () => {
     const strict = new Application({
-      root: app,
+      root: guide.app,
       config: { security: { csrf: true } },
     });
     await strict.initialize();

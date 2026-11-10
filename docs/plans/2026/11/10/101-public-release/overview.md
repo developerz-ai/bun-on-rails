@@ -113,9 +113,17 @@ file-set and one PR.
    ever sets `session.csrfToken`. So every `POST`/`PUT`/`PATCH`/`DELETE` answers `403`
    `{"error":"CSRF token mismatch"}` unless the app sets `security.csrf: false`.
    `test/docs/routing_guide.test.js` pins the current behaviour; T11 fixes it.
-9. **Native dependencies are fine.** `bcrypt` and `sharp` install and load in
-   `oven/bun:1.4.4` from the tarball. Not a risk.
-10. **On this box**, user `din` is not in the `docker` group, so the QA script ran under
+9. **The database is not connected at app boot, and initializer errors are swallowed (found
+   while writing T5).**
+   - `Application._initializeDatabase` only stores the database config, and `getConnection()`
+     returns `null` until app code sets a connection, so a generated app's models cannot query
+     yet. The getting-started pages say so; this is outside v0.1.0's bar.
+   - In `_runInitializers`, the outer `try` catches an initializer's rethrown error and logs it
+     at debug level as "No initializers directory found", so a failing initializer does not
+     stop boot. Noted for a follow-up; not a release-bar item.
+10. **Native dependencies are fine.** `bcrypt` and `sharp` install and load in
+    `oven/bun:1.4.4` from the tarball. Not a risk.
+11. **On this box**, user `din` is not in the `docker` group, so the QA script ran under
     `sudo` with `GH_CONFIG_DIR` passed through.
 
 ---
