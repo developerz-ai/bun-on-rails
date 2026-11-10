@@ -35,7 +35,7 @@ Commands:
   db:schema:load         Load db/schema.js into an empty database
   db:seed                Run db/seeds.js
   routes [filter]        List the app's routes
-  generate, g            Generate a migration, model or controller
+  generate, g            Generate a migration, model, controller or scaffold
   test, t [args]         Run the tests with bun test (arguments pass through)
   help                   Show this help
 
@@ -89,18 +89,22 @@ db:create and db:drop run on the server's postgres maintenance database.
 `,
 
   generate: `
-Usage: brails generate <migration|model|controller> <Name> [args]   (alias: brails g)
+Usage: brails generate <migration|model|controller|scaffold> <Name> [args]   (alias: brails g)
 
   brails g migration CreateTags name:string     db/migrations/<version>_create_tags.js
   brails g migration AddSlugToPosts             an empty up/down to fill in
   brails g model Post title:string user:references
                                                 app/models/post.js and its create_posts migration
   brails g controller Posts index show          app/controllers/posts_controller.js
+  brails g scaffold Post title:string body:text the model and migration, a JSON controller
+                                                with the five resource actions, a request
+                                                test, and router.resources('posts')
 
 Field types: string, text, integer, bigint, smallint, float, double, decimal, numeric,
 boolean, date, datetime, time, timestamp, json, jsonb, uuid, binary, and references.
-Existing files are never overwritten. scaffold, job, mailer, channel, component, auth
-and admin are not implemented yet.
+Existing files are never overwritten (a scaffold checks every file first, so a
+conflict writes nothing). job, mailer, channel, component, auth and admin are not
+implemented yet.
 `,
 
   test: `

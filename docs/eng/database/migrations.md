@@ -132,7 +132,15 @@ other name writes an empty `up` / `down` to fill in. `g model` writes `app/model
 `belongsTo` for each `references` field) and its `create_<table>` migration. Field types are the
 column methods above, plus `references`. Existing files are never overwritten, and migrations
 generated in the same second get distinct versions. `brails g controller Posts index show` writes
-`app/controllers/posts_controller.js`.
+`app/controllers/posts_controller.js`. A generated model calls `register()`.
+
+`brails g scaffold Post title:string body:text user:references` writes the model and its
+migration, a JSON controller with `index`, `show`, `create`, `update` and `destroy` (it accepts the
+generated fields, through `StrongParams`, and nothing else), a request test in
+`test/controllers/posts_controller.test.js`, and adds `router.resources('posts')` to
+`config/routes.js`. It checks every file first, so a conflict writes nothing. The test runs on the
+database `config/database.js` names for the test environment; run `brails db:migrate`, or let the
+test's `setupDatabase()` migrate it.
 
 ## Running migrations
 

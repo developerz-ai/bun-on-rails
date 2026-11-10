@@ -47,7 +47,7 @@ views.
 
 ## Not implemented yet
 
-- **Generators beyond migration, model and controller.** `brails generate scaffold`, `job`, `mailer`, `channel` and `auth` are not implemented yet.
+- **Generators beyond migration, model, controller and scaffold.** `brails generate job`, `mailer`, `channel` and `auth` are not implemented yet.
 - **A console.** `brails console` is not implemented yet.
 - **HTML views and React integration.** `render` returns JSON, and the React helpers throw
   `NotImplementedError`.
