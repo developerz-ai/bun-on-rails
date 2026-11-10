@@ -107,10 +107,16 @@ file-set and one PR.
    - Nothing checks that the tag matches `package.json` `version`.
    - The workflow uses Node 20 / npm 10 (`:35-39`), which is too old for npm trusted
      publishing.
-8. **Native dependencies are fine.** `bcrypt` and `sharp` install and load in
+8. **Every write is refused by default (found while writing T8).** CSRF protection is on
+   (`src/application.js` `_setupMiddleware`, `security.csrf` defaulting to `true`). It
+   compares the request's `X-CSRF-Token` with `session.csrfToken`, but nothing in `src/`
+   ever sets `session.csrfToken`. So every `POST`/`PUT`/`PATCH`/`DELETE` answers `403`
+   `{"error":"CSRF token mismatch"}` unless the app sets `security.csrf: false`.
+   `test/docs/routing_guide.test.js` pins the current behaviour; T11 fixes it.
+9. **Native dependencies are fine.** `bcrypt` and `sharp` install and load in
    `oven/bun:1.4.4` from the tarball. Not a risk.
-9. **On this box**, user `din` is not in the `docker` group, so the QA script ran under
-   `sudo` with `GH_CONFIG_DIR` passed through.
+10. **On this box**, user `din` is not in the `docker` group, so the QA script ran under
+    `sudo` with `GH_CONFIG_DIR` passed through.
 
 ---
 
@@ -144,7 +150,7 @@ CLAUDE.md rule 5 ("when this file and the code disagree, this file is the bug") 
 any task that changes behaviour updates its CLAUDE.md row in the same PR. Every PR goes
 through `bin/check`.
 
-Suggested order (one PR in flight at a time): **T10, T1, T2, T3, T8, T5 ∥ T6, T4, T7, T9**, then tag.
+Suggested order (one PR in flight at a time): **T10, T1, T2, T3, T8, T5 ∥ T6, T4, T7, T11, T9**, then tag.
 
 ### T1 — Package manifest: valid name, `files` whitelist, homepage
 
@@ -256,7 +262,7 @@ Suggested order (one PR in flight at a time): **T10, T1, T2, T3, T8, T5 ∥ T6, 
 ### T8 — Routing & Controllers guide (only if D4 says write)
 
 - **Depends on:** D4.
-- **Files:** new `docs/eng/routing/overview.md`.
+- **Files:** new `docs/eng/routing/overview.md`, new `test/docs/routing_guide.test.js`. The test writes every code block titled with a path (` ```js [config/routes.js] `) over a fresh `brails new` app, boots it, and checks the responses the guide lists.
 - **Steps:**
   1. Document `root`, `get`/`post`/…, `resources` (with `only`/`except` and nesting) and `namespace`, from `src/routing/router.js`.
   2. Document the controller class, context (`this.params`, `this.request`, `this.session`, `this.render`) and `beforeAction` filters, from `src/controller/base.js` and `src/controller/middleware.js:299`.
@@ -266,6 +272,21 @@ Suggested order (one PR in flight at a time): **T10, T1, T2, T3, T8, T5 ∥ T6, 
   test -s docs/eng/routing/overview.md \
     && docker run --rm -v "$PWD":/i:ro -w /i lycheeverse/lychee:0.24.2 --offline --no-progress --root-dir /i docs/eng/routing/
   ```
+
+### T11 — Issue CSRF tokens, so writes work with CSRF on
+
+- **Depends on:** T8 (its guide and test describe the current behaviour and must change with it).
+- **Files:**
+  - `src/controller/middleware.js`: the session and csrf middleware.
+  - `src/controller/base.js`: expose the token to actions.
+  - `test/controller/`.
+  - `docs/eng/routing/overview.md` and `test/docs/routing_guide.test.js`: the CSRF section and its test.
+- **Steps:**
+  1. The session middleware gives a session a random `csrfToken` when it has none.
+  2. Controllers read it as `this.csrfToken`, so an action can hand it to the page or client.
+  3. The csrf middleware stays on by default and is unchanged otherwise.
+  4. Update the guide: describe the token flow, and keep `security.csrf: false` documented for header-authenticated APIs.
+- **Acceptance:** a test that GETs an action returning `this.csrfToken`, then POSTs with the session cookie and `X-CSRF-Token`, gets past the check (and a POST without it still gets `403`): `bun test test/controller/ test/docs/routing_guide.test.js && bin/check`.
 
 ### T9 — release.yml: correct first release, gated on the QA script
 
