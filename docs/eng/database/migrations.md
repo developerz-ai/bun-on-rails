@@ -120,6 +120,20 @@ Each column method returns a builder for these modifiers, chained as in the exam
 `t.references("author", { table: "users" })`. Its other options are `column`, `index: false` and `polymorphic: true`, which adds a `<name>_type` column
 instead of the foreign key.
 
+## Generating migrations and models
+
+```bash
+brails g migration CreateTags name:string count:integer
+brails g model Post title:string body:text user:references
+```
+
+`g migration Create<Table>` writes a `createTable` migration with the fields and timestamps; any
+other name writes an empty `up` / `down` to fill in. `g model` writes `app/models/<name>.js` (with
+`belongsTo` for each `references` field) and its `create_<table>` migration. Field types are the
+column methods above, plus `references`. Existing files are never overwritten, and migrations
+generated in the same second get distinct versions. `brails g controller Posts index show` writes
+`app/controllers/posts_controller.js`.
+
 ## Running migrations
 
 ```bash
@@ -197,6 +211,5 @@ throws and names the tables.
 
 ## Not implemented yet
 
-- **`brails generate migration`** is not implemented yet: write the file by hand.
 - **Automatic schema dump from `MigrationRunner`.** `runner.migrate()` in your own script does not
   update `db/schema.js`; `brails db:migrate` does.

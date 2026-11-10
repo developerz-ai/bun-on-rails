@@ -47,11 +47,11 @@ const IMPLEMENTED = new Set([
   "db:reset",
   "db:setup",
   "routes",
+  "generate",
+  "g",
 ]);
 
 const UNIMPLEMENTED_INVOCATIONS = [
-  ["generate", "model", "User"],
-  ["g", "scaffold", "Post", "title:string"],
   ["console"],
   ["c"],
   ["test"],
@@ -94,7 +94,7 @@ describe("help", () => {
     const [available, rest] = out.split(/^Planned\b.*$/m);
     const planned = rest?.split(/^Options:/m)[0];
     expect(planned).toBeDefined();
-    for (const name of ["generate", "console", "test", "credentials"]) {
+    for (const name of ["console", "test", "credentials"]) {
       expect(planned).toMatch(new RegExp(`^  .*\\b${name}\\b`, "m"));
       expect(available).not.toMatch(new RegExp(`^  .*\\b${name}\\b`, "m"));
     }
@@ -116,7 +116,7 @@ describe("help", () => {
   });
 
   test("brails help <unimplemented> says it is not implemented yet", () => {
-    for (const name of ["generate", "credentials", "console"]) {
+    for (const name of ["test", "credentials", "console"]) {
       expect(brails("help", name).stdout).toContain(
         `brails ${name} is not implemented yet`,
       );
