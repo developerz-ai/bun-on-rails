@@ -343,12 +343,9 @@ export class Router {
         // Wildcard - match anything (glob pattern)
         // Store as splat param
         params.splat = pathPart
-      } else if (patternPart.toLowerCase() !== pathPart.toLowerCase()) {
-        // Static segment mismatch (case-insensitive for flexibility)
-        // Actually, let's be case-sensitive for paths
-        if (patternPart !== pathPart) {
-          return null
-        }
+      } else if (patternPart !== pathPart) {
+        // Static segments are case-sensitive: /Posts is not /posts
+        return null
       }
     }
 

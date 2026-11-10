@@ -743,8 +743,10 @@ export class Application {
     const url = new URL(request.url)
 
     try {
-      // Match route
-      const match = this._matchRoute(request.method, url.pathname)
+      // Match route: Router#match is the one matcher (decoded params, a
+      // trailing slash allowed, `*` segments). Pinned by
+      // test/core/dispatch_matching.test.js.
+      const match = this.router.match(request.method, url.pathname)
 
       if (!match) {
         return this._notFound()
@@ -768,41 +770,6 @@ export class Application {
     }
   }
 
-  _matchRoute(method, path) {
-    for (const route of this.router.routes) {
-      if (route.method !== method) continue
-
-      const match = this._matchPath(route.path, path)
-      if (match) {
-        return { route, params: match }
-      }
-    }
-    return null
-  }
-
-  _matchPath(pattern, path) {
-    // Convert route pattern to regex
-    // e.g., /posts/:id -> /posts/([^/]+)
-    const parts = pattern.split('/')
-    const pathParts = path.split('/')
-
-    if (parts.length !== pathParts.length) return null
-
-    const params = {}
-
-    for (let i = 0; i < parts.length; i++) {
-      const part = parts[i]
-      const pathPart = pathParts[i]
-
-      if (part.startsWith(':')) {
-        params[part.slice(1)] = pathPart
-      } else if (part !== pathPart) {
-        return null
-      }
-    }
-
-    return params
-  }
 
   async _buildContext(request, match, server) {
     const url = new URL(request.url)

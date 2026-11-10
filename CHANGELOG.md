@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Dispatch matches requests with `Router#match`, the one matcher, instead of its own: a trailing slash matches (`/posts/7/` is `/posts/7`), and a `*` segment matches one segment as `params.splat`. `Router#match` compares static segments case-sensitively, as dispatch did (its own check was dead, so `/Posts` matched `/posts`).
 - `router.middleware(list, callback)` throws `NotImplementedError`: it ran the callback without adding the middleware, so routes meant to be guarded by it were not. `Channel#stream` throws too: it recorded the stream and subscribed to nothing. `test/support/no_silent_stubs.test.js` now fails on any function under `src/` that holds a TODO and never throws, which catches a body that computes and returns (as `assertJson` did), not only an empty one.
 - `includes()` with an association the model does not declare throws, naming the declared ones, instead of skipping it with a warning, which left the property undefined.
 - `connection.transaction(callback)` throws the callback's own error after the rollback, instead of wrapping it in `DatabaseError("Transaction failed: ...")`, which dropped its type: a `RecordNotFoundError` or a failing test assertion came back as a `DatabaseError`. A statement that fails inside the callback is a `DatabaseError` naming the query and its SQLSTATE, as outside a transaction. Pinned by `test/database/transaction_errors.test.js`.
@@ -62,6 +63,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- Route params are URL-decoded on the request path: `/tags/hello%20world` gave `params.name` `"hello%20world"`. Pinned by `test/core/dispatch_matching.test.js`.
 - A file under `app/` that fails to import fails boot, naming the file and the error. Boot logged "Failed to load" and went on, so an app with a syntax error in a controller started and answered 404 for its routes. Pinned by `test/core/boot_loading.test.js`.
 - `factory.build` / `factory.create` built the base `Model` for every factory (saving to a table named `models`), never the model the factory is for. A factory now builds the class given as `model` (a class or a registered name, `factory.define('admin', attributes, { model: 'User' })`), else the registered model named after it, and throws naming both fixes when there is none. Pinned by `test/testing/factory.test.js`.
 - Generated SQL no longer ends in `LIMIT null OFFSET null` when a query has no limit or offset: the query builder uses `null` for none, and the adapter only skipped `undefined`.

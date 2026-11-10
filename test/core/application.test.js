@@ -299,7 +299,7 @@ describe('Application', () => {
     test('matches exact paths', () => {
       app.router.get('/users', 'users#index')
 
-      const match = app._matchRoute('GET', '/users')
+      const match = app.router.match('GET', '/users')
 
       expect(match).not.toBeNull()
       expect(match.route.controller).toBe('users')
@@ -309,7 +309,7 @@ describe('Application', () => {
     test('matches paths with params', () => {
       app.router.get('/users/:id', 'users#show')
 
-      const match = app._matchRoute('GET', '/users/123')
+      const match = app.router.match('GET', '/users/123')
 
       expect(match).not.toBeNull()
       expect(match.params.id).toBe('123')
@@ -318,7 +318,7 @@ describe('Application', () => {
     test('matches paths with multiple params', () => {
       app.router.get('/users/:userId/posts/:postId', 'posts#show')
 
-      const match = app._matchRoute('GET', '/users/5/posts/10')
+      const match = app.router.match('GET', '/users/5/posts/10')
 
       expect(match).not.toBeNull()
       expect(match.params.userId).toBe('5')
@@ -328,7 +328,7 @@ describe('Application', () => {
     test('returns null for non-matching paths', () => {
       app.router.get('/users', 'users#index')
 
-      const match = app._matchRoute('GET', '/posts')
+      const match = app.router.match('GET', '/posts')
 
       expect(match).toBeNull()
     })
@@ -336,7 +336,7 @@ describe('Application', () => {
     test('returns null for non-matching methods', () => {
       app.router.get('/users', 'users#index')
 
-      const match = app._matchRoute('POST', '/users')
+      const match = app.router.match('POST', '/users')
 
       expect(match).toBeNull()
     })
@@ -392,39 +392,6 @@ describe('Application', () => {
       expect(app.middleware).toBeDefined()
       expect(typeof app.middleware.use).toBe('function')
       expect(typeof app.middleware.run).toBe('function')
-    })
-  })
-
-  describe('_matchPath', () => {
-    let app
-
-    beforeEach(() => {
-      app = new Application()
-    })
-
-    test('matches simple paths', () => {
-      const result = app._matchPath('/users', '/users')
-      expect(result).toEqual({})
-    })
-
-    test('extracts single param', () => {
-      const result = app._matchPath('/users/:id', '/users/42')
-      expect(result).toEqual({ id: '42' })
-    })
-
-    test('extracts multiple params', () => {
-      const result = app._matchPath('/users/:userId/posts/:postId', '/users/1/posts/2')
-      expect(result).toEqual({ userId: '1', postId: '2' })
-    })
-
-    test('returns null for different path lengths', () => {
-      const result = app._matchPath('/users/:id', '/users/1/extra')
-      expect(result).toBeNull()
-    })
-
-    test('returns null for non-matching segments', () => {
-      const result = app._matchPath('/users/:id', '/posts/1')
-      expect(result).toBeNull()
     })
   })
 

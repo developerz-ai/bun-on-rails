@@ -54,8 +54,10 @@ ones whose path or controller#action contains `posts`.
 How a request is matched:
 
 - Routes are tried in the order they are defined, and the first match wins.
-- A path matches segment by segment. `/posts/:id` matches `/posts/7` but not `/posts/7/` or
-  `/posts`. There are no wildcard segments.
+- A path matches segment by segment. `/posts/:id` matches `/posts/7` and `/posts/7/`, not `/posts`
+  or `/Posts/7` (static segments are case-sensitive). A param is URL-decoded: `/tags/hello%20world`
+  gives `this.params.name` `"hello world"`.
+- A `*` segment matches any one segment, as `this.params.splat`: `/files/*` matches `/files/a.txt`.
 - No match answers `404` with `{"error":"Not Found"}`. So does a route whose controller file
   or action does not exist.
 
