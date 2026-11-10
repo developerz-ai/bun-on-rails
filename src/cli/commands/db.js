@@ -1,17 +1,19 @@
 /**
- * brails db:migrate and db:rollback. They connect to the app's database (the
- * one config/database.js names, as at boot), run db/migrations, and rewrite
- * db/schema.js afterwards. Pinned by test/cli/db_commands.test.js.
+ * brails db:migrate, db:rollback, db:schema:dump, db:schema:load and db:seed.
+ * They connect to the app's database (the one config/database.js names, as at
+ * boot). migrate and rollback rewrite db/schema.js afterwards. Pinned by
+ * test/cli/db_commands.test.js.
  *
  * The other db:* commands are registered in ./index.js as not implemented.
  */
 
+import { existsSync } from 'fs'
 import { join } from 'path'
 import { createConfig, getEnvironment } from '../../config/loader.js'
-import { Connection } from '../../database/connection.js'
+import { Connection, getConnection, setConnection } from '../../database/connection.js'
 import { selectDatabaseConfig } from '../../database/config.js'
 import { MigrationRunner } from '../../database/migration.js'
-import { dumpSchema } from '../../database/schema.js'
+import { dumpSchema, loadSchema } from '../../database/schema.js'
 import { resolveAppRoot } from './dev.js'
 
 /**
@@ -78,6 +80,64 @@ export async function rollback(root, steps = 1) {
   )
 }
 
+/**
+ * Run `work` with a connection to the app's database, then disconnect.
+ */
+async function connected(root, work) {
+  const connection = await connectToAppDatabase(root)
+  try {
+    return await work(connection)
+  } finally {
+    await connection.disconnect()
+  }
+}
+
+/**
+ * Write db/schema.js from the database.
+ *
+ * @param {string} root - application root
+ * @returns {Promise<string>} the schema file's path
+ */
+export async function schemaDump(root) {
+  return connected(root, (connection) => dumpSchema(connection, root))
+}
+
+/**
+ * Load db/schema.js into the (empty) database, and mark every migration up to
+ * the schema's version as run.
+ *
+ * @param {string} root - application root
+ */
+export async function schemaLoad(root) {
+  return connected(root, (connection) => loadSchema(connection, root))
+}
+
+/**
+ * Run db/seeds.js with the app's connection set for models. The file may do its
+ * work at the top level, or default-export a function, which is called with the
+ * connection.
+ *
+ * @param {string} root - application root
+ */
+export async function seed(root) {
+  const seedsFile = join(root, 'db', 'seeds.js')
+  if (!existsSync(seedsFile)) {
+    throw new Error(`db/seeds.js not found in ${root}`)
+  }
+  return connected(root, async (connection) => {
+    const previous = getConnection()
+    setConnection(connection)
+    try {
+      const seeds = await import(seedsFile)
+      if (typeof seeds.default === 'function') {
+        await seeds.default(connection)
+      }
+    } finally {
+      setConnection(previous)
+    }
+  })
+}
+
 export const dbMigrateCommand = {
   name: 'db:migrate',
   description: 'Run pending migrations and update db/schema.js',
@@ -100,5 +160,33 @@ export const dbRollbackCommand = {
     }
     const rolledBack = await rollback(resolveAppRoot(), steps)
     console.log(rolledBack.length > 0 ? `Done: ${rolledBack.length} rolled back; db/schema.js updated.` : 'Nothing to roll back.')
+  }
+}
+
+export const dbSchemaDumpCommand = {
+  name: 'db:schema:dump',
+  description: 'Write db/schema.js from the database',
+
+  async run() {
+    await schemaDump(resolveAppRoot())
+  }
+}
+
+export const dbSchemaLoadCommand = {
+  name: 'db:schema:load',
+  description: 'Load db/schema.js into an empty database',
+
+  async run() {
+    await schemaLoad(resolveAppRoot())
+  }
+}
+
+export const dbSeedCommand = {
+  name: 'db:seed',
+  description: 'Run db/seeds.js',
+
+  async run() {
+    await seed(resolveAppRoot())
+    console.log('Done: db/seeds.js ran.')
   }
 }

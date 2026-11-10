@@ -170,8 +170,17 @@ editing an old one.
 
 ## Dump the schema
 
-`dumpSchema(connection, appRoot)` reads the database and writes `db/schema.js` under `appRoot`.
-To dump after every run, add it to `db/migrate.js`:
+```bash
+brails db:schema:dump   # write db/schema.js from the database
+brails db:schema:load   # load db/schema.js into an empty database
+```
+
+`brails db:migrate` and `db:rollback` already rewrite `db/schema.js` after each run. `db:schema:load`
+creates every table in an empty database and marks the schema's version, and every migration file
+up to it, as run, so a later `db:migrate` only runs newer migrations.
+
+From your own code, `dumpSchema(connection, appRoot)` writes `db/schema.js` under `appRoot`, and
+`loadSchema(connection, appRoot)` loads it. To dump after a hand-run `MigrationRunner`:
 
 ```js
 import { Connection, MigrationRunner, dumpSchema } from "bun-on-rails";
@@ -180,16 +189,14 @@ import { Connection, MigrationRunner, dumpSchema } from "bun-on-rails";
 await dumpSchema(connection, process.cwd());
 ```
 
-`db/schema.js` is generated: never edit it by hand. Its header refers to a `db:schema:load` command, which is not implemented yet.
+`db/schema.js` is generated: never edit it by hand.
 
-`loadSchema(connection, appRoot)` applies a dumped schema to an empty database. The dump lists
-tables so that each comes after the tables its foreign keys reference, so they load in a working
-order. Foreign keys that form a cycle between tables cannot be dumped this way: `dumpSchema`
+The dump lists tables so that each comes after the tables its foreign keys reference, so they
+load in a working order. Foreign keys that form a cycle between tables cannot be dumped this way: `dumpSchema`
 throws and names the tables.
 
 ## Not implemented yet
 
-- **`brails db:schema:dump` and `db:schema:load`** are registered but not implemented yet: each exits 1. Use `dumpSchema` and `loadSchema` as above.
 - **`brails generate migration`** is not implemented yet: write the file by hand.
 - **Automatic schema dump from `MigrationRunner`.** `runner.migrate()` in your own script does not
   update `db/schema.js`; `brails db:migrate` does.

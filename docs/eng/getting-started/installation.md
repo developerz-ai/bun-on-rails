@@ -42,8 +42,9 @@ curl localhost:3000/health   # {"status":"ok"}
 
 The app connects to PostgreSQL at boot when `DATABASE_URL` is set (put it in `.env`), and runs
 without a database when it is not. [Database Overview](../database/overview.md) covers models
-and queries; `brails db:migrate` and `brails db:rollback` run migrations. The other database
-commands (`brails db:create` and the rest) are not implemented yet: each exits with an error, and
+and queries; `brails db:migrate`, `db:rollback`, `db:schema:dump`, `db:schema:load` and `db:seed`
+work with it. `brails db:create`, `db:drop`, `db:reset` and `db:setup` are not implemented yet: each
+exits with an error, and
 `brails help` lists every planned command.
 
 Configuration that should stay out of git goes in `.env`, which Bun loads automatically.

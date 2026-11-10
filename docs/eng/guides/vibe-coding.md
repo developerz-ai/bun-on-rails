@@ -66,7 +66,7 @@ export default class PostsController extends Controller {
 Tell your assistant, or it will write code against these:
 
 - **Generators.** `brails generate` (`g`) is not implemented yet and exits 1. Write the files by hand.
-- **Database commands other than migrate and rollback.** `brails db:migrate` and `db:rollback` work; `db:create`, `db:seed`, `db:setup`, `db:schema:load` and the rest are not implemented yet (see [Running migrations](../database/migrations.md#running-migrations)).
+- **Creating and dropping databases.** `brails db:migrate`, `db:rollback`, `db:schema:dump`, `db:schema:load` and `db:seed` work; `db:create`, `db:drop`, `db:reset` and `db:setup` are not implemented yet (see [Running migrations](../database/migrations.md#running-migrations)).
 - **`brails routes`, `brails console`, `brails credentials`** are not implemented yet either.
 - **Background jobs.** `performLater` does nothing; only `performNow` runs a job (see
   [Background Jobs](../jobs/overview.md)).
