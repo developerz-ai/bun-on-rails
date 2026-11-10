@@ -43,8 +43,7 @@ config/
 
 These are designed and partly built, but not usable yet:
 
-- the code generators (`brails generate`), `brails db:create` / `db:drop` / `db:reset` /
-  `db:setup`, `brails console` and `brails routes`;
+- the code generators (`brails generate`), `brails console` and `brails routes`;
 - test-database isolation;
 - queued jobs (`performLater`), mail delivery, S3 file storage, and the Redis cache;
 - WebSocket channels, the React hooks and forms, and HTML views;

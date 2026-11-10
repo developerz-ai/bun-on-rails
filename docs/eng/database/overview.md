@@ -6,7 +6,7 @@ chainable query builder, and migrations. It lives in `src/database/`.
 > **Status.**
 >
 > - The app connects at boot when `config/database.js` names a database (below).
-> - `brails db:migrate` and `brails db:rollback` run migrations, `db:schema:dump` / `db:schema:load` write and load `db/schema.js`, and `db:seed` runs `db/seeds.js` (see [Running migrations](./migrations.md#running-migrations)); the other `brails db:*` commands are not implemented yet and exit 1.
+> - Every `brails db:*` command works: see [Database commands](#database-commands).
 > - PostgreSQL is the only adapter (`src/database/adapters/postgres.js`).
 
 ## Connect to PostgreSQL
@@ -92,6 +92,26 @@ and `count()` are tracked. When the same query shape runs 3 times within a secon
 with a stack trace is printed, pointing at `includes()` or a single `where({ id: ids })`. Call
 `disableN1Detection()` (exported from `bun-on-rails`) to turn it off.
 
+## Database commands
+
+Each uses the database `config/database.js` names (`DATABASE_URL` in a generated app):
+
+| Command                         | Does                                                                        |
+| ------------------------------- | --------------------------------------------------------------------------- |
+| `brails db:create`              | creates the database (an existing one is reported, not an error)            |
+| `brails db:drop`                | drops it; refuses in production without `--force`                           |
+| `brails db:migrate`             | runs pending migrations, then rewrites `db/schema.js`                       |
+| `brails db:rollback [--step=N]` | rolls back the latest migrations, then rewrites `db/schema.js`              |
+| `brails db:schema:dump`         | writes `db/schema.js` from the database                                     |
+| `brails db:schema:load`         | loads `db/schema.js` into an empty database and marks its migrations as run |
+| `brails db:seed`                | runs `db/seeds.js` (below)                                                  |
+| `brails db:setup`               | `db:create`, `db:schema:load`, then `db:seed` when `db/seeds.js` exists     |
+| `brails db:reset`               | `db:drop`, then `db:setup` (`--force` in production)                        |
+
+`db:create` and `db:drop` run on the server's `postgres` maintenance database, so the database user
+needs the `CREATEDB` privilege. A query error's `code` is the PostgreSQL SQLSTATE (for example
+`23505` for a unique violation), whichever driver ran it.
+
 ## Seed data
 
 `brails db:seed` runs `db/seeds.js` with the app's database set for models:
@@ -111,8 +131,6 @@ connection.
 
 ## Not implemented yet
 
-- **The other `brails db:*` commands.** `db:create`, `db:drop`, `db:reset` and `db:setup` are
-  registered but not implemented yet: each exits 1.
 - **Automatic schema dump from `MigrationRunner`.** `brails db:migrate` and `db:rollback` rewrite
   `db/schema.js`; a `MigrationRunner` you call from your own script does not, so call
   `dumpSchema(connection, appRoot)` after it.

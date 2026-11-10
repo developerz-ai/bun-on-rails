@@ -45,6 +45,17 @@ export class DatabaseError extends Error {
 }
 
 /**
+ * The SQLSTATE of a driver error: postgres.js reports it as `code`, Bun.SQL as
+ * `errno` (its `code` is a generic ERR_POSTGRES_SERVER_ERROR). DatabaseError#code
+ * is always the SQLSTATE (e.g. '23505' for a unique violation).
+ * @param {Error & { errno?: string, code?: string }} error
+ * @returns {string|null}
+ */
+function sqlState(error) {
+  return error?.errno ?? error?.code ?? null
+}
+
+/**
  * Connection not established error
  */
 export class ConnectionNotEstablishedError extends DatabaseError {
@@ -235,7 +246,7 @@ export class Connection {
     } catch (error) {
       throw new DatabaseError(
         `Failed to connect to database: ${error.message}`,
-        { code: error.code }
+        { code: sqlState(error) }
       )
     }
   }
@@ -352,7 +363,7 @@ export class Connection {
     } catch (error) {
       throw new DatabaseError(
         `Query failed: ${error.message}`,
-        { code: error.code, query: sql, params }
+        { code: sqlState(error), query: sql, params }
       )
     }
   }
@@ -420,7 +431,7 @@ export class Connection {
       }
       throw new DatabaseError(
         `Transaction failed: ${error.message}`,
-        { code: error.code }
+        { code: sqlState(error) }
       )
     }
   }

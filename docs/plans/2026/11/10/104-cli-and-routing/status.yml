@@ -2,12 +2,12 @@ plan: 104-cli-and-routing
 title: The planned CLI commands and routing gaps
 status: in-progress
 owner: unassigned
-percent: 14
-current_focus: C2 (db:schema:dump, db:schema:load, db:seed)
+percent: 29
+current_focus: C3 (db:create, db:drop, db:setup, db:reset)
 slices:
   - { id: C1, status: done }
-  - { id: C2, status: in-progress }
-  - { id: C3, status: todo }
+  - { id: C2, status: done }
+  - { id: C3, status: in-progress }
   - { id: C4, status: todo }
   - { id: C5, status: todo }
   - { id: R1, status: todo }
@@ -16,4 +16,5 @@ milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
   prs:
     - "#61 merged as 1d8e0fa (C1)"
+    - "#62 merged as 2edf963 (C2)"
 last_updated: 2026-11-10

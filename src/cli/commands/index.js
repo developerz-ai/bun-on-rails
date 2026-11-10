@@ -5,13 +5,16 @@
 import { newCommand } from './new.js'
 import { generateCommand } from './generate.js'
 import {
+  dbCreateCommand,
+  dbDropCommand,
+  dbResetCommand,
+  dbSetupCommand,
   dbMigrateCommand,
   dbRollbackCommand,
   dbSchemaDumpCommand,
   dbSchemaLoadCommand,
   dbSeedCommand
 } from './db.js'
-import { notImplemented } from './not_implemented.js'
 import { devCommand } from './dev.js'
 import { startCommand } from './start.js'
 import { consoleCommand } from './console.js'
@@ -29,11 +32,11 @@ export const commands = {
   // `brails db migrate` is `brails db:migrate`; see dbCommand below
   'db:migrate': dbMigrateCommand,
   'db:rollback': dbRollbackCommand,
-  'db:create': notImplemented('db:create', 'Create the database'),
-  'db:drop': notImplemented('db:drop', 'Drop the database'),
-  'db:reset': notImplemented('db:reset', 'Drop, create and migrate the database'),
+  'db:create': dbCreateCommand,
+  'db:drop': dbDropCommand,
+  'db:reset': dbResetCommand,
   'db:seed': dbSeedCommand,
-  'db:setup': notImplemented('db:setup', 'Create the database, load the schema and seed'),
+  'db:setup': dbSetupCommand,
   'db:schema:load': dbSchemaLoadCommand,
   'db:schema:dump': dbSchemaDumpCommand,
 

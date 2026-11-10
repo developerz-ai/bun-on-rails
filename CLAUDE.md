@@ -40,7 +40,7 @@ Parts of the tree are stubs. Read the module before you rely on it.
 
 | Module                         | State                                                                                                                                                                               |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/cli/commands/`            | `generate`, `db:create` / `db:drop` / `db:reset` / `db:setup`, `console`, `routes`, `test`, `credentials` exit 1 as not implemented — see Commands                                  |
+| `src/cli/commands/`            | `generate`, `console`, `routes`, `test`, `credentials` exit 1 as not implemented — see Commands                                                                                     |
 | `src/jobs/job.js`              | `performNow` runs a job; `performLater` / `performAt` / `performIn` are TODO stubs (`src/jobs/job.js:29`)                                                                           |
 | `src/mail/mailer.js`           | `deliver()` and `deliverLater()` are TODO stubs (`src/mail/mailer.js:36`)                                                                                                           |
 | `src/storage/storage.js`       | upload, download and delete are TODO stubs (`src/storage/storage.js:17`)                                                                                                            |
@@ -86,20 +86,20 @@ Parts of the tree are stubs. Read the module before you rely on it.
 | `brails start`                                                                 | production server                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `brails db:migrate` / `brails db:rollback [--step=N]` (also `brails db <cmd>`) | run `db/migrations` against the database `config/database.js` names (`src/database/config.js`), then rewrite `db/schema.js` (`src/cli/commands/db.js`, `test/cli/db_commands.test.js`)                                                                                                                                                                                                                                           |
 | `brails db:schema:dump` / `db:schema:load` / `db:seed`                         | dump or load `db/schema.js` (a load marks every migration up to its version as run), or run `db/seeds.js` with the app's connection set for models (`src/cli/commands/db.js`)                                                                                                                                                                                                                                                    |
+| `brails db:create` / `db:drop [--force]` / `db:setup` / `db:reset [--force]`   | create or drop the database from the server's `postgres` maintenance database (drop and reset refuse in production without `--force`); setup = create + schema:load + seed; reset = drop + setup (`test/cli/db_create_drop.test.js`)                                                                                                                                                                                             |
 | `--help`                                                                       | command list and per-command help (`src/cli/help.js`)                                                                                                                                                                                                                                                                                                                                                                            |
 
 Registered but not implemented. Each is built by `notImplemented()` (`src/cli/commands/not_implemented.js`) and exits 1 with `brails <cmd> is not implemented yet`, printing nothing to stdout. `brails help` lists them under Planned. Pinned by `test/cli/not_implemented.test.js`:
 
-| Command                                                  | Where                                                            |
-| -------------------------------------------------------- | ---------------------------------------------------------------- |
-| `brails generate` (`g`)                                  | `src/cli/commands/generate.js`                                   |
-| `brails db:create` / `db:drop` / `db:reset` / `db:setup` | `src/cli/commands/index.js` (registered with `notImplemented()`) |
-| `brails console` (`c`)                                   | `src/cli/commands/console.js`                                    |
-| `brails routes`                                          | `src/cli/commands/routes.js`                                     |
-| `brails test` (`t`)                                      | `src/cli/commands/test.js`. The error says to use `bun test`     |
-| `brails credentials` (`credentials:edit`)                | `src/cli/commands/credentials.js`                                |
+| Command                                   | Where                                                        |
+| ----------------------------------------- | ------------------------------------------------------------ |
+| `brails generate` (`g`)                   | `src/cli/commands/generate.js`                               |
+| `brails console` (`c`)                    | `src/cli/commands/console.js`                                |
+| `brails routes`                           | `src/cli/commands/routes.js`                                 |
+| `brails test` (`t`)                       | `src/cli/commands/test.js`. The error says to use `bun test` |
+| `brails credentials` (`credentials:edit`) | `src/cli/commands/credentials.js`                            |
 
-The CLI has no top-level `setup` verb — the registry (`src/cli/commands/index.js:15-49`) lists `db:setup`, and it exits 1 as not implemented.
+The CLI has no top-level `setup` verb: `brails db:setup` creates, loads and seeds the database.
 
 ## Structure
 

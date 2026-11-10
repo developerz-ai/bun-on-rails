@@ -25,6 +25,10 @@ Commands:
   new <app-name>         Create a new BunOnRails application
   dev, server, s         Start development server
   start                  Start production server
+  db:create              Create the database
+  db:drop                Drop the database (--force in production)
+  db:setup               Create the database, load db/schema.js, run db/seeds.js
+  db:reset               Drop the database and set it up again
   db:migrate             Run pending migrations, then update db/schema.js
   db:rollback            Roll back the latest migration (--step=N for more)
   db:schema:dump         Write db/schema.js from the database
@@ -34,7 +38,6 @@ Commands:
 
 Planned (registered, not implemented yet; each exits with an error):
   generate, g            Generate code (model, controller, scaffold, etc.)
-  db:create, db:drop, db:reset, db:setup
   console, c             Start interactive console
   routes                 List all routes
   test, t                Run tests (use \`bun test\` for now)
@@ -71,14 +74,44 @@ const commandHelp = {
   db: `
 Usage: brails db:<command>   (or: brails db <command>)
 
+  db:create              Create the database
+  db:drop [--force]      Drop the database (--force is required in production)
+  db:setup               db:create, then db:schema:load, then db:seed (when db/seeds.js exists)
+  db:reset [--force]     db:drop, then db:setup
   db:migrate             Run pending migrations in db/migrations, then update db/schema.js
   db:rollback [--step=N] Roll back the latest N migrations (default 1), then update db/schema.js
   db:schema:dump         Write db/schema.js from the database
   db:schema:load         Load db/schema.js into an empty database; marks its migrations as run
   db:seed                Run db/seeds.js
 
-Both use the database config/database.js names (DATABASE_URL in a generated app).
-The other db:* commands are planned and exit with an error.
+Each uses the database config/database.js names (DATABASE_URL in a generated app).
+db:create and db:drop run on the server's postgres maintenance database.
+`,
+
+  'db:create': `
+Usage: brails db:create
+
+Create the database config/database.js names, from the server's postgres
+maintenance database. An existing database is reported, not an error.
+`,
+
+  'db:drop': `
+Usage: brails db:drop [--force]
+
+Drop the database config/database.js names. Refuses in production unless
+--force is given.
+`,
+
+  'db:setup': `
+Usage: brails db:setup
+
+db:create, then db:schema:load, then db:seed when db/seeds.js exists.
+`,
+
+  'db:reset': `
+Usage: brails db:reset [--force]
+
+db:drop, then db:setup. Refuses in production unless --force is given.
 `,
 
   'db:migrate': `
