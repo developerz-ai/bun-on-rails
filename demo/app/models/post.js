@@ -49,38 +49,35 @@ export default class Post extends Model {
   static scopes = {
     published: (query) => query.where({ published: true }),
     draft: (query) => query.where({ published: false }),
-    recent: (query) => query.order({ createdAt: 'desc' })
+    recent: (query) => query.order({ created_at: 'desc' })
   }
 
   // Callbacks
-  async beforeValidate() {
-    if (!this.slug && this.title) {
-      this.slug = this.generateSlug()
+  async beforeValidation() {
+    if (!this.get('slug') && this.get('title')) {
+      this.set('slug', this.generateSlug())
     }
-  }
-
-  async afterSave() {
-    // Invalidate cache
-    // await cache.delete(`post:${this.id}`)
   }
 
   // Instance methods
   generateSlug() {
-    return this.title
+    return this.get('title')
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, '-')
       .replace(/^-|-$/g, '')
   }
 
   async publish() {
-    this.published = true
-    this.publishedAt = new Date()
+    this.set('published', true)
+    this.set('published_at', new Date())
     return await this.save()
   }
 
   async unpublish() {
-    this.published = false
-    this.publishedAt = null
+    this.set('published', false)
+    this.set('published_at', null)
     return await this.save()
   }
 }
+
+Post.register()

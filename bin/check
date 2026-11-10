@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # one-command gate — the same gate commands CI runs as separate steps in
-# .github/workflows/ci.yml (lint, test, build, docs build, demo lint).
+# .github/workflows/ci.yml (lint, test, build, docs build, demo lint, demo tests).
 # One command; adjust as the repo grows.
 set -euo pipefail
 cd "$(dirname "$0")/.."
-bun lint && bun test && bun run build && bun run docs:build && (cd demo && bun lint)
+bun lint && bun test && bun run build && bun run docs:build && (cd demo && bun lint) && (cd demo && bun run test)

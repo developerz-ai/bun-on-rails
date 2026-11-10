@@ -92,21 +92,12 @@ jobs:
         run: bun lint
         working-directory: demo
 
-      # Demo tests require database implementations (currently stubs)
-      # TODO: Enable when framework is complete
-      # - name: Run demo tests
-      #   run: bun test
-      #   working-directory: demo
-      #   env:
-      #     DATABASE_URL: postgres://postgres:postgres@localhost:5432/bun_on_rails_test
-      #     REDIS_URL: redis://localhost:6379
-      #
-      # - name: Run demo integration tests
-      #   run: bun test:integration
-      #   working-directory: demo
-      #   env:
-      #     DATABASE_URL: postgres://postgres:postgres@localhost:5432/bun_on_rails_test
-      #     REDIS_URL: redis://localhost:6379
+      # The tests create a database of their own on this server, and drop it
+      - name: Run demo tests (PostgreSQL)
+        run: bun run test
+        working-directory: demo
+        env:
+          TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
 
   build:
     name: Build

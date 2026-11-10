@@ -36,6 +36,8 @@ export default class Comment extends Model {
   }
 
   static scopes = {
-    recent: (query) => query.order({ createdAt: 'desc' })
+    recent: (query) => query.order({ created_at: 'desc' })
   }
 }
+
+Comment.register()
