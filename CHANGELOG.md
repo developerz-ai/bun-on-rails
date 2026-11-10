@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- Routing & Controllers guide (`docs/eng/routing/overview.md`). Every example in it is a complete file, which `test/docs/routing_guide.test.js` writes over a fresh `brails new` app, boots and checks. It also documents what is not implemented yet: nested resources, `scope`, filter options, and CSRF token issuance.
 - Initial framework implementation
 - ORM with Active Record-style API
 - Migration system with auto-schema sync
