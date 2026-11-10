@@ -39,6 +39,9 @@ const IMPLEMENTED = new Set([
   "db",
   "db:migrate",
   "db:rollback",
+  "db:schema:dump",
+  "db:schema:load",
+  "db:seed",
 ]);
 
 const UNIMPLEMENTED_INVOCATIONS = [
@@ -47,10 +50,7 @@ const UNIMPLEMENTED_INVOCATIONS = [
   ["db:create"],
   ["db:drop"],
   ["db:reset"],
-  ["db:seed"],
   ["db:setup"],
-  ["db:schema:load"],
-  ["db:schema:dump"],
   ["db", "create"],
   ["console"],
   ["c"],
@@ -98,7 +98,7 @@ describe("help", () => {
     for (const name of [
       "generate",
       "db:create",
-      "db:schema:load",
+      "db:setup",
       "console",
       "routes",
       "test",
@@ -107,7 +107,13 @@ describe("help", () => {
       expect(planned).toMatch(new RegExp(`^  .*\\b${name}\\b`, "m"));
       expect(available).not.toMatch(new RegExp(`^  .*\\b${name}\\b`, "m"));
     }
-    for (const name of ["db:migrate", "db:rollback"]) {
+    for (const name of [
+      "db:migrate",
+      "db:rollback",
+      "db:schema:dump",
+      "db:schema:load",
+      "db:seed",
+    ]) {
       expect(available).toMatch(new RegExp(`^  ${name}\\b`, "m"));
       expect(planned).not.toMatch(new RegExp(`\\b${name}\\b`));
     }

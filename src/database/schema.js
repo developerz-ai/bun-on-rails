@@ -721,6 +721,22 @@ export class SchemaGenerator {
  * const loader = new SchemaLoader(connection)
  * await loader.load('./db/schema.js')
  */
+/**
+ * Versions of the migration files in `dir` at or before `version`.
+ *
+ * @param {string} dir
+ * @param {string} version
+ * @returns {string[]}
+ */
+function migrationVersionsUpTo(dir, version) {
+  if (!fs.existsSync(dir)) return []
+  return fs
+    .readdirSync(dir)
+    .map((file) => file.match(/^(\d+)_.*\.js$/)?.[1])
+    .filter((v) => v && BigInt(v) <= BigInt(version))
+    .sort()
+}
+
 export class SchemaLoader {
   /**
    * Create a new SchemaLoader
@@ -750,9 +766,14 @@ export class SchemaLoader {
     // Run the schema
     await schemaModule.up(migration)
 
-    // Record the schema version in schema_migrations
+    // Mark the schema version, and every migration file up to it, as run, so a
+    // later migrate does not re-run what the schema already contains.
     if (schemaModule.schemaVersion && schemaModule.schemaVersion !== '0') {
       await this.recordVersion(schemaModule.schemaVersion)
+      const migrationsDir = path.join(path.dirname(filePath), 'migrations')
+      for (const version of migrationVersionsUpTo(migrationsDir, schemaModule.schemaVersion)) {
+        await this.recordVersion(version)
+      }
     }
   }
 

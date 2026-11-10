@@ -6,7 +6,7 @@ chainable query builder, and migrations. It lives in `src/database/`.
 > **Status.**
 >
 > - The app connects at boot when `config/database.js` names a database (below).
-> - `brails db:migrate` and `brails db:rollback` run migrations (see [Running migrations](./migrations.md#running-migrations)); the other `brails db:*` commands are not implemented yet and exit 1.
+> - `brails db:migrate` and `brails db:rollback` run migrations, `db:schema:dump` / `db:schema:load` write and load `db/schema.js`, and `db:seed` runs `db/seeds.js` (see [Running migrations](./migrations.md#running-migrations)); the other `brails db:*` commands are not implemented yet and exit 1.
 > - PostgreSQL is the only adapter (`src/database/adapters/postgres.js`).
 
 ## Connect to PostgreSQL
@@ -92,10 +92,27 @@ and `count()` are tracked. When the same query shape runs 3 times within a secon
 with a stack trace is printed, pointing at `includes()` or a single `where({ id: ids })`. Call
 `disableN1Detection()` (exported from `bun-on-rails`) to turn it off.
 
+## Seed data
+
+`brails db:seed` runs `db/seeds.js` with the app's database set for models:
+
+**`db/seeds.js`**
+
+```js
+import User from "../app/models/user.js";
+
+export default async function seed() {
+  await User.create({ name: "Ada" });
+}
+```
+
+The file can also do its work at the top level; a default-exported function is called with the
+connection.
+
 ## Not implemented yet
 
-- **The other `brails db:*` commands.** `db:create`, `db:drop`, `db:reset`, `db:seed`, `db:setup`,
-  `db:schema:load` and `db:schema:dump` are registered but not implemented yet: each exits 1.
+- **The other `brails db:*` commands.** `db:create`, `db:drop`, `db:reset` and `db:setup` are
+  registered but not implemented yet: each exits 1.
 - **Automatic schema dump from `MigrationRunner`.** `brails db:migrate` and `db:rollback` rewrite
   `db/schema.js`; a `MigrationRunner` you call from your own script does not, so call
   `dumpSchema(connection, appRoot)` after it.

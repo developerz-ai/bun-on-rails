@@ -18,6 +18,7 @@ import {
 } from "bun:test";
 import { spawnSync } from "child_process";
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -28,7 +29,13 @@ import {
 import { tmpdir } from "os";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
-import { migrate, rollback } from "../../src/cli/commands/db.js";
+import {
+  migrate,
+  rollback,
+  schemaDump,
+  schemaLoad,
+  seed,
+} from "../../src/cli/commands/db.js";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const cli = join(repoRoot, "src", "cli", "index.js");
@@ -48,7 +55,7 @@ function fakeDriver() {
   const result = (rows = []) => Object.assign(rows, { count: rows.length });
   Bun.SQL = class FakeSQL {
     async unsafe(sql, params = []) {
-      const text = sql.trim();
+      const text = sql.trim().replace(/\s+/g, " ");
       log.push(text);
       if (
         /^SELECT version FROM schema_migrations ORDER BY version DESC LIMIT/.test(
@@ -62,6 +69,11 @@ function fakeDriver() {
             .slice(0, params[0])
             .map((version) => ({ version })),
         );
+      }
+      if (
+        /^SELECT version FROM schema_migrations WHERE version = \$1/.test(text)
+      ) {
+        return result(versions.has(params[0]) ? [{ version: params[0] }] : []);
       }
       if (/^SELECT version FROM schema_migrations/.test(text)) {
         return result([...versions].sort().map((version) => ({ version })));
@@ -142,6 +154,88 @@ describe("rollback()", () => {
     expect(driver.log).toContain("DROP TABLE posts");
     expect([...driver.versions]).toEqual(["20250101000000"]);
     expect(dumpedTables(root)).toEqual(["users"]);
+  });
+});
+
+describe("schemaDump()", () => {
+  test("writes db/schema.js from the database, versioned by the latest migration", async () => {
+    fakeDriver();
+    const root = appWithMigrations("dump");
+    await migrate(root);
+    rmSync(join(root, "db", "schema.js"));
+
+    await schemaDump(root);
+    expect(dumpedTables(root)).toEqual(["posts", "users"]);
+    expect(readFileSync(join(root, "db", "schema.js"), "utf8")).toContain(
+      "export const schemaVersion = '20250102000000'",
+    );
+  });
+});
+
+describe("schemaLoad()", () => {
+  test("creates the tables, marks every migration up to the schema's version as run, and leaves newer ones pending", async () => {
+    fakeDriver();
+    const source = appWithMigrations("load-source");
+    await migrate(source);
+
+    const driver = fakeDriver(); // an empty database
+    const root = join(work, "load-target");
+    cpSync(source, root, { recursive: true });
+    writeFileSync(
+      join(root, "db", "migrations", "20250103000000_create_tags.js"),
+      "export async function up(db) { await db.query('CREATE TABLE tags (id bigserial)') }\n" +
+        "export async function down(db) { await db.query('DROP TABLE tags') }\n",
+    );
+
+    await schemaLoad(root);
+    expect([...driver.tables].sort()).toEqual([
+      "posts",
+      "schema_migrations",
+      "users",
+    ]);
+    expect([...driver.versions].sort()).toEqual([
+      "20250101000000",
+      "20250102000000",
+    ]);
+
+    // only the migration newer than the schema still runs
+    expect(await migrate(root)).toEqual(["20250103000000"]);
+  });
+
+  test("without db/schema.js it says to run db:migrate first", async () => {
+    fakeDriver();
+    const root = appWithMigrations("load-missing");
+    await expect(schemaLoad(root)).rejects.toThrow(
+      /db\/schema\.js.*db:migrate/,
+    );
+  });
+});
+
+describe("seed()", () => {
+  test("runs db/seeds.js with the app's connection set for models", async () => {
+    const driver = fakeDriver();
+    const root = appWithMigrations("seed");
+    writeFileSync(
+      join(root, "db", "seeds.js"),
+      `import { Model } from "${join(repoRoot, "src", "index.js")}";\n` +
+        "class Widget extends Model { static timestamps = false }\n" +
+        "export default async function seed(connection) {\n" +
+        "  globalThis.__seedGotConnection = typeof connection?.query === 'function';\n" +
+        "  await Widget.create({ name: 'first' });\n" +
+        "}\n",
+    );
+    await seed(root);
+    expect(globalThis.__seedGotConnection).toBe(true);
+    expect(driver.log.some((q) => q.startsWith('INSERT INTO "widgets"'))).toBe(
+      true,
+    );
+    delete globalThis.__seedGotConnection;
+  });
+
+  test("without db/seeds.js it says so", async () => {
+    fakeDriver();
+    const root = appWithMigrations("seed-missing");
+    await expect(seed(root)).rejects.toThrow(/db\/seeds\.js not found/);
   });
 });
 

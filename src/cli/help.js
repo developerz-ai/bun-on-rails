@@ -27,11 +27,14 @@ Commands:
   start                  Start production server
   db:migrate             Run pending migrations, then update db/schema.js
   db:rollback            Roll back the latest migration (--step=N for more)
+  db:schema:dump         Write db/schema.js from the database
+  db:schema:load         Load db/schema.js into an empty database
+  db:seed                Run db/seeds.js
   help                   Show this help
 
 Planned (registered, not implemented yet; each exits with an error):
   generate, g            Generate code (model, controller, scaffold, etc.)
-  db:create, db:drop, db:reset, db:seed, db:setup, db:schema:load, db:schema:dump
+  db:create, db:drop, db:reset, db:setup
   console, c             Start interactive console
   routes                 List all routes
   test, t                Run tests (use \`bun test\` for now)
@@ -70,6 +73,9 @@ Usage: brails db:<command>   (or: brails db <command>)
 
   db:migrate             Run pending migrations in db/migrations, then update db/schema.js
   db:rollback [--step=N] Roll back the latest N migrations (default 1), then update db/schema.js
+  db:schema:dump         Write db/schema.js from the database
+  db:schema:load         Load db/schema.js into an empty database; marks its migrations as run
+  db:seed                Run db/seeds.js
 
 Both use the database config/database.js names (DATABASE_URL in a generated app).
 The other db:* commands are planned and exit with an error.
@@ -81,6 +87,27 @@ Usage: brails db:migrate
 Run every pending migration in db/migrations, in file-name order, record each
 version in schema_migrations, then rewrite db/schema.js. Uses the database
 config/database.js names (DATABASE_URL in a generated app).
+`,
+
+  'db:schema:dump': `
+Usage: brails db:schema:dump
+
+Write db/schema.js from the database: every table, in an order that loads
+(referenced tables first), versioned by the latest migration that ran.
+`,
+
+  'db:schema:load': `
+Usage: brails db:schema:load
+
+Load db/schema.js into an empty database, then mark the schema's version and
+every migration file up to it as run, so db:migrate only runs newer ones.
+`,
+
+  'db:seed': `
+Usage: brails db:seed
+
+Run db/seeds.js with the app's database set for models. The file can do its
+work at the top level or default-export a function (called with the connection).
 `,
 
   'db:rollback': `

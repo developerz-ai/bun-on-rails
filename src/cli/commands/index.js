@@ -4,7 +4,13 @@
 
 import { newCommand } from './new.js'
 import { generateCommand } from './generate.js'
-import { dbMigrateCommand, dbRollbackCommand } from './db.js'
+import {
+  dbMigrateCommand,
+  dbRollbackCommand,
+  dbSchemaDumpCommand,
+  dbSchemaLoadCommand,
+  dbSeedCommand
+} from './db.js'
 import { notImplemented } from './not_implemented.js'
 import { devCommand } from './dev.js'
 import { startCommand } from './start.js'
@@ -26,10 +32,10 @@ export const commands = {
   'db:create': notImplemented('db:create', 'Create the database'),
   'db:drop': notImplemented('db:drop', 'Drop the database'),
   'db:reset': notImplemented('db:reset', 'Drop, create and migrate the database'),
-  'db:seed': notImplemented('db:seed', 'Load db/seeds.js'),
+  'db:seed': dbSeedCommand,
   'db:setup': notImplemented('db:setup', 'Create the database, load the schema and seed'),
-  'db:schema:load': notImplemented('db:schema:load', 'Load db/schema.js into the database'),
-  'db:schema:dump': notImplemented('db:schema:dump', 'Write db/schema.js from the database'),
+  'db:schema:load': dbSchemaLoadCommand,
+  'db:schema:dump': dbSchemaDumpCommand,
 
   'dev': devCommand,
   'server': devCommand, // alias
