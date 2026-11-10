@@ -2,13 +2,13 @@ plan: 104-cli-and-routing
 title: The planned CLI commands and routing gaps
 status: in-progress
 owner: unassigned
-percent: 29
-current_focus: C3 (db:create, db:drop, db:setup, db:reset)
+percent: 43
+current_focus: C4 (brails routes)
 slices:
   - { id: C1, status: done }
   - { id: C2, status: done }
-  - { id: C3, status: in-progress }
-  - { id: C4, status: todo }
+  - { id: C3, status: done }
+  - { id: C4, status: in-progress }
   - { id: C5, status: todo }
   - { id: R1, status: todo }
   - { id: R2, status: todo }
@@ -17,4 +17,5 @@ evidence:
   prs:
     - "#61 merged as 1d8e0fa (C1)"
     - "#62 merged as 2edf963 (C2)"
+    - "#63 merged as 92a013f (C3)"
 last_updated: 2026-11-10

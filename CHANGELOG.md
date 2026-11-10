@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- `brails routes [filter]` lists the routes `config/routes.js` defines, in match order: verb, path, controller#action and name. It loads the routes into a `Router` without booting the app. Pinned by `test/cli/routes.test.js`.
 - `brails db:create`, `db:drop`, `db:setup` and `db:reset`, so every `db:*` command works. create and drop run on the server's `postgres` maintenance database; an existing database is reported, not an error; drop and reset refuse in production without `--force`. setup is create + schema:load + seed; reset is drop + setup. Pinned by `test/cli/db_create_drop.test.js`.
 - `brails db:schema:dump`, `db:schema:load` and `db:seed`. A schema load now marks every migration file up to the schema's version as run (it marked only the latest, so a later `db:migrate` re-ran the rest). `db:seed` runs `db/seeds.js` with the app's connection set for models. Pinned by `test/cli/db_commands.test.js`.
 - `brails db:migrate` and `brails db:rollback [--step=N]` (also `brails db migrate`). They connect to the database `config/database.js` names, run `db/migrations`, and rewrite `db/schema.js` afterwards. App boot and the CLI pick the database through one function, `selectDatabaseConfig` (`src/database/config.js`). The other `db:*` commands still exit 1 as not implemented. Pinned by `test/cli/db_commands.test.js`.
