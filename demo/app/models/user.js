@@ -32,27 +32,17 @@ export default class User extends Model {
     },
     name: {
       length: { min: 2, max: 100 }
-    },
-    password: {
-      presence: { on: 'create' },
-      length: { min: 8 }
     }
   }
 
   static scopes = {
-    admins: (query) => query.where({ role: 'admin' }),
-    active: (query) => query.where({ active: true })
+    admins: (query) => query.where({ role: 'admin' })
   }
-
-  // Password handling
-  static hasSecurePassword = true
 
   // Instance methods
   get isAdmin() {
-    return this.role === 'admin'
-  }
-
-  async authenticate(_password) {
-    // TODO: Verify password with bcrypt
+    return this.get('role') === 'admin'
   }
 }
+
+User.register()

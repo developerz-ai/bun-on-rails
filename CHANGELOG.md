@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- CI runs the demo app's test suite against PostgreSQL (its steps had been commented out: "Demo tests require database implementations"). The demo's models, factories and test now use the framework's API: `get` / `set`, snake_case columns, `beforeValidation`, `Model.register()`, `loadAssociation`; the `User` model drops the `password` attribute and `hasSecurePassword`, which wait on authentication.
 - A request body that does not parse (truncated JSON, say) answers `400` with `Malformed request body: ...` instead of running the action without it. An empty JSON body still means no params.
 - Dispatch matches requests with `Router#match`, the one matcher, instead of its own: a trailing slash matches (`/posts/7/` is `/posts/7`), and a `*` segment matches one segment as `params.splat`. `Router#match` compares static segments case-sensitively, as dispatch did (its own check was dead, so `/Posts` matched `/posts`).
 - `router.middleware(list, callback)` throws `NotImplementedError`: it ran the callback without adding the middleware, so routes meant to be guarded by it were not. `Channel#stream` throws too: it recorded the stream and subscribed to nothing. `test/support/no_silent_stubs.test.js` now fails on any function under `src/` that holds a TODO and never throws, which catches a body that computes and returns (as `assertJson` did), not only an empty one.

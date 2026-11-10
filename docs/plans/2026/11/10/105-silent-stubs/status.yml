@@ -2,8 +2,8 @@ plan: 105-silent-stubs
 title: No silent stubs; test support that works
 status: in-progress
 owner: unassigned
-percent: 73
-current_focus: S10 (one dispatch path), part 3: the unused Router#handle pipeline goes
+percent: 69
+current_focus: S7 (the demo's tests run in CI)
 slices:
   - { id: S1, status: done }
   - { id: S2, status: done }
@@ -11,11 +11,13 @@ slices:
   - { id: S4, status: done }
   - { id: S5, status: done }
   - { id: S6, status: todo }
-  - { id: S7, status: todo }
+  - { id: S7, status: in-progress }
   - { id: S8, status: done }
   - { id: S9, status: done }
-  - { id: S10, status: in-progress }
+  - { id: S10, status: done }
   - { id: S11, status: done }
+  - { id: S12, status: todo }
+  - { id: S13, status: todo }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
   census:
@@ -31,4 +33,5 @@ evidence:
     - "#75 merged as f7b8444 (S11)"
     - "#76 merged as ca1cce3 (S10 part 1)"
     - "#77 merged as 5e4c530 (S10 part 2)"
+    - "#78 merged as eb28ca8 (S10 part 3)"
 last_updated: 2026-11-10
