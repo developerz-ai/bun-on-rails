@@ -44,7 +44,7 @@ Post.where("views > ? AND views < ?", 10, 100);
 Post.where({ status: "published" }).where("title ILIKE ?", `%${term}%`);
 ```
 
-PostgreSQL-style `$1`, `$2` work too, numbered from 1 within the condition. A `?` inside a quoted
+PostgreSQL-style `$1`, `$2` work too, numbered from 1 within the condition. A `?` inside a quoted (`'...'`, `$$...$$` or `$tag$...$tag$`)
 literal is left alone, and a condition with no values is not scanned at all (so the jsonb `?`
 operator still works). A placeholder count that does not match the values throws. Never build the
 condition string itself from user input.

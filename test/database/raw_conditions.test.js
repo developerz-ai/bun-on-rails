@@ -50,6 +50,19 @@ describe("whereClauseSQL raw conditions", () => {
     expect(sql).toBe("title <> 'why?' AND id = $1");
   });
 
+  test("a ? or $n inside a dollar-quoted literal is not a placeholder", () => {
+    expect(
+      adapter.whereClauseSQL([
+        { raw: "title = $$why?$$ AND views > $1", values: [10] },
+      ]).sql,
+    ).toBe("title = $$why?$$ AND views > $1");
+    expect(
+      adapter.whereClauseSQL([
+        { raw: "body = $q$a ? $1 b$q$ AND id = ?", values: [3] },
+      ]).sql,
+    ).toBe("body = $q$a ? $1 b$q$ AND id = $1");
+  });
+
   test("with no values the raw SQL is left alone (? is also a jsonb operator)", () => {
     const { sql, params } = adapter.whereClauseSQL([
       { raw: "data ? 'key'", values: [] },

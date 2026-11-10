@@ -153,7 +153,7 @@ export const RESERVED_WORDS = new Set([
  */
 /**
  * Bind a raw where() condition's placeholders at `start`: each `?` outside a
- * quoted literal becomes the next `$n`, or `$1..$k` written by hand are
+ * quoted literal ('...', "...", $$...$$ or $tag$...$tag$) becomes the next `$n`, or `$1..$k` written by hand are
  * shifted past the params before them. With no values the SQL is returned
  * unchanged, because `?` is also a jsonb operator. A count that does not match
  * the values throws. Pinned by test/database/raw_conditions.test.js.
@@ -181,7 +181,15 @@ export function bindRawPlaceholders(raw, values, start) {
       }
       continue
     }
-    if (c === "'" || c === '"') {
+    const dollarTag = c === '$' ? raw.slice(i).match(/^\$([A-Za-z_][A-Za-z0-9_]*)?\$/) : null
+    if (dollarTag) {
+      // A dollar-quoted literal: copy it whole, through its closing tag.
+      const tag = dollarTag[0]
+      const close = raw.indexOf(tag, i + tag.length)
+      const end = close === -1 ? raw.length : close + tag.length
+      sql += raw.slice(i, end)
+      i = end - 1
+    } else if (c === "'" || c === '"') {
       quote = c
       sql += c
     } else if (c === '?') {
