@@ -1,16 +1,16 @@
 plan: 105-silent-stubs
 title: No silent stubs; test support that works
-status: in-progress
+status: done
 owner: unassigned
-percent: 92
-current_focus: S6 (brails test), the last task
+percent: 100
+current_focus: done; nothing exported reports success without doing its job, and the test support works
 slices:
   - { id: S1, status: done }
   - { id: S2, status: done }
   - { id: S3, status: done }
   - { id: S4, status: done }
   - { id: S5, status: done }
-  - { id: S6, status: in-progress }
+  - { id: S6, status: done }
   - { id: S7, status: done }
   - { id: S8, status: done }
   - { id: S9, status: done }
@@ -37,4 +37,5 @@ evidence:
     - "#79 merged as 86d823c (S7)"
     - "#80 merged as 1581762 (S12)"
     - "#81 merged as 1fad8d3 (S13)"
+    - "#82 merged as 74fc0bc (S6)"
 last_updated: 2026-11-10

@@ -824,92 +824,87 @@ export class Model {
     const adapter = new PostgresAdapter()
     const tableName = this.constructor.tableName || tableize(this.constructor.name)
 
-    try {
-      // Run beforeSave callbacks - halt if returns false
-      if ((await this._runCallbacks('beforeSave')) === false) {
+    // Run beforeSave callbacks - halt if returns false
+    if ((await this._runCallbacks('beforeSave')) === false) {
+      return false
+    }
+
+    if (this.persisted) {
+      // Update existing record
+      // Run beforeUpdate callbacks - halt if returns false
+      if ((await this._runCallbacks('beforeUpdate')) === false) {
         return false
       }
 
-      if (this.persisted) {
-        // Update existing record
-        // Run beforeUpdate callbacks - halt if returns false
-        if ((await this._runCallbacks('beforeUpdate')) === false) {
-          return false
-        }
+      const data = { ...this.attributes }
+      delete data[this.constructor.primaryKey]
 
-        const data = { ...this.attributes }
-        delete data[this.constructor.primaryKey]
-
-        // Every update refreshes updated_at; a loaded record always carries the
-        // old value, so an "only if missing" check never fired.
-        if (this.constructor.timestamps) {
-          data.updated_at = new Date()
-        }
-
-        const { sql, params } = adapter.updateSQL(
-          tableName,
-          data,
-          [{ column: this.constructor.primaryKey, operator: '=', value: this.id }],
-          { returning: true }
-        )
-
-        const result = await connection.query(sql, params)
-        if (result[0]) {
-          this.attributes = { ...result[0] }
-          this._defineAttributeAccessors()
-        }
-
-        // Run afterUpdate callbacks
-        await this._runCallbacks('afterUpdate')
-      } else {
-        // Insert new record
-        // Run beforeCreate callbacks - halt if returns false
-        if ((await this._runCallbacks('beforeCreate')) === false) {
-          return false
-        }
-
-        const data = { ...this.attributes }
-
-        // Add timestamps if not present
-        if (this.constructor.timestamps) {
-          const now = new Date()
-          if (data.created_at === undefined) {
-            data.created_at = now
-          }
-          if (data.updated_at === undefined) {
-            data.updated_at = now
-          }
-        }
-
-        // Remove undefined id
-        if (data[this.constructor.primaryKey] === undefined) {
-          delete data[this.constructor.primaryKey]
-        }
-
-        const { sql, params } = adapter.insertSQL(tableName, data, { returning: true })
-
-        const result = await connection.query(sql, params)
-        if (result[0]) {
-          this.attributes = { ...result[0] }
-          this._defineAttributeAccessors()
-        }
-
-        this.persisted = true
-
-        // Run afterCreate callbacks
-        await this._runCallbacks('afterCreate')
+      // Every update refreshes updated_at; a loaded record always carries the
+      // old value, so an "only if missing" check never fired.
+      if (this.constructor.timestamps) {
+        data.updated_at = new Date()
       }
 
-      this._originalAttributes = { ...this.attributes }
-      this._changedAttributes.clear()
+      const { sql, params } = adapter.updateSQL(
+        tableName,
+        data,
+        [{ column: this.constructor.primaryKey, operator: '=', value: this.id }],
+        { returning: true }
+      )
 
-      // Run afterSave callbacks
-      await this._runCallbacks('afterSave')
-      return true
-    } catch (error) {
-      this.errors.base = error.message
-      return false
+      const result = await connection.query(sql, params)
+      if (result[0]) {
+        this.attributes = { ...result[0] }
+        this._defineAttributeAccessors()
+      }
+
+      // Run afterUpdate callbacks
+      await this._runCallbacks('afterUpdate')
+    } else {
+      // Insert new record
+      // Run beforeCreate callbacks - halt if returns false
+      if ((await this._runCallbacks('beforeCreate')) === false) {
+        return false
+      }
+
+      const data = { ...this.attributes }
+
+      // Add timestamps if not present
+      if (this.constructor.timestamps) {
+        const now = new Date()
+        if (data.created_at === undefined) {
+          data.created_at = now
+        }
+        if (data.updated_at === undefined) {
+          data.updated_at = now
+        }
+      }
+
+      // Remove undefined id
+      if (data[this.constructor.primaryKey] === undefined) {
+        delete data[this.constructor.primaryKey]
+      }
+
+      const { sql, params } = adapter.insertSQL(tableName, data, { returning: true })
+
+      const result = await connection.query(sql, params)
+      if (result[0]) {
+        this.attributes = { ...result[0] }
+        this._defineAttributeAccessors()
+      }
+
+      this.persisted = true
+
+      // Run afterCreate callbacks
+      await this._runCallbacks('afterCreate')
     }
+
+    this._originalAttributes = { ...this.attributes }
+    this._changedAttributes.clear()
+
+    // Run afterSave callbacks
+    await this._runCallbacks('afterSave')
+    return true
   }
 
   /**
@@ -979,29 +974,24 @@ export class Model {
     const adapter = new PostgresAdapter()
     const tableName = this.constructor.tableName || tableize(this.constructor.name)
 
-    try {
-      // Run beforeDestroy callbacks - halt if returns false
-      if ((await this._runCallbacks('beforeDestroy')) === false) {
-        return false
-      }
-
-      const { sql, params } = adapter.deleteSQL(
-        tableName,
-        [{ column: this.constructor.primaryKey, operator: '=', value: this.id }]
-      )
-
-      await connection.query(sql, params)
-
-      this.persisted = false
-
-      // Run afterDestroy callbacks
-      await this._runCallbacks('afterDestroy')
-
-      return true
-    } catch (error) {
-      this.errors.base = error.message
+    // Run beforeDestroy callbacks - halt if returns false
+    if ((await this._runCallbacks('beforeDestroy')) === false) {
       return false
     }
+
+    const { sql, params } = adapter.deleteSQL(
+      tableName,
+      [{ column: this.constructor.primaryKey, operator: '=', value: this.id }]
+    )
+
+    await connection.query(sql, params)
+
+    this.persisted = false
+
+    // Run afterDestroy callbacks
+    await this._runCallbacks('afterDestroy')
+
+    return true
   }
 
   /**

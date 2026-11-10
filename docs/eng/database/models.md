@@ -98,9 +98,11 @@ await Post.updateWhere({ published: false }, { published: true });
 `findAll` takes `where`, `order`, `limit`, `offset` and `include`. For anything more, use the
 [query builder](./queries.md).
 
-`save()`, `update()` and `destroy()` return `false` instead of throwing. A failed validation puts
-messages in `record.errors`, and a database error puts its message in `record.errors.base`.
-`save_()` and `update_()` throw instead.
+`save()`, `update()` and `destroy()` return `false` when a validation fails (the messages are in
+`record.errors`) or a `before` callback returns `false`. Anything else is thrown: a database error
+is a `DatabaseError` with the SQLSTATE in `code` (`23505` for a unique violation), and an error a
+callback throws comes back unchanged, so inside `connection.transaction()` the transaction rolls
+back. `save_()` and `update_()` throw for a failed validation too.
 
 ## Validations
 

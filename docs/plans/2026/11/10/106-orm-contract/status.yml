@@ -1,0 +1,15 @@
+plan: 106-orm-contract
+title: The ORM contract
+status: in-progress
+owner: unassigned
+percent: 0
+current_focus: O1 (save and destroy let exceptions through)
+slices:
+  - { id: O1, status: in-progress }
+  - { id: O2, status: todo }
+  - { id: O3, status: todo }
+  - { id: O4, status: todo }
+milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
+evidence:
+  prs: []
+last_updated: 2026-11-10
