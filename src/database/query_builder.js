@@ -11,7 +11,9 @@ import { getConnection } from './connection.js'
 import { PostgresAdapter } from './adapters/postgres.js'
 import { trackQuery } from './n_plus_one_detector.js'
 import { tableize } from '../support/inflector.js'
-import { resolveAssociationModel } from './associations.js'
+import { resolveAssociationModel, loadThroughJoinTable } from './associations.js'
+
+const ASSOCIATION_TYPES = ['belongsTo', 'hasMany', 'hasOne', 'hasAndBelongsToMany']
 
 /**
  * The number of rows an UPDATE or DELETE changed. Both drivers (postgres.js and
@@ -1262,28 +1264,16 @@ export class QueryBuilder {
       const parts = include.split('.')
       const assocName = parts[0]
 
-      // Find association config
-      let assocConfig = null
-      let assocType = null
-
-      if (associations.belongsTo?.includes(assocName) ||
-          associations.belongsTo?.some(a => a.name === assocName || a === assocName)) {
-        assocType = 'belongsTo'
-        assocConfig = this._findAssocConfig(associations.belongsTo, assocName)
-      } else if (associations.hasMany?.includes(assocName) ||
-                 associations.hasMany?.some(a => a.name === assocName || a === assocName)) {
-        assocType = 'hasMany'
-        assocConfig = this._findAssocConfig(associations.hasMany, assocName)
-      } else if (associations.hasOne?.includes(assocName) ||
-                 associations.hasOne?.some(a => a.name === assocName || a === assocName)) {
-        assocType = 'hasOne'
-        assocConfig = this._findAssocConfig(associations.hasOne, assocName)
+      // Find association config. A name nothing declares throws: skipping it
+      // left the property undefined, so a misspelled includes() went unnoticed.
+      const assocType = ASSOCIATION_TYPES.find(type => this._findAssocConfig(associations[type], assocName))
+      if (!assocType) {
+        throw new Error(
+          `Unknown association '${assocName}' in includes() on ${this.model.name}; ` +
+            `declared: ${ASSOCIATION_TYPES.flatMap(type => (associations[type] || []).map(a => a.name ?? a)).join(', ') || 'none'}`
+        )
       }
-
-      if (!assocType || !assocConfig) {
-        console.warn(`Association '${assocName}' not found on ${this.model.name}`)
-        continue
-      }
+      const assocConfig = this._findAssocConfig(associations[assocType], assocName)
 
       await this._loadAssociation(records, assocName, assocType, assocConfig, parts.slice(1))
     }
@@ -1367,6 +1357,22 @@ export class QueryBuilder {
       })
 
       // Handle nested associations
+      if (nestedParts.length > 0 && associatedRecords.length > 0) {
+        const nestedQuery = new QueryBuilder(AssociatedModel)
+        nestedQuery.includesList = [nestedParts.join('.')]
+        await nestedQuery._eagerLoad(associatedRecords)
+      }
+    } else if (type === 'hasAndBelongsToMany') {
+      const groups = await loadThroughJoinTable(
+        this.model,
+        { ...config, name },
+        records.map(r => r.attributes[this.model.primaryKey])
+      )
+      records.forEach(r => {
+        r[name] = groups.get(String(r.attributes[this.model.primaryKey])) || []
+      })
+
+      const associatedRecords = [...new Set([...groups.values()].flat())]
       if (nestedParts.length > 0 && associatedRecords.length > 0) {
         const nestedQuery = new QueryBuilder(AssociatedModel)
         nestedQuery.includesList = [nestedParts.join('.')]

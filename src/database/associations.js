@@ -10,7 +10,8 @@
  * @module bun-on-rails/database/associations
  */
 
-import { NotImplementedError } from '../support/not_implemented.js'
+import { getConnection } from './connection.js'
+import { PostgresAdapter } from './adapters/postgres.js'
 import { singularize, classify, underscore } from '../support/inflector.js'
 
 /**
@@ -675,13 +676,72 @@ function defineHasOne(modelClass, config) {
  * @private
  */
 function defineHasAndBelongsToMany(modelClass, config) {
-  const { name, model, joinTable: _joinTable } = config
-  const _associatedModel = model || capitalize(singularize(name))
+  const cacheKey = `_association_${config.name}`
 
-  modelClass.prototype[name] = async function () {
-    // TODO: Query through join table
-    throw new NotImplementedError(`${modelClass.name}#${name}`, 'hasAndBelongsToMany')
+  modelClass.prototype[config.name] = async function ({ reload = false } = {}) {
+    if (!reload && this[cacheKey] !== undefined) {
+      return this[cacheKey]
+    }
+    const id = this.attributes[this.constructor.primaryKey || 'id']
+    const groups = await loadThroughJoinTable(modelClass, config, [id])
+    this[cacheKey] = groups.get(String(id))
+    return this[cacheKey]
   }
+}
+
+/**
+ * Load a hasAndBelongsToMany association for several owners: the join table's
+ * rows for their ids, then the associated records in one query. The join
+ * table defaults to the two table names in lexical order (posts + tags ->
+ * posts_tags), its columns to post_id and tag_id; `joinTable`, `foreignKey`
+ * and `associationForeignKey` override them. Model#loadAssociation, includes()
+ * and the defineAssociations reader all load through it. Pinned by
+ * test/database/habtm.test.js and, on PostgreSQL, habtm.pg.test.js.
+ *
+ * @param {typeof Model} OwnerModel - the model declaring the association
+ * @param {Object} config - the association config, with `name`
+ * @param {Array} ownerIds - primary keys of the owners
+ * @returns {Promise<Map<string, Model[]>>} records per String(owner id), in join-row order
+ */
+export async function loadThroughJoinTable(OwnerModel, config, ownerIds) {
+  const Associated = resolveAssociationModel(config, config.name)
+  if (!Associated) {
+    throw new Error(
+      `Cannot resolve model for hasAndBelongsToMany association '${config.name}' on ${OwnerModel.name}: ` +
+        'register it with Model.register(), or give the association a model'
+    )
+  }
+  const joinTable = config.joinTable || [OwnerModel.getTableName(), Associated.getTableName()].sort().join('_')
+  const ownerKey = config.foreignKey || foreignKeyForModel(OwnerModel.name)
+  const associatedKey = config.associationForeignKey || foreignKeyForModel(Associated.name)
+
+  const groups = new Map(ownerIds.map(id => [String(id), []]))
+  const ids = ownerIds.filter(id => id !== null && id !== undefined)
+  if (ids.length === 0) {
+    return groups
+  }
+
+  const adapter = new PostgresAdapter()
+  const rows = await getConnection().query(
+    `SELECT ${adapter.quoteIdentifier(ownerKey)}, ${adapter.quoteIdentifier(associatedKey)} ` +
+      `FROM ${adapter.quoteTableName(joinTable)} ` +
+      `WHERE ${adapter.quoteIdentifier(ownerKey)} IN (${ids.map((_, i) => `$${i + 1}`).join(', ')})`,
+    ids
+  )
+  if (rows.length === 0) {
+    return groups
+  }
+
+  const pk = Associated.primaryKey || 'id'
+  const records = await Associated.where({ [pk]: [...new Set(rows.map(row => row[associatedKey]))] }).all()
+  const byId = new Map(records.map(record => [String(record.attributes[pk]), record]))
+  for (const row of rows) {
+    const record = byId.get(String(row[associatedKey]))
+    if (record) {
+      groups.get(String(row[ownerKey]))?.push(record)
+    }
+  }
+  return groups
 }
 
 /**

@@ -582,15 +582,15 @@ describe('Eager Loading - N+1 Prevention', () => {
       expect(mockConnection.getQueryCount()).toBe(1)
     })
 
-    it('warns but continues for unknown associations', async () => {
+    it('throws for an unknown association, naming the declared ones', async () => {
       mockConnection.setMockResults([
         [{ id: 1, title: 'Post' }]
       ])
 
-      // Should not throw, but skip unknown association
-      const posts = await Post.includes('nonexistent').all()
-
-      expect(posts.length).toBe(1)
+      // a misspelled includes() used to be skipped with a warning
+      await expect(Post.includes('nonexistent').all()).rejects.toThrow(
+        "Unknown association 'nonexistent' in includes() on Post; declared: "
+      )
     })
 
     it('deduplicates foreign key values', async () => {

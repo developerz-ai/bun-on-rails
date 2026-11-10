@@ -12,14 +12,12 @@ import {
   Mailer,
   Storage,
   Channel,
-  Model,
   NotImplementedError,
   useResource,
   Form,
   request,
 } from "../../src/index.js";
 import { RedisStore } from "../../src/cache/cache.js";
-import { defineAssociations } from "../../src/database/associations.js";
 
 describe("NotImplementedError", () => {
   test("names the API and the planned feature", () => {
@@ -71,13 +69,4 @@ describe("a planned API throws instead of resolving undefined", () => {
 
   test("request(app).as(user): authentication is planned", () =>
     refuses(() => request({}).as({ id: 1 }), "TestRequest#as"));
-
-  test("a hasAndBelongsToMany reader names the model and association", async () => {
-    class Article extends Model {
-      static tableName = "articles";
-      static associations = { hasAndBelongsToMany: ["tags"] };
-    }
-    defineAssociations(Article);
-    await refuses(() => new Article({ id: 1 }).tags(), "Article#tags");
-  });
 });

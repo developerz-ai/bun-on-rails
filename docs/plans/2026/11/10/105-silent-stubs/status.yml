@@ -3,13 +3,13 @@ title: No silent stubs; test support that works
 status: in-progress
 owner: unassigned
 percent: 40
-current_focus: S4 (request(app))
+current_focus: S5 (hasAndBelongsToMany)
 slices:
   - { id: S1, status: done }
   - { id: S2, status: done }
   - { id: S3, status: done }
-  - { id: S4, status: in-progress }
-  - { id: S5, status: todo }
+  - { id: S4, status: done }
+  - { id: S5, status: in-progress }
   - { id: S6, status: todo }
   - { id: S7, status: todo }
   - { id: S8, status: todo }
@@ -23,4 +23,5 @@ evidence:
     - "#68 merged as 498f0a9 (S1)"
     - "#69 merged as 7bc7d63 (S2)"
     - "#70 merged as cc2c072 (S3)"
+    - "#71 merged as 1baa9e0 (S4)"
 last_updated: 2026-11-10

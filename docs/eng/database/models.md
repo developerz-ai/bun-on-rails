@@ -215,11 +215,17 @@ Post.register();
 `hasOne` works like `hasMany` and loads one record. An entry can also be an object:
 `{ name: "author", model: "User", foreignKey: "user_id" }`.
 
+`hasAndBelongsToMany: ["tags"]` on `Post` reads the join table `posts_tags` (the two table names in
+lexical order) with the columns `post_id` and `tag_id`. `joinTable`, `foreignKey` and
+`associationForeignKey` override them:
+`{ name: "labels", model: "Tag", joinTable: "post_labels", associationForeignKey: "label_id" }`.
+
 The associated class is found in the `register()` registry: `user` and `comments` resolve to the
 `User` and `Comment` classes.
 
-Load associations for many records with `includes()`. Each record gets a property named after
-the association:
+Load associations for many records with `includes()`, one query per association (two for
+`hasAndBelongsToMany`, the join table then the records). Each record gets a property named after
+the association, and a name the model does not declare throws:
 
 ```js
 const posts = await Post.includes("user", "comments").all();
@@ -231,8 +237,8 @@ await Post.includes("comments.user").all(); // nested
 
 These properties are not attributes, so `render` and `toJSON()` leave them out.
 
-For one record, `await post.loadAssociation("comments")` loads any `belongsTo`, `hasMany` or
-`hasOne` association. The class is the one given as `model` (a class, or the name of a registered
+For one record, `await post.loadAssociation("comments")` loads any `belongsTo`, `hasMany`,
+`hasOne` or `hasAndBelongsToMany` association. The class is the one given as `model` (a class, or the name of a registered
 one), else the association name singularized and capitalized: `comments` is `Comment`, `author` is
 `Author`. `includes()` resolves classes the same way. Register each model with `Model.register()`.
 
@@ -240,6 +246,4 @@ one), else the association name singularized and capitalized: `comments` is `Com
 
 - **Association methods** such as `post.user()` or `user.posts()` are not wired up. Use
   `includes()` or `loadAssociation()`.
-- **`hasAndBelongsToMany`.** Its reader (`post.tags()`) throws `NotImplementedError`; the join query is not
-  written yet.
 - **Model annotations.** Nothing writes the schema into model files.
