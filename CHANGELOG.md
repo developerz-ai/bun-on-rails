@@ -60,6 +60,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- `Router#handle`, `Router#configure` and `Router#patternToRegex`: a second request pipeline (matching, context, body parsing, filters, errors) beside `Application`'s, run only by its own tests. Apps never went through it, so fixes to dispatch (filter options, params) did not reach it, and it kept the old filter loop. `Application#handle(request)` handles a request in-process.
 - N/A
 
 ### Fixed
