@@ -73,8 +73,15 @@ export async function bootGuideApp(guidePath) {
   mkdirSync(join(app, "node_modules"), { recursive: true });
   symlinkSync(repoRoot, join(app, "node_modules", pkg.name), "dir");
 
+  // Guide examples need no database; keep an ambient DATABASE_URL from connecting.
+  const savedUrl = process.env.DATABASE_URL;
+  delete process.env.DATABASE_URL;
   const application = new Application({ root: app });
-  await application.initialize();
+  try {
+    await application.initialize();
+  } finally {
+    if (savedUrl !== undefined) process.env.DATABASE_URL = savedUrl;
+  }
   await application.start({ port: 0, hostname: "127.0.0.1" });
   const base = `http://127.0.0.1:${application.server.port}`;
 

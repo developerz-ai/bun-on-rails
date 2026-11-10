@@ -3,37 +3,37 @@
 BunOnRails has an Active Record-style ORM: models with validations, callbacks and scopes, a
 chainable query builder, and migrations. It lives in `src/database/`.
 
-> **Status.** The ORM works once your app hands it a connection, but nothing wires it up for
-> you yet:
+> **Status.**
 >
-> - The app does **not** connect to a database at boot. `config/database.js` is read into the
->   config and nothing else uses it. You open the connection yourself (below).
+> - The app connects at boot when `config/database.js` names a database (below).
 > - No database command is implemented. Every `brails db:*` command is registered but not implemented yet and exits 1. Run migrations from a script with `MigrationRunner` (see [Running migrations](./migrations.md#running-migrations)).
 > - PostgreSQL is the only adapter (`src/database/adapters/postgres.js`).
 
 ## Connect to PostgreSQL
 
-Open a connection in an initializer. The app runs every `config/initializers/*.js` at boot, in
-file-name order, and passes each default-exported function the application:
+`brails new` writes `config/database.js`, which reads `DATABASE_URL`:
 
-**`config/initializers/database.js`**
+**`config/database.js`**
 
 ```js
-import { Connection, setConnection } from "bun-on-rails";
-
-export default async function connectDatabase() {
-  const connection = new Connection({ url: process.env.DATABASE_URL });
-  await connection.connect();
-  setConnection(connection);
-}
+export default {
+  url: process.env.DATABASE_URL,
+};
 ```
 
 Put `DATABASE_URL=postgres://user:password@localhost:5432/myapp` in `.env`: Bun loads it
-automatically. Both `postgres://` and `postgresql://` URLs work. `setConnection` makes this the
-connection every model and query uses.
+automatically. Both `postgres://` and `postgresql://` URLs work. At boot the app connects and
+makes that connection the one every model and query uses, and it closes it on stop. With no
+`DATABASE_URL`, the app runs without a database.
 
-If the initializer throws (a wrong password, a database that is down), boot fails: `brails dev`
-exits 1 with `Initializer config/initializers/database.js failed: <the cause>`.
+A database that cannot be reached (a wrong password, a server that is down) fails boot: `brails
+dev` exits 1 with `Cannot connect to the database configured in config/database.js: <the
+cause>`.
+
+`config/database.js` can also hold one block per environment, `{ development: {...}, test:
+{...}, production: {...} }`, and the app uses the block for the current environment (`BUN_ENV`,
+else `NODE_ENV`, else `development`). To connect some other way, open a `Connection` yourself in
+an initializer and pass it to `setConnection`.
 
 `new Connection({...})` also takes `host`, `port`, `database`, `username`, `password` and `ssl`
 instead of `url`. It uses Bun's built-in SQL driver (`Bun.SQL`), and the `postgres` package only
@@ -94,7 +94,6 @@ with a stack trace is printed, pointing at `includes()` or a single `where({ id:
 
 ## Not implemented yet
 
-- **Connecting at boot from `config/database.js`.** Use an initializer, as above.
 - **`brails db:*` commands.** `brails db:migrate`, `db:rollback`, `db:setup` and the rest are registered but not implemented yet: each exits 1.
 - **Automatic schema dump.** Running migrations does not update `db/schema.js`. Call
   `dumpSchema` yourself (see [Dump the schema](./migrations.md#dump-the-schema)).

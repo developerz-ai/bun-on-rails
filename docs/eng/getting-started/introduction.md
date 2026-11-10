@@ -34,7 +34,7 @@ config/
   per-session [CSRF tokens](../routing/overview.md#csrf-protection).
 - **Config**: per-section files, per-environment overrides and initializers.
 - **ORM query layer**: an Active-Record-style `Model` with a query builder, validations and
-  associations on a PostgreSQL adapter. It is not yet connected at app boot. See the
+  associations on PostgreSQL, connected at boot when `DATABASE_URL` is set. See the
   [Database Overview](../database/overview.md).
 - **Jobs**: a `Job` base class whose `performNow` runs a job inline.
 - **Caching**: an in-process memory store.
@@ -45,7 +45,7 @@ These are designed and partly built, but not usable yet:
 
 - the code generators (`brails generate`), the database commands (`brails db:migrate` and the
   rest), `brails console` and `brails routes`;
-- connecting to the database at boot, and test-database isolation;
+- test-database isolation;
 - queued jobs (`performLater`), mail delivery, S3 file storage, and the Redis cache;
 - WebSocket channels, the React hooks and forms, and HTML views;
 - authentication.

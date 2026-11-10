@@ -79,8 +79,8 @@ with `{"status":"ok"}`. Point the platform's health check at it.
 
 ## Database
 
-The app does not connect to a database on its own. Connect in an initializer and pass
-`DATABASE_URL` in the environment (see [Connect to PostgreSQL](../database/overview.md#connect-to-postgresql)).
+Pass `DATABASE_URL` in the environment and the app connects at boot (see
+[Connect to PostgreSQL](../database/overview.md#connect-to-postgresql)); a database it cannot reach fails boot.
 Run migrations with your migration script before starting the new version:
 `bun run db/migrate.js` (see [Running migrations](../database/migrations.md#running-migrations)).
 

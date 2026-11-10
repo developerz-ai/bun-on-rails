@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added
 
+- The app connects to the database at boot. When `config/database.js` names a database (`url` or `database`, or the current environment's block), `Application` connects, makes that the connection models use, and closes it on stop; a database it cannot reach fails boot. `brails new` writes a `config/database.js` that reads `DATABASE_URL`, and without it the app runs with no database. The demo app's config drops its localhost fallbacks, so it connects only when `DATABASE_URL` is set. Pinned by `test/core/database_boot.test.js`.
 - Routing & Controllers guide (`docs/eng/routing/overview.md`). Every example in it is a complete file, which `test/docs/routing_guide.test.js` writes over a fresh `brails new` app, boots and checks. It also documents what is not implemented yet: nested resources, `scope`, filter options, and CSRF token issuance.
 - Initial framework implementation
 - ORM with Active Record-style API

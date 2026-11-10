@@ -17,7 +17,7 @@ features:
   - title: Routing and controllers
     details: A Rails-style routing DSL with resources and namespaces, and controllers whose actions return JSON.
   - title: Active Record-style ORM
-    details: Models with validations, callbacks, scopes and a query builder, plus migrations, on PostgreSQL. You open the connection yourself for now.
+    details: Models with validations, callbacks, scopes and a query builder, plus migrations, on PostgreSQL, connected at boot from DATABASE_URL.
   - title: Built on Bun
     details: Plain JavaScript ES modules served by Bun.serve. No build step, and bun test for tests.
   - title: Not there yet

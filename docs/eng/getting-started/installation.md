@@ -40,11 +40,10 @@ curl localhost:3000/health   # {"status":"ok"}
 
 ## Databases
 
-Database support is not wired in yet. The app does not connect to a database when it boots,
-and the database commands (`brails db:create`, `brails db:migrate` and the rest) exit with an
-error. The ORM's query layer exists and targets PostgreSQL:
-[Database Overview](../database/overview.md) describes it. `brails help` lists every planned
-command.
+The app connects to PostgreSQL at boot when `DATABASE_URL` is set (put it in `.env`), and runs
+without a database when it is not. [Database Overview](../database/overview.md) covers models
+and queries. The database commands (`brails db:create`, `brails db:migrate` and the rest) are
+not implemented yet: each exits with an error, and `brails help` lists every planned command.
 
 Configuration that should stay out of git goes in `.env`, which Bun loads automatically.
 `.env.example` lists the variable names, and `.env` is never committed.

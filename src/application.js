@@ -13,6 +13,7 @@ import { Cache, MemoryStore } from './cache/cache.js'
 import { MiddlewareStack, Middleware } from './controller/middleware.js'
 import { ControllerContext } from './controller/base.js'
 import { BroadcastManager } from './websocket/broadcast_manager.js'
+import { Connection, getConnection, setConnection } from './database/connection.js'
 
 /**
  * Application - Main framework entry point
@@ -342,23 +343,35 @@ export class Application {
   // ==========================================
 
   async _initializeDatabase() {
-    const dbConfig = this.config.section('database')
+    // config/database.js holds one config, or one per environment
+    const section = this.config.section('database')
+    const forEnvironment = section[getEnvironment()]
+    const dbConfig = forEnvironment && typeof forEnvironment === 'object' ? forEnvironment : section
 
-    // Skip if no database configured
-    if (!dbConfig.database && !dbConfig.url) {
-      this.logger.debug('Database not configured, skipping')
+    if (!dbConfig.url && !dbConfig.database) {
+      this.logger.debug('No database configured (config/database.js), skipping')
       return
     }
 
-    // Database connection will be implemented in database/connection.js
-    // For now, store the config for lazy initialization
-    this.databaseConfig = dbConfig
-    this.logger.debug('Database configuration loaded')
+    // Connect now and fail boot if it does not work: a running app whose
+    // every query fails is worse than one that will not start.
+    const connection = new Connection(dbConfig)
+    try {
+      await connection.connect()
+    } catch (error) {
+      throw new Error(`Cannot connect to the database configured in config/database.js: ${error.message}`, { cause: error })
+    }
+    setConnection(connection)
+    this.database = connection
+    this.logger.info(`Connected to the database (${connection.adapterType} driver)`)
   }
 
   async _closeDatabase() {
     if (this.database) {
       await this.database.disconnect()
+      if (getConnection() === this.database) {
+        setConnection(null)
+      }
       this.database = null
     }
   }
