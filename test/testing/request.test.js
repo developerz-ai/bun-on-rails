@@ -66,6 +66,11 @@ describe("request(app)", () => {
     expect(await res.json()).toEqual({ page: "2", q: "draft posts" });
   });
 
+  test("params join a query string already in the path", async () => {
+    const res = await request(app).get("/posts?page=1", { q: "draft" });
+    expect(await res.json()).toEqual({ page: "1", q: "draft" });
+  });
+
   test("POST sends a JSON body", async () => {
     const res = await request(app).post("/posts", { title: "From a test" });
     expect(res.status).toBe(201);
@@ -104,6 +109,9 @@ describe("TestResponse JSON assertions compare", () => {
   test("assertJsonHas follows a dotted path and throws on a missing key", async () => {
     const res = await request(app).get("/posts/7");
     await res.assertJsonHas("post.title");
+    await expect(res.assertJsonHas("post.toString")).rejects.toThrow(
+      "Expected JSON to have 'post.toString'; 'post.toString' is missing",
+    );
     await expect(res.assertJsonHas("post.author.name")).rejects.toThrow(
       "Expected JSON to have 'post.author.name'; 'post.author' is missing",
     );

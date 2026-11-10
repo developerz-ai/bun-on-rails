@@ -100,7 +100,11 @@ export class TestRequest {
       init.headers['content-type'] = 'application/json'
       init.body = JSON.stringify(body)
     }
-    const url = `http://localhost${path}${query ? `?${query}` : ''}`
+    // params join any query string already in the path
+    const url = new URL(path, 'http://localhost')
+    if (query) {
+      url.search = url.search ? `${url.search}&${query}` : query
+    }
     return new TestResponse(await this.app.handle(new Request(url, init)))
   }
 }
@@ -215,7 +219,7 @@ export class TestResponse {
     let value = await this.json()
     const parts = key.split('.')
     for (let i = 0; i < parts.length; i++) {
-      if (value === null || typeof value !== 'object' || !(parts[i] in value)) {
+      if (value === null || typeof value !== 'object' || !Object.hasOwn(value, parts[i])) {
         throw new Error(`Expected JSON to have '${key}'; '${parts.slice(0, i + 1).join('.')}' is missing`)
       }
       value = value[parts[i]]
