@@ -231,10 +231,10 @@ await Post.includes("comments.user").all(); // nested
 
 These properties are not attributes, so `render` and `toJSON()` leave them out.
 
-For one record, `await post.loadAssociation("user")` loads a `belongsTo` or `hasOne`
-association. It finds the class by capitalising the association name, so it does not resolve a
-`hasMany` like `comments`, nor a `model` given as a string; query those directly:
-`Comment.where({ post_id: post.id }).all()`.
+For one record, `await post.loadAssociation("comments")` loads any `belongsTo`, `hasMany` or
+`hasOne` association. The class is the one given as `model` (a class, or the name of a registered
+one), else the association name singularized and capitalized: `comments` is `Comment`, `author` is
+`Author`. `includes()` resolves classes the same way. Register each model with `Model.register()`.
 
 ## Not implemented yet
 

@@ -11,6 +11,7 @@ import { getConnection } from './connection.js'
 import { PostgresAdapter } from './adapters/postgres.js'
 import { trackQuery } from './n_plus_one_detector.js'
 import { tableize } from '../support/inflector.js'
+import { resolveAssociationModel } from './associations.js'
 
 /**
  * The number of rows an UPDATE or DELETE changed. Both drivers (postgres.js and
@@ -1306,7 +1307,7 @@ export class QueryBuilder {
    */
   async _loadAssociation(records, name, type, config, nestedParts) {
     const foreignKey = config.foreignKey || this._inferForeignKey(name, type)
-    const AssociatedModel = await this._getAssociatedModel(config, name)
+    const AssociatedModel = resolveAssociationModel(config, name)
 
     if (!AssociatedModel) {
       console.warn(`Could not resolve model for association '${name}'`)
@@ -1403,39 +1404,6 @@ export class QueryBuilder {
     return modelName.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '') + '_id'
   }
 
-  /**
-   * Get the associated model class
-   * @private
-   */
-  async _getAssociatedModel(config, name) {
-    // If model class is directly provided
-    if (config.model && typeof config.model !== 'string') {
-      return config.model
-    }
-
-    // Try to resolve from model name
-    const modelName = config.model || this._singularize(name)
-    const className = modelName.charAt(0).toUpperCase() + modelName.slice(1)
-
-    // Try global registry if available
-    if (globalThis._modelRegistry && globalThis._modelRegistry[className]) {
-      return globalThis._modelRegistry[className]
-    }
-
-    // Return null - caller should handle
-    return null
-  }
-
-  /**
-   * Simple singularize helper
-   * @private
-   */
-  _singularize(str) {
-    if (str.endsWith('ies')) return str.slice(0, -3) + 'y'
-    if (str.endsWith('es')) return str.slice(0, -2)
-    if (str.endsWith('s')) return str.slice(0, -1)
-    return str
-  }
 }
 
 /**
