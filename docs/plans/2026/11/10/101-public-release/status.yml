@@ -1,9 +1,9 @@
 plan: 101-public-release
 title: Public release of bun-on-rails v0.1.0
-status: in-progress
+status: waiting-on-humans
 owner: unassigned
-percent: 95
-current_focus: T7 (docs site config); then T7b once Pages is enabled, and the v0.1.0 tag after the first manual npm publish
+percent: 100
+current_focus: agent tasks done and the release bar passes; waiting on a repo admin (Pages source, then T7b) and an npm owner (first publish, then trusted publishing, then tag v0.1.0)
 slices:
   - id: T10
     title: Land the QA script as bin/qa-release
@@ -39,7 +39,7 @@ slices:
     depends_on: [T3]
   - id: T7
     title: VitePress base, srcExclude, dead-link guard, full sidebar
-    status: in-progress
+    status: done
     depends_on: [T5, T6, T8]
   - id: T7b
     title: Link the live docs site from the README
@@ -63,6 +63,7 @@ decisions:
   D7: manual first publish, then npm trusted publishing
 evidence:
   baseline: "bin/qa-release on main 77c00e9, 2026-11-10: install FAIL, links FAIL, licence PASS, ci FAIL"
+  release_bar_green: "bin/qa-release on the T7 commit (ad1187e), 2026-11-10: install PASS, links PASS, licence PASS, ci PASS"
   after_pr_32: "bin/qa-release on main 880b79e + the T10 branch, 2026-11-10: install FAIL, links FAIL, licence PASS, ci PASS"
   prs:
     - "#32 merged as 880b79e (D6)"
@@ -76,5 +77,6 @@ evidence:
     - "#40 merged as f3a0241 (T9)"
     - "#41 merged as 5819caa (T11)"
     - "#42 merged as 73e84f2 (T6)"
+    - "#43 merged as 59f7eed (T7)"
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 last_updated: 2026-11-10
