@@ -37,9 +37,9 @@ export class Channel {
    * Subscribe to a stream
    * @param {string} streamName
    */
-  async stream(streamName) {
-    this.streams.push(streamName)
+  async stream(_streamName) {
     // TODO: Subscribe to Redis pub/sub
+    throw new NotImplementedError('Channel#stream', 'WebSocket channels')
   }
 
   /**
