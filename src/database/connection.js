@@ -45,6 +45,19 @@ export class DatabaseError extends Error {
 }
 
 /**
+ * The code a DatabaseError carries. For a server error it is the SQLSTATE
+ * (e.g. '23505'): postgres.js reports that as `code`, Bun.SQL as `errno` (its
+ * `code` is a generic ERR_POSTGRES_SERVER_ERROR). A system error keeps its
+ * symbolic `code` (ECONNREFUSED); its `errno` is a negative number.
+ * @param {Error & { errno?: string|number, code?: string }} error
+ * @returns {string|null}
+ */
+function sqlState(error) {
+  const isSqlState = typeof error?.errno === 'string' && /^[0-9A-Z]{5}$/.test(error.errno)
+  return isSqlState ? error.errno : error?.code ?? null
+}
+
+/**
  * Connection not established error
  */
 export class ConnectionNotEstablishedError extends DatabaseError {
@@ -235,7 +248,7 @@ export class Connection {
     } catch (error) {
       throw new DatabaseError(
         `Failed to connect to database: ${error.message}`,
-        { code: error.code }
+        { code: sqlState(error) }
       )
     }
   }
@@ -352,7 +365,7 @@ export class Connection {
     } catch (error) {
       throw new DatabaseError(
         `Query failed: ${error.message}`,
-        { code: error.code, query: sql, params }
+        { code: sqlState(error), query: sql, params }
       )
     }
   }
@@ -420,7 +433,7 @@ export class Connection {
       }
       throw new DatabaseError(
         `Transaction failed: ${error.message}`,
-        { code: error.code }
+        { code: sqlState(error) }
       )
     }
   }
