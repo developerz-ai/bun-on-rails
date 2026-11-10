@@ -69,8 +69,8 @@ describe("a planned API throws instead of resolving undefined", () => {
     await refuses(() => Form({}), "Form");
   });
 
-  test("request.get: does not resolve undefined", () =>
-    refuses(() => request.get("/posts"), "TestRequest#request"));
+  test("request(app).as(user): authentication is planned", () =>
+    refuses(() => request({}).as({ id: 1 }), "TestRequest#as"));
 
   test("a hasAndBelongsToMany reader names the model and association", async () => {
     class Article extends Model {

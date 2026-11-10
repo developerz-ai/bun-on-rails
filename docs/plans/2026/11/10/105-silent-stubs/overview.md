@@ -24,18 +24,30 @@ that describes the API change in the same PR; database features are also run aga
 
 ## Tasks
 
-| Id  | What                                                                                                         | Where                                                                            |
-| --- | ------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------- |
-| S1  | a guard rejects a TODO-only body under `src/`; every planned API throws `NotImplementedError` naming itself  | `src/support/`, the modules above, `test/support/`                               |
-| S2  | a config naming a backend that is not built (`cache.store: 'redis'`, `jobs.adapter: 'bullmq'`) fails at boot | `src/application.js`                                                             |
-| S3  | test-database isolation: `withinTransaction`, `cleanDatabase`, `setupDatabase` work                          | `src/testing/database.js`                                                        |
-| S4  | the exported `request` (a `TestRequest`) sends through an app and returns a `TestResponse`                   | `src/testing/request.js`                                                         |
-| S5  | `hasAndBelongsToMany` loads through its join table                                                           | `src/database/associations.js`                                                   |
-| \1  | S7                                                                                                           | the demo's test suite runs in CI on its PostgreSQL service, with `setupDatabase` | `demo/test/`, `.github/workflows/ci.yml` |
+| Id  | What                                                                                                                                                                | Where                                              |
+| --- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------- |
+| S1  | a guard rejects a TODO-only body under `src/`; every planned API throws `NotImplementedError` naming itself                                                         | `src/support/`, the modules above, `test/support/` |
+| S2  | a config naming a backend that is not built (`cache.store: 'redis'`, `jobs.adapter: 'bullmq'`) fails at boot                                                        | `src/application.js`                               |
+| S3  | test-database isolation: `withinTransaction`, `cleanDatabase`, `setupDatabase` work                                                                                 | `src/testing/database.js`                          |
+| S4  | `request(app)` sends through the app (`app.handle`) and returns a `TestResponse`; its JSON assertions compare                                                       | `src/testing/request.js`                           |
+| S5  | `hasAndBelongsToMany` loads through its join table                                                                                                                  | `src/database/associations.js`                     |
+| S6  | `brails test` runs `bun test` with `NODE_ENV=test`                                                                                                                  | `src/cli/commands/test.js`                         |
+| S7  | the demo's test suite runs in CI on its PostgreSQL service, with `setupDatabase`                                                                                    | `demo/test/`, `.github/workflows/ci.yml`           |
+| S8  | the guard also rejects a TODO in a function that returns normally; `Router#middleware` and `Channel#stream` throw                                                   | `test/support/no_silent_stubs.test.js`             |
+| S9  | `factory` builds the model a factory names (`define(name, attrs, { model })`, else `app/models/<name>.js`), not the base `Model`                                    | `src/testing/factory.js`                           |
+| S10 | one dispatch path: `Application` matches with `Router#match` (URI-decoded params) and parses params once with nested keys; the unused `Router#handle` pipeline goes | `src/application.js`, `src/routing/router.js`      |
 
 Boot has the same defect one seam earlier: with `cache.store: 'redis'` (the demo's production
 config) it logs a warning and uses the memory store, and with `jobs.adapter: 'bullmq'` it logs "Job
 queue initialized with BullMQ" and initializes nothing. S2 makes both refuse to boot.
+
+S8 to S10 came out of S4. `assertJson` and `assertJsonHas` read the body and returned, so they
+passed whatever it held, yet the S1 guard let them through because their bodies had statements; four
+more functions hold a TODO and return normally, among them `router.middleware(list, callback)`,
+which drops the list, so routes meant to be guarded are not. `factory.create('user')` saves a base
+`Model`, never a `User`. And dispatch runs its own matcher and parsers: params are not URI-decoded,
+`filter[status]=x` is not nested, and the body parser reads a body `_buildContext` already
+consumed, while `Router#handle`, with its own pipeline and 17 tests, is not what apps run.
 
 S7 came out of S3: the demo job's test steps are commented out ("Demo tests require database
 implementations"), so the demo's tests have never run.

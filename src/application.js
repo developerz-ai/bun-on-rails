@@ -719,6 +719,21 @@ export class Application {
   // Private: Request Handling
   // ==========================================
 
+  /**
+   * Handle one request in-process, as the server would: routing, middleware,
+   * the action. request(app) (src/testing/request.js) sends test requests
+   * through it. Needs initialize().
+   *
+   * @param {Request} request
+   * @returns {Promise<Response>}
+   */
+  async handle(request) {
+    if (!this.initialized) {
+      throw new Error('app.handle(request) needs an initialized app: await app.initialize() first')
+    }
+    return this._handleRequest(request, null)
+  }
+
   async _handleRequest(request, server) {
     const startTime = performance.now()
     const url = new URL(request.url)

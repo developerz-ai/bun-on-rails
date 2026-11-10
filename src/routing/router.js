@@ -446,7 +446,7 @@ export class Router {
 
     // Build query string if there are query params
     if (Object.keys(queryParams).length > 0) {
-      const queryString = this._buildQueryString(queryParams)
+      const queryString = buildQueryString(queryParams)
       generatedPath = `${generatedPath}?${queryString}`
     }
 
@@ -482,34 +482,6 @@ export class Router {
     }
 
     return paramNames
-  }
-
-  /**
-   * Build a query string from an object of parameters
-   * @param {Object} params - Query parameters
-   * @returns {string} - Encoded query string (without leading ?)
-   * @private
-   */
-  _buildQueryString(params) {
-    const pairs = []
-
-    for (const [key, value] of Object.entries(params)) {
-      if (Array.isArray(value)) {
-        // Handle array values (e.g., tags[]=a&tags[]=b)
-        for (const item of value) {
-          pairs.push(`${encodeURIComponent(key)}[]=${encodeURIComponent(String(item))}`)
-        }
-      } else if (typeof value === 'object' && value !== null) {
-        // Handle nested objects (e.g., filter[status]=active)
-        for (const [nestedKey, nestedValue] of Object.entries(value)) {
-          pairs.push(`${encodeURIComponent(key)}[${encodeURIComponent(nestedKey)}]=${encodeURIComponent(String(nestedValue))}`)
-        }
-      } else {
-        pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
-      }
-    }
-
-    return pairs.join('&')
   }
 
   /**
@@ -794,4 +766,31 @@ export class Router {
       headers: { 'Content-Type': 'application/json' }
     })
   }
+}
+
+/**
+ * Build a query string from an object of parameters: arrays as `tags[]=a`,
+ * nested objects as `filter[status]=active`. Router#urlFor and request(app)
+ * (src/testing/request.js) both use it.
+ * @param {Object} params - Query parameters
+ * @returns {string} - Encoded query string (without leading ?)
+ */
+export function buildQueryString(params) {
+  const pairs = []
+
+  for (const [key, value] of Object.entries(params)) {
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        pairs.push(`${encodeURIComponent(key)}[]=${encodeURIComponent(String(item))}`)
+      }
+    } else if (typeof value === 'object' && value !== null) {
+      for (const [nestedKey, nestedValue] of Object.entries(value)) {
+        pairs.push(`${encodeURIComponent(key)}[${encodeURIComponent(nestedKey)}]=${encodeURIComponent(String(nestedValue))}`)
+      }
+    } else {
+      pairs.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+    }
+  }
+
+  return pairs.join('&')
 }
