@@ -1,6 +1,6 @@
 /**
  * Middleware - Request/Response pipeline with beforeAction/afterAction support
- * @module @bun-on-rails/controller/middleware
+ * @module bun-on-rails/controller/middleware
  */
 
 /**

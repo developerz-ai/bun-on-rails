@@ -12,7 +12,7 @@
  * 2. NODE_ENV environment variable
  * 3. Defaults to 'development'
  *
- * @module @bun-on-rails/config
+ * @module bun-on-rails/config
  */
 
 import { join, basename } from 'path'

@@ -4,7 +4,7 @@
  * Provides Rails-like inflection methods for singularizing, pluralizing,
  * and transforming strings between different naming conventions.
  *
- * @module @bun-on-rails/support/inflector
+ * @module bun-on-rails/support/inflector
  */
 
 /**

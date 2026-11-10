@@ -16,21 +16,21 @@
 
 ## Stack
 
-| Layer          | Choice                                                                     | Where                              |
-| -------------- | -------------------------------------------------------------------------- | ---------------------------------- |
-| Runtime        | Bun >= 1.0.0                                                               | `package.json` engines             |
-| Language       | plain JavaScript, ES modules (`"type": "module"`), no TypeScript build     | `package.json`                     |
-| Package        | `@bun-on-rails` — `main` `src/index.js`, bin `brails` → `src/cli/index.js` | `package.json`                     |
-| Tests          | Bun's own runner (`bun:test`)                                              | `test/`                            |
-| ORM / database | Active-Record-style `Model` on a Postgres adapter (`postgres` driver)      | `src/database/`                    |
-| Jobs           | a `Job` base class; BullMQ is the intended queue                           | `src/jobs/job.js`                  |
-| WebSockets     | native Bun WebSocket — a channel base class and a broadcast manager        | `src/websocket/`                   |
-| Mail           | nodemailer + `@react-email/render`                                         | `src/mail/mailer.js`               |
-| Storage        | S3-compatible via `@aws-sdk/client-s3`                                     | `src/storage/storage.js`           |
-| Cache          | in-process `MemoryStore`, with a Redis backend planned                     | `src/cache/cache.js`               |
-| React          | `useResource` / `useAction` / `useChannel`, `Form` / `Field`               | `src/react/`                       |
-| Docs           | VitePress, pages in `docs/eng/<section>/<page>.md`                         | `docs/`                            |
-| Lint / format  | ESLint (`--max-warnings=0`) / Prettier                                     | `eslint.config.js`, `package.json` |
+| Layer          | Choice                                                                    | Where                              |
+| -------------- | ------------------------------------------------------------------------- | ---------------------------------- |
+| Runtime        | Bun >= 1.0.0                                                              | `package.json` engines             |
+| Language       | plain JavaScript, ES modules (`"type": "module"`), no TypeScript build    | `package.json`                     |
+| Package        | `bun-on-rails` — `main` `src/index.js`, bin `brails` → `src/cli/index.js` | `package.json`                     |
+| Tests          | Bun's own runner (`bun:test`)                                             | `test/`                            |
+| ORM / database | Active-Record-style `Model` on a Postgres adapter (`postgres` driver)     | `src/database/`                    |
+| Jobs           | a `Job` base class; BullMQ is the intended queue                          | `src/jobs/job.js`                  |
+| WebSockets     | native Bun WebSocket — a channel base class and a broadcast manager       | `src/websocket/`                   |
+| Mail           | nodemailer + `@react-email/render`                                        | `src/mail/mailer.js`               |
+| Storage        | S3-compatible via `@aws-sdk/client-s3`                                    | `src/storage/storage.js`           |
+| Cache          | in-process `MemoryStore`, with a Redis backend planned                    | `src/cache/cache.js`               |
+| React          | `useResource` / `useAction` / `useChannel`, `Form` / `Field`              | `src/react/`                       |
+| Docs           | VitePress, pages in `docs/eng/<section>/<page>.md`                        | `docs/`                            |
+| Lint / format  | ESLint (`--max-warnings=0`) / Prettier                                    | `eslint.config.js`, `package.json` |
 
 No auth module ships in `src/` — bcrypt is a dependency only, and the demo's password check is still a TODO (`demo/app/models/user.js:56`).
 

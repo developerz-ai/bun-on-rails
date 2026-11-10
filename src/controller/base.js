@@ -24,7 +24,7 @@
  *   }
  * }
  *
- * @module @bun-on-rails/controller/base
+ * @module bun-on-rails/controller/base
  */
 
 import { RequestParams } from './request_parser.js'

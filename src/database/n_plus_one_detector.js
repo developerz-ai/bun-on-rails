@@ -8,7 +8,7 @@
  * are being executed multiple times in a short timeframe, which typically
  * indicates an N+1 query problem that should be solved with eager loading.
  *
- * @module @bun-on-rails/database/n_plus_one_detector
+ * @module bun-on-rails/database/n_plus_one_detector
  */
 
 import { isDevelopment } from '../config/loader.js'

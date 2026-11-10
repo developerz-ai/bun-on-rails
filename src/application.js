@@ -2,7 +2,7 @@
  * BunOnRails Application
  * Main application class that bootstraps and runs the framework
  *
- * @module @bun-on-rails/application
+ * @module bun-on-rails/application
  */
 
 import { join } from 'path'

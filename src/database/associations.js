@@ -7,7 +7,7 @@
  * - hasOne: Single child relationship (User has one Profile)
  * - hasAndBelongsToMany: Many-to-many through join table
  *
- * @module @bun-on-rails/database/associations
+ * @module bun-on-rails/database/associations
  */
 
 import { singularize, classify, underscore } from '../support/inflector.js'

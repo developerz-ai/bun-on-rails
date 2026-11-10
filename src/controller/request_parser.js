@@ -7,7 +7,7 @@
  * - URL-encoded form data
  * - Multipart form data with file uploads
  *
- * @module @bun-on-rails/controller/request_parser
+ * @module bun-on-rails/controller/request_parser
  */
 
 /**
@@ -513,7 +513,7 @@ function isPlainObject(obj) {
  * @returns {Function} Middleware function
  *
  * @example
- * import { requestParserMiddleware } from '@bun-on-rails/controller/request_parser'
+ * import { requestParserMiddleware } from 'bun-on-rails'
  *
  * app.use(requestParserMiddleware({
  *   maxBodySize: 5 * 1024 * 1024, // 5MB
