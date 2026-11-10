@@ -35,3 +35,6 @@ out of this plan.
 Observed while verifying F2, not yet a task: on Bun 1.3, `Connection.connect()` logs
 `Bun.sql connection failed: SQLHelper is not a function` and falls back to postgres.js. The
 fallback works, so queries succeed, but the native path is dead code on this Bun.
+
+Also observed (F9): `MigrationRunner#migrate()` calls `ensureMigrationsTable()` twice, so postgres.js
+prints a NOTICE (`relation "schema_migrations" already exists, skipping`) on every run. Noise only.

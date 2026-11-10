@@ -130,7 +130,7 @@ import { Connection, MigrationRunner } from "bun-on-rails";
 const connection = new Connection({ url: process.env.DATABASE_URL });
 await connection.connect();
 
-const runner = new MigrationRunner(connection, `${import.meta.dir}/migrations`);
+const runner = new MigrationRunner(connection, "db/migrations");
 await runner.migrate();
 
 await connection.disconnect();
@@ -141,8 +141,8 @@ bun run db/migrate.js
 ```
 
 `migrate()` runs every pending migration in file-name order and records each version in a
-`schema_migrations` table. Pass the migrations directory as an absolute path: a relative one is
-resolved against the framework's own files and fails to import.
+`schema_migrations` table. A relative migrations directory is resolved against the working
+directory, so run the script from the app root; an absolute path works from anywhere.
 
 The runner also has:
 

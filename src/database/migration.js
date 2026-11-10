@@ -7,6 +7,7 @@
  * @module bun-on-rails/database/migration
  */
 
+import { resolve } from 'path'
 import { PostgresAdapter } from './adapters/postgres.js'
 import { pluralize, singularize } from '../support/inflector.js'
 
@@ -271,7 +272,9 @@ export class Migration {
 export class MigrationRunner {
   constructor(db, migrationsPath) {
     this.db = db
-    this.migrationsPath = migrationsPath
+    // Resolved against the working directory: a relative path passed to
+    // import() would otherwise resolve against this file, or as a package name.
+    this.migrationsPath = resolve(migrationsPath)
     this.adapter = defaultAdapter
   }
 
