@@ -16,6 +16,15 @@ import { resolveAssociationModel, loadThroughJoinTable } from './associations.js
 const ASSOCIATION_TYPES = ['belongsTo', 'hasMany', 'hasOne', 'hasAndBelongsToMany']
 
 /**
+ * Hand what includes() loaded to the record's association method, which
+ * answers from it without a query (the cache defineAssociations' readers
+ * use). A plain property of the same name would shadow the method.
+ */
+function loaded(record, name, value) {
+  record[`_association_${name}`] = value
+}
+
+/**
  * The number of rows an UPDATE or DELETE changed. Both drivers (postgres.js and
  * Bun.sql) report it as `count` on the result; the result's length is the rows
  * *returned*, which is 0 without RETURNING. A result without a numeric `count`
@@ -1323,7 +1332,7 @@ export class QueryBuilder {
       const fkValues = [...new Set(records.map(r => r.attributes[foreignKey]).filter(Boolean))]
 
       if (fkValues.length === 0) {
-        records.forEach(r => r[name] = null)
+        records.forEach(r => loaded(r, name, null))
         return
       }
 
@@ -1337,7 +1346,7 @@ export class QueryBuilder {
 
       // Assign to parent records
       records.forEach(r => {
-        r[name] = lookup.get(r.attributes[foreignKey]) || null
+        loaded(r, name, lookup.get(r.attributes[foreignKey]) || null)
       })
 
       // Handle nested associations
@@ -1365,7 +1374,7 @@ export class QueryBuilder {
 
       // Assign to parent records
       records.forEach(r => {
-        r[name] = groups.get(r.attributes[this.model.primaryKey]) || []
+        loaded(r, name, groups.get(r.attributes[this.model.primaryKey]) || [])
       })
 
       // Handle nested associations
@@ -1381,7 +1390,7 @@ export class QueryBuilder {
         records.map(r => r.attributes[this.model.primaryKey])
       )
       records.forEach(r => {
-        r[name] = groups.get(String(r.attributes[this.model.primaryKey])) || []
+        loaded(r, name, groups.get(String(r.attributes[this.model.primaryKey])) || [])
       })
 
       const associatedRecords = [...new Set([...groups.values()].flat())]
@@ -1406,7 +1415,7 @@ export class QueryBuilder {
       })
 
       records.forEach(r => {
-        r[name] = lookup.get(r.attributes[this.model.primaryKey]) || null
+        loaded(r, name, lookup.get(r.attributes[this.model.primaryKey]) || null)
       })
     }
   }

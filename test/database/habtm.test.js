@@ -92,7 +92,8 @@ describe("hasAndBelongsToMany", () => {
   test("includes() gives each post its own tags, in two queries for all of them", async () => {
     const posts = await Post.includes("tags").all();
 
-    expect(posts.map((p) => p.tags.map((t) => t.get("name")))).toEqual([
+    const tags = await Promise.all(posts.map((p) => p.tags()));
+    expect(tags.map((list) => list.map((t) => t.get("name")))).toEqual([
       ["bun", "rails"],
       ["bun"],
       [],

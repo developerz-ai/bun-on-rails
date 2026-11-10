@@ -175,10 +175,10 @@ describe('Eager Loading - N+1 Prevention', () => {
       expect(posts.length).toBe(3)
 
       // All posts should have user attached
-      expect(posts[0].user).toBeDefined()
-      expect(posts[0].user.attributes.name).toBe('John')
-      expect(posts[1].user.attributes.name).toBe('Jane')
-      expect(posts[2].user.attributes.name).toBe('John')  // Same user as post 1
+      expect((await posts[0].user())).toBeDefined()
+      expect((await posts[0].user()).attributes.name).toBe('John')
+      expect((await posts[1].user()).attributes.name).toBe('Jane')
+      expect((await posts[2].user()).attributes.name).toBe('John')  // Same user as post 1
     })
 
     it('handles null foreign keys', async () => {
@@ -192,8 +192,8 @@ describe('Eager Loading - N+1 Prevention', () => {
 
       const posts = await Post.includes('user').all()
 
-      expect(posts[0].user).not.toBeNull()
-      expect(posts[1].user).toBeNull()
+      expect((await posts[0].user())).not.toBeNull()
+      expect((await posts[1].user())).toBeNull()
     })
 
     it('handles missing parent records', async () => {
@@ -207,8 +207,8 @@ describe('Eager Loading - N+1 Prevention', () => {
 
       const posts = await Post.includes('user').all()
 
-      expect(posts[0].user).not.toBeNull()
-      expect(posts[1].user).toBeNull()  // Should be null, not throw
+      expect((await posts[0].user())).not.toBeNull()
+      expect((await posts[1].user())).toBeNull()  // Should be null, not throw
     })
   })
 
@@ -234,9 +234,9 @@ describe('Eager Loading - N+1 Prevention', () => {
       expect(mockConnection.getQueryCount()).toBe(2)
 
       // Users should have posts attached as arrays
-      expect(users[0].posts).toBeInstanceOf(Array)
-      expect(users[0].posts.length).toBe(2)
-      expect(users[1].posts.length).toBe(1)
+      expect((await users[0].posts())).toBeInstanceOf(Array)
+      expect((await users[0].posts()).length).toBe(2)
+      expect((await users[1].posts()).length).toBe(1)
     })
 
     it('returns empty array for users with no children', async () => {
@@ -253,8 +253,8 @@ describe('Eager Loading - N+1 Prevention', () => {
 
       const users = await User.includes('posts').all()
 
-      expect(users[0].posts.length).toBe(1)
-      expect(users[1].posts).toEqual([])  // Empty array, not undefined
+      expect((await users[0].posts()).length).toBe(1)
+      expect((await users[1].posts())).toEqual([])  // Empty array, not undefined
     })
 
     it('groups children correctly by foreign key', async () => {
@@ -274,13 +274,13 @@ describe('Eager Loading - N+1 Prevention', () => {
 
       const users = await User.includes('posts').all()
 
-      expect(users[0].posts.length).toBe(2)  // User 1
-      expect(users[1].posts.length).toBe(0)  // User 2
-      expect(users[2].posts.length).toBe(2)  // User 3
+      expect((await users[0].posts()).length).toBe(2)  // User 1
+      expect((await users[1].posts()).length).toBe(0)  // User 2
+      expect((await users[2].posts()).length).toBe(2)  // User 3
 
       // Verify correct posts are grouped
-      expect(users[0].posts.map(p => p.attributes.title)).toEqual(['P1', 'P3'])
-      expect(users[2].posts.map(p => p.attributes.title)).toEqual(['P2', 'P4'])
+      expect((await users[0].posts()).map(p => p.attributes.title)).toEqual(['P1', 'P3'])
+      expect((await users[2].posts()).map(p => p.attributes.title)).toEqual(['P2', 'P4'])
     })
   })
 
@@ -300,9 +300,9 @@ describe('Eager Loading - N+1 Prevention', () => {
       const users = await User.includes('profile').all()
 
       expect(mockConnection.getQueryCount()).toBe(2)
-      expect(users[0].profile).not.toBeNull()
-      expect(users[0].profile.attributes.bio).toBe('John bio')
-      expect(users[1].profile.attributes.bio).toBe('Jane bio')
+      expect((await users[0].profile())).not.toBeNull()
+      expect((await users[0].profile()).attributes.bio).toBe('John bio')
+      expect((await users[1].profile()).attributes.bio).toBe('Jane bio')
     })
 
     it('returns null for records without hasOne association', async () => {
@@ -316,8 +316,8 @@ describe('Eager Loading - N+1 Prevention', () => {
 
       const users = await User.includes('profile').all()
 
-      expect(users[0].profile).not.toBeNull()
-      expect(users[1].profile).toBeNull()
+      expect((await users[0].profile())).not.toBeNull()
+      expect((await users[1].profile())).toBeNull()
     })
 
     it('takes only first record when multiple exist', async () => {
@@ -332,7 +332,7 @@ describe('Eager Loading - N+1 Prevention', () => {
       const users = await User.includes('profile').all()
 
       // Should take first match
-      expect(users[0].profile.attributes.bio).toBe('First profile')
+      expect((await users[0].profile()).attributes.bio).toBe('First profile')
     })
   })
 
@@ -348,8 +348,8 @@ describe('Eager Loading - N+1 Prevention', () => {
 
       // 1 main query + 2 eager load queries
       expect(mockConnection.getQueryCount()).toBe(3)
-      expect(users[0].posts).toBeDefined()
-      expect(users[0].comments).toBeDefined()
+      expect((await users[0].posts())).toBeDefined()
+      expect((await users[0].comments())).toBeDefined()
     })
 
     it('handles mixed association types', async () => {
@@ -361,8 +361,8 @@ describe('Eager Loading - N+1 Prevention', () => {
 
       const users = await User.includes('posts', 'profile').all()
 
-      expect(users[0].posts).toBeInstanceOf(Array)
-      expect(users[0].profile).not.toBeNull()
+      expect((await users[0].posts())).toBeInstanceOf(Array)
+      expect((await users[0].profile())).not.toBeNull()
     })
   })
 
@@ -386,10 +386,10 @@ describe('Eager Loading - N+1 Prevention', () => {
 
       const users = await User.includes('posts.comments').all()
 
-      expect(users[0].posts).toBeDefined()
-      expect(users[0].posts[0].comments).toBeDefined()
-      expect(users[0].posts[0].comments.length).toBe(2)
-      expect(users[0].posts[1].comments.length).toBe(1)
+      expect((await users[0].posts())).toBeDefined()
+      expect((await (await users[0].posts())[0].comments())).toBeDefined()
+      expect((await (await users[0].posts())[0].comments()).length).toBe(2)
+      expect((await (await users[0].posts())[1].comments()).length).toBe(1)
     })
 
     it('handles deep nesting', async () => {
@@ -401,8 +401,8 @@ describe('Eager Loading - N+1 Prevention', () => {
 
       const posts = await Post.includes('comments.user').all()
 
-      expect(posts[0].comments[0].user).toBeDefined()
-      expect(posts[0].comments[0].user.attributes.name).toBe('Commenter')
+      expect((await (await posts[0].comments())[0].user())).toBeDefined()
+      expect((await (await posts[0].comments())[0].user()).attributes.name).toBe('Commenter')
     })
   })
 
@@ -418,7 +418,7 @@ describe('Eager Loading - N+1 Prevention', () => {
       })
 
       expect(posts.length).toBe(1)
-      expect(posts[0].user.attributes.name).toBe('Author')
+      expect((await posts[0].user()).attributes.name).toBe('Author')
       expect(mockConnection.getQueryCount()).toBe(2)
     })
 
@@ -433,8 +433,8 @@ describe('Eager Loading - N+1 Prevention', () => {
         include: ['user', 'comments']
       })
 
-      expect(posts[0].user).toBeDefined()
-      expect(posts[0].comments).toBeDefined()
+      expect((await posts[0].user())).toBeDefined()
+      expect((await posts[0].comments())).toBeDefined()
     })
 
     it('combines includes with where conditions', async () => {
@@ -449,7 +449,7 @@ describe('Eager Loading - N+1 Prevention', () => {
       })
 
       expect(posts.length).toBe(1)
-      expect(posts[0].user).toBeDefined()
+      expect((await posts[0].user())).toBeDefined()
     })
 
     it('combines includes with ordering and limit', async () => {
@@ -469,7 +469,7 @@ describe('Eager Loading - N+1 Prevention', () => {
 
       expect(posts.length).toBe(2)
       // Both posts should have the same user eager loaded
-      expect(posts[0].user).toBe(posts[1].user)
+      expect((await posts[0].user())).toBe((await posts[1].user()))
     })
   })
 
@@ -524,9 +524,9 @@ describe('Eager Loading - N+1 Prevention', () => {
       expect(result.length).toBe(50)
 
       // Each user should have 4 posts
-      result.forEach(user => {
-        expect(user.posts.length).toBe(4)
-      })
+      for (const user of result) {
+        expect((await user.posts()).length).toBe(4)
+      }
     })
 
     it('uses IN clause for batch loading', async () => {
@@ -575,9 +575,9 @@ describe('Eager Loading - N+1 Prevention', () => {
       const posts = await Post.includes('user').all()
 
       expect(posts.length).toBe(2)
-      posts.forEach(post => {
-        expect(post.user).toBeNull()
-      })
+      for (const post of posts) {
+        expect(await post.user()).toBeNull()
+      }
       // Should only execute main query since no FK values to load
       expect(mockConnection.getQueryCount()).toBe(1)
     })
@@ -610,9 +610,9 @@ describe('Eager Loading - N+1 Prevention', () => {
       expect(queries[1].params.filter(p => p === 1).length).toBe(1)
 
       // All posts should share the same user reference
-      expect(posts[0].user.attributes.name).toBe('John')
-      expect(posts[1].user.attributes.name).toBe('John')
-      expect(posts[2].user.attributes.name).toBe('John')
+      expect((await posts[0].user()).attributes.name).toBe('John')
+      expect((await posts[1].user()).attributes.name).toBe('John')
+      expect((await posts[2].user()).attributes.name).toBe('John')
     })
   })
 
@@ -628,9 +628,9 @@ describe('Eager Loading - N+1 Prevention', () => {
       const initialQueryCount = mockConnection.getQueryCount()
 
       // Access the association multiple times
-      const user1 = posts[0].user
-      const user2 = posts[0].user
-      const user3 = posts[0].user
+      const user1 = (await posts[0].user())
+      const user2 = (await posts[0].user())
+      const user3 = (await posts[0].user())
 
       // No additional queries should be made
       expect(mockConnection.getQueryCount()).toBe(initialQueryCount)
@@ -638,17 +638,18 @@ describe('Eager Loading - N+1 Prevention', () => {
       expect(user2).toBe(user3)
     })
 
-    it('eager loaded data is available synchronously', async () => {
+    it('the association method answers from what was loaded, with no query', async () => {
       mockConnection.setMockResults([
         [{ id: 1, title: 'Post', user_id: 1 }],
         [{ id: 1, name: 'John' }]
       ])
 
       const posts = await Post.includes('user').all()
+      const queries = mockConnection.getQueryCount()
 
-      // Access should be synchronous (already loaded)
-      const user = posts[0].user
+      const user = await posts[0].user()
       expect(user.attributes.name).toBe('John')
+      expect(mockConnection.getQueryCount()).toBe(queries)
     })
   })
 })

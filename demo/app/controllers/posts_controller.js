@@ -32,7 +32,7 @@ export default class PostsController extends ApplicationController {
       return this.notFound('Post not found')
     }
 
-    const comments = await post.loadAssociation('comments')
+    const comments = await post.comments()
     return this.render({ post, comments })
   }
 

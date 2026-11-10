@@ -11,7 +11,7 @@ import { QueryBuilder, RecordNotFoundError, PaginatedResult } from './query_buil
 import { getConnection } from './connection.js'
 import { PostgresAdapter } from './adapters/postgres.js'
 import { foreignKey, tableize } from '../support/inflector.js'
-import { resolveAssociationModel, loadThroughJoinTable } from './associations.js'
+import { resolveAssociationModel, loadThroughJoinTable, defineAssociations } from './associations.js'
 import { runValidations } from './validations.js'
 
 /** The hooks a model's methods can override; the framework calls only these. */
@@ -1702,6 +1702,11 @@ export class Model {
 
     // Initialize scope methods
     this._initializeScopes()
+
+    // An association method for each declared association: post.comments(),
+    // post.author(). includes() fills their cache. Pinned by
+    // test/database/association_methods.test.js.
+    defineAssociations(this)
   }
 }
 
