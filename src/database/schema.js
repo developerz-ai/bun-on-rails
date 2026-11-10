@@ -13,6 +13,7 @@
  */
 
 import { PostgresAdapter, TYPE_ALIASES } from './adapters/postgres.js'
+import { pluralize } from '../support/inflector.js'
 import path from 'path'
 import fs from 'fs'
 
@@ -471,8 +472,9 @@ export class SchemaGenerator {
     // Build options
     const options = []
 
-    // If the referenced table doesn't follow convention (singular + 's')
-    if (foreign_table !== `${refName}s`) {
+    // Spell out the table only when references() would not infer it: the
+    // same pluralize() rule, so a dump loads back to the same foreign key.
+    if (foreign_table !== pluralize(refName)) {
       options.push(`table: '${foreign_table}'`)
     }
 

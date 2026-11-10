@@ -115,9 +115,9 @@ Each column method returns a builder for these modifiers, chained as in the exam
 `notNull()`, `unique()`, `default(value)`, `check("x >= 0")`, `index()`, and on a reference
 `onDelete(action)` and `onUpdate(action)`.
 
-`t.references` names the referenced table by adding `s`, so `t.references("category")` points at
-`categorys`. Pass the table: `t.references("category", { table: "categories" })`. Its other
-options are `column`, `index: false` and `polymorphic: true`, which adds a `<name>_type` column
+`t.references` names the referenced table with the same plural rule as models, so
+`t.references("category")` points at `categories`. Pass `table` when yours differs:
+`t.references("author", { table: "users" })`. Its other options are `column`, `index: false` and `polymorphic: true`, which adds a `<name>_type` column
 instead of the foreign key.
 
 ## Running migrations

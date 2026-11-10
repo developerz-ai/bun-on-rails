@@ -35,7 +35,7 @@ does: it gives the table name and the name associations look the model up by.
 
 | What        | Convention                                                                                                 |
 | ----------- | ---------------------------------------------------------------------------------------------------------- |
-| Table       | the snake_case class name plus `s`. Set `static tableName` for any other plural (`categories`)             |
+| Table       | the class name, snake_case and pluralized (`Category` is `categories`). Set `static tableName` to override |
 | Primary key | `id`                                                                                                       |
 | Foreign key | `belongsTo: ["user"]` reads `user_id`; `hasMany: ["comments"]` on `Post` reads `comments.post_id`          |
 | Timestamps  | `created_at` and `updated_at`, which `save()` fills in on insert, so every table a model writes needs them |
