@@ -211,7 +211,7 @@ export class Connection {
     }
 
     // Try Bun.sql first (native, faster)
-    if (this._useBunSql && typeof Bun?.sql === 'function') {
+    if (this._useBunSql && typeof Bun?.SQL === 'function') {
       try {
         await this._connectBunSql()
         this._adapter = 'bun'
@@ -250,17 +250,19 @@ export class Connection {
     // Bun.sql uses connection URL
     const connectionUrl = buildConnectionString(this.config)
 
-    // Create Bun.sql connection
-    this._client = Bun.sql({
+    // `Bun.sql` is the default client, a tagged-template function: calling it
+    // with options builds a query helper, not a client. Bun.SQL constructs one.
+    // Its timeouts are in seconds.
+    this._client = new Bun.SQL({
       url: connectionUrl,
       max: pool.max,
       idleTimeout: pool.idleTimeout,
-      connectionTimeout: pool.connectTimeout * 1000,
-      ssl: ssl ? 'require' : false
+      connectionTimeout: pool.connectTimeout,
+      tls: Boolean(ssl)
     })
 
-    // Test connection by running a simple query
-    await this._client`SELECT 1`
+    // Test the connection with the same call queries use
+    await this._client.unsafe('SELECT 1')
   }
 
   /**

@@ -1,9 +1,9 @@
 plan: 102-pre-release-defects
 title: Fix the boot and ORM defects found while preparing v0.1.0
-status: done
+status: in-progress
 owner: unassigned
-percent: 100
-current_focus: all eleven defects fixed; v0.1.0 waits only on the human steps in plan 101 (Pages, first npm publish)
+percent: 85
+current_focus: F12 (native Bun.SQL driver)
 slices:
   - { id: F1, status: done }
   - { id: F2, status: done }
@@ -16,6 +16,8 @@ slices:
   - { id: F9, status: done }
   - { id: F10, status: done }
   - { id: F11, status: done }
+  - { id: F12, status: in-progress }
+  - { id: F13, status: todo }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
   prs:
