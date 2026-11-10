@@ -406,10 +406,7 @@ describe('Model Callbacks - Declarative Callbacks', () => {
 
     const model = new MissingMethodModel({ name: 'Test' })
 
-    // Should fail due to missing method
-    const result = await model.save()
-    expect(result).toBe(false)
-    expect(model.errors.base).toContain('nonExistentMethod')
+    await expect(model.save()).rejects.toThrow('nonExistentMethod')
   })
 })
 
@@ -1073,7 +1070,7 @@ describe('Model Callbacks - Error Handling', () => {
     setConnection(null)
   })
 
-  it('handles callback errors gracefully', async () => {
+  it('throws the error a callback throws', async () => {
     class ErrorModel extends Model {
       static tableName = 'error_tests'
       static callbacks = {
@@ -1086,10 +1083,8 @@ describe('Model Callbacks - Error Handling', () => {
     }
 
     const model = new ErrorModel({ name: 'Test' })
-    const result = await model.save()
 
-    expect(result).toBe(false)
-    expect(model.errors.base).toBe('Callback error')
+    await expect(model.save()).rejects.toThrow('Callback error')
   })
 
   it('throws error for missing condition method', async () => {
@@ -1109,13 +1104,11 @@ describe('Model Callbacks - Error Handling', () => {
     ])
 
     const model = new MissingConditionModel({ name: 'Test' })
-    const result = await model.save()
 
-    expect(result).toBe(false)
-    expect(model.errors.base).toContain('nonExistentCondition')
+    await expect(model.save()).rejects.toThrow('nonExistentCondition')
   })
 
-  it('handles invalid callback definition', async () => {
+  it('throws for an invalid callback definition', async () => {
     class InvalidCallbackModel extends Model {
       static tableName = 'invalid_callback_tests'
       static callbacks = {
@@ -1128,10 +1121,8 @@ describe('Model Callbacks - Error Handling', () => {
     ])
 
     const model = new InvalidCallbackModel({ name: 'Test' })
-    const result = await model.save()
 
-    expect(result).toBe(false)
-    expect(model.errors.base).toContain('Invalid callback definition')
+    await expect(model.save()).rejects.toThrow('Invalid callback definition')
   })
 })
 

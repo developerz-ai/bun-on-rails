@@ -276,16 +276,14 @@ describe('Model Persistence - Instance Methods', () => {
         expect(user.changedAttributes).toHaveLength(0)
       })
 
-      it('handles database errors gracefully', async () => {
+      it('throws a database error instead of returning false (save_errors.test.js)', async () => {
         mockConnection.query = async () => {
           throw new Error('Database connection failed')
         }
 
         const user = new User({ name: 'John', email: 'john@example.com' })
-        const result = await user.save()
 
-        expect(result).toBe(false)
-        expect(user.errors.base).toBe('Database connection failed')
+        await expect(user.save()).rejects.toThrow('Database connection failed')
         expect(user.persisted).toBe(false)
       })
     })
@@ -445,7 +443,7 @@ describe('Model Persistence - Instance Methods', () => {
       expect(mockConnection.queries).toHaveLength(0)
     })
 
-    it('handles database errors gracefully', async () => {
+    it('throws a database error instead of returning false (save_errors.test.js)', async () => {
       mockConnection.query = async () => {
         throw new Error('Foreign key constraint violation')
       }
@@ -453,10 +451,7 @@ describe('Model Persistence - Instance Methods', () => {
       const user = new User({ id: 1, name: 'John', email: 'john@example.com' })
       user.persisted = true
 
-      const result = await user.destroy()
-
-      expect(result).toBe(false)
-      expect(user.errors.base).toBe('Foreign key constraint violation')
+      await expect(user.destroy()).rejects.toThrow('Foreign key constraint violation')
       expect(user.persisted).toBe(true) // Still marked as persisted because delete failed
     })
   })
