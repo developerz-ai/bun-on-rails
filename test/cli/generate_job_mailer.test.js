@@ -11,6 +11,7 @@
 import { test, expect, describe, afterAll } from "bun:test";
 import { spawnSync } from "child_process";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readFileSync,
@@ -67,6 +68,27 @@ describe("brails generate job", () => {
     expect(read(root, "app/jobs/cleanup_job.js")).toContain(
       "class CleanupJob extends Job",
     );
+  });
+});
+
+describe("names that would clash with the framework are refused before writing", () => {
+  test("a job named Job, and a mailer named Mailer", () => {
+    expect(() => generate(app(), "job", "Job")).toThrow(
+      '"Job" is the class every job extends; choose another name',
+    );
+    expect(() => generate(app(), "mailer", "Mailer", ["welcome"])).toThrow(
+      '"Mailer" is the class every mailer extends; choose another name',
+    );
+  });
+
+  test("a mail named after Mailer's own static members", () => {
+    for (const mail of ["mail", "defaults"]) {
+      const root = app();
+      expect(() => generate(root, "mailer", "User", [mail])).toThrow(
+        `"${mail}" would replace Mailer.${mail}, which every mail method uses; choose another name`,
+      );
+      expect(existsSync(join(root, "app"))).toBe(false);
+    }
   });
 });
 

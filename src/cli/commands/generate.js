@@ -348,6 +348,10 @@ function generateJob(root, name, created) {
     throw new Error('Usage: brails generate job <Name>, e.g. SendDigest')
   }
   const className = name.endsWith('Job') ? name : `${name}Job`
+  if (className === 'Job') {
+    // The file imports Job from the framework; a class of the same name cannot sit beside it.
+    throw new Error('"Job" is the class every job extends; choose another name')
+  }
   const file = underscore(className)
   const jobFile = join('app', 'jobs', `${file}.js`)
   const testFile = join('test', 'jobs', `${file}.test.js`)
@@ -389,8 +393,15 @@ function generateMailer(root, name, mails, created) {
     if (!/^[a-z][a-z0-9_]*$/.test(mail)) {
       throw new Error(`Invalid mail name "${mail}": use snake_case`)
     }
+    if (['mail', 'defaults'].includes(camelize(mail))) {
+      // A static `mail` would call itself through this.mail(); `defaults` holds the sender.
+      throw new Error(`"${mail}" would replace Mailer.${camelize(mail)}, which every mail method uses; choose another name`)
+    }
   }
   const className = name.endsWith('Mailer') ? name : `${name}Mailer`
+  if (className === 'Mailer') {
+    throw new Error('"Mailer" is the class every mailer extends; choose another name')
+  }
   const file = underscore(className)
   const mailerFile = join('app', 'mailers', `${file}.js`)
   const testFile = join('test', 'mailers', `${file}.test.js`)
