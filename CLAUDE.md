@@ -48,7 +48,7 @@ Parts of the tree are planned, not built. Each such function throws `NotImplemen
 | `src/websocket/channel.js`     | the `Channel` methods and the server wiring throw `NotImplementedError` (`src/websocket/channel.js:100`); `BroadcastManager` is implemented and covered by `test/websocket/broadcast_manager.test.js` |
 | `src/react/`                   | the hooks and forms throw `NotImplementedError` (`src/react/hooks.js:21`)                                                                                                                             |
 | `src/testing/`                 | `request(app)` sends through `app.handle(request)`; `TestRequest#as` throws `NotImplementedError` (`src/testing/request.js:37`); the `database.js` helpers work — see Conventions                     |
-| `src/database/associations.js` | HABTM loads through its join table (`loadThroughJoinTable`); `EagerLoader` there is a second eager loader only its own tests use                                                                      |
+| `src/database/associations.js` | association loading; HABTM goes through its join table (`loadThroughJoinTable`); `includes()` eager-loads in `QueryBuilder#_eagerLoad`, the one eager loader                                          |
 
 ## Commands
 
