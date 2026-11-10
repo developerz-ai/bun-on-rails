@@ -159,7 +159,9 @@ const rows = await getConnection().query(
 
 `connection.transaction(callback)` runs the callback in a transaction. Model queries in the
 callback join it, and so does `tx.query` on the connection the callback receives. If the callback
-throws, everything rolls back and `transaction` throws:
+throws, everything rolls back and `transaction` throws that same error, so a `RecordNotFoundError`
+stays one. A statement that fails is a `DatabaseError` with the SQLSTATE in `code`, inside the
+callback or not:
 
 ```js
 await connection.transaction(async () => {

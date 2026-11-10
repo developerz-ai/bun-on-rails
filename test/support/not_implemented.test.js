@@ -16,7 +16,6 @@ import {
   NotImplementedError,
   useResource,
   Form,
-  withinTransaction,
   request,
 } from "../../src/index.js";
 import { RedisStore } from "../../src/cache/cache.js";
@@ -72,18 +71,6 @@ describe("a planned API throws instead of resolving undefined", () => {
 
   test("request.get: does not resolve undefined", () =>
     refuses(() => request.get("/posts"), "TestRequest#request"));
-
-  test("withinTransaction: does not skip the test body silently", async () => {
-    let ran = false;
-    await refuses(
-      () =>
-        withinTransaction(async () => {
-          ran = true;
-        }),
-      "withinTransaction",
-    );
-    expect(ran).toBe(false); // it refuses loudly instead of passing without running
-  });
 
   test("a hasAndBelongsToMany reader names the model and association", async () => {
     class Article extends Model {

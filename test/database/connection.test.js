@@ -666,8 +666,9 @@ describe('Connection', () => {
         })
         expect.fail('Should have thrown')
       } catch (error) {
-        expect(error).toBeInstanceOf(DatabaseError)
-        expect(error.message).toContain('Transaction failed')
+        // the callback's own error, unchanged (test/database/transaction_errors.test.js)
+        expect(error).toBe(callbackError)
+        expect(error.message).toBe('Something went wrong')
       }
 
       expect(beginCalled).toBe(true)

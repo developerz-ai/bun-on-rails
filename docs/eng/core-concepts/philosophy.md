@@ -15,18 +15,18 @@ See [Convention over Configuration](./convention-over-configuration.md).
 The goal is one package with what a web app needs. A planned API throws `NotImplementedError`, naming
 itself, rather than doing nothing. Today:
 
-| Area                    | Module                            | State                                                                                                                    |
-| ----------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| Routing and controllers | `src/routing/`, `src/controller/` | Works. Actions return JSON; writes need the session's CSRF token ([how](../routing/overview.md#csrf-protection))         |
-| ORM and migrations      | `src/database/`                   | Works once the app opens a connection. PostgreSQL only ([Database](../database/overview.md))                             |
-| Cache                   | `src/cache/`                      | The in-memory store works (`this.cache` in a controller). The Redis store throws `NotImplementedError`                   |
-| Background jobs         | `src/jobs/`                       | `performNow` runs a job inline. Nothing enqueues ([Jobs](../jobs/overview.md))                                           |
-| WebSockets              | `src/websocket/`                  | The broadcast manager is implemented, but no connection is upgraded and `Channel` methods throw `NotImplementedError`    |
-| Mail                    | `src/mail/`                       | `deliver` and `deliverLater` throw `NotImplementedError`                                                                 |
-| File storage            | `src/storage/`                    | Upload, download and delete throw `NotImplementedError`                                                                  |
-| React                   | `src/react/`                      | `useResource`, `useAction`, `useChannel`, `Form` and `Field` throw `NotImplementedError`                                 |
-| Test helpers            | `src/testing/`                    | `request`, `setupDatabase`, `cleanDatabase` and `withinTransaction` throw `NotImplementedError`. Use `bun test` directly |
-| Authentication          | none                              | No module ships                                                                                                          |
+| Area                    | Module                            | State                                                                                                                                                                          |
+| ----------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Routing and controllers | `src/routing/`, `src/controller/` | Works. Actions return JSON; writes need the session's CSRF token ([how](../routing/overview.md#csrf-protection))                                                               |
+| ORM and migrations      | `src/database/`                   | Works once the app opens a connection. PostgreSQL only ([Database](../database/overview.md))                                                                                   |
+| Cache                   | `src/cache/`                      | The in-memory store works (`this.cache` in a controller). The Redis store throws `NotImplementedError`                                                                         |
+| Background jobs         | `src/jobs/`                       | `performNow` runs a job inline. Nothing enqueues ([Jobs](../jobs/overview.md))                                                                                                 |
+| WebSockets              | `src/websocket/`                  | The broadcast manager is implemented, but no connection is upgraded and `Channel` methods throw `NotImplementedError`                                                          |
+| Mail                    | `src/mail/`                       | `deliver` and `deliverLater` throw `NotImplementedError`                                                                                                                       |
+| File storage            | `src/storage/`                    | Upload, download and delete throw `NotImplementedError`                                                                                                                        |
+| React                   | `src/react/`                      | `useResource`, `useAction`, `useChannel`, `Form` and `Field` throw `NotImplementedError`                                                                                       |
+| Test helpers            | `src/testing/`                    | `setupDatabase`, `withinTransaction` and `cleanDatabase` work ([Tests with a database](../database/overview.md#tests-with-a-database)); `request` throws `NotImplementedError` |
+| Authentication          | none                              | No module ships                                                                                                                                                                |
 
 ## Plain JavaScript on Bun
 

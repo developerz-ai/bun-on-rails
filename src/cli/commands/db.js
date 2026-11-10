@@ -8,46 +8,13 @@
 
 import { existsSync } from 'fs'
 import { join } from 'path'
-import { createConfig, getEnvironment } from '../../config/loader.js'
+import { getEnvironment } from '../../config/loader.js'
 import { Connection, getConnection, setConnection } from '../../database/connection.js'
-import { selectDatabaseConfig } from '../../database/config.js'
+import { appDatabaseConfig, connectToAppDatabase } from '../../database/config.js'
 import { MigrationRunner } from '../../database/migration.js'
 import { PostgresAdapter } from '../../database/adapters/postgres.js'
 import { dumpSchema, loadSchema } from '../../database/schema.js'
 import { resolveAppRoot } from './dev.js'
-
-/**
- * Connect to the database the app at `root` is configured for.
- *
- * @param {string} root - application root
- * @returns {Promise<Connection>}
- */
-export async function connectToAppDatabase(root) {
-  const connection = new Connection(await appDatabaseConfig(root))
-  await connection.connect()
-  return connection
-}
-
-/**
- * The connection config for the app at `root`.
- *
- * @param {string} root - application root
- * @returns {Promise<Object>}
- */
-async function appDatabaseConfig(root) {
-  const config = createConfig()
-  config.setAppRoot(root)
-  await config.load({ root })
-
-  const dbConfig = selectDatabaseConfig(config.section('database'), getEnvironment())
-  if (!dbConfig) {
-    throw new Error(
-      `No database configured for ${root}: set DATABASE_URL (config/database.js reads it), ` +
-        `or give config/database.js a url`
-    )
-  }
-  return dbConfig
-}
 
 /**
  * The app database's name, and a config for the server's `postgres`
