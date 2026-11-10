@@ -2,13 +2,13 @@ plan: 102-pre-release-defects
 title: Fix the boot and ORM defects found while preparing v0.1.0
 status: in-progress
 owner: unassigned
-percent: 18
-current_focus: F3 (one table-name rule)
+percent: 27
+current_focus: F4 (bound placeholders in string conditions)
 slices:
   - { id: F1, status: done }
   - { id: F2, status: done }
-  - { id: F3, status: in-progress }
-  - { id: F4, status: todo }
+  - { id: F3, status: done }
+  - { id: F4, status: in-progress }
   - { id: F5, status: todo }
   - { id: F6, status: todo }
   - { id: F7, status: todo }
@@ -21,4 +21,5 @@ evidence:
   prs:
     - "#45 merged as 73fd9f8 (F1)"
     - "#46 merged as 7de8097 (F2)"
+    - "#47 merged as a29afbe (F3)"
 last_updated: 2026-11-10

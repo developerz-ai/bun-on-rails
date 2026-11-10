@@ -1214,53 +1214,9 @@ export class QueryBuilder {
     if (this.conditions.length === 0) {
       return { sql: '', params: [] }
     }
-
-    const params = []
-    let paramIndex = startIndex
-    const clauses = []
-
-    for (const condition of this.conditions) {
-      if (condition.raw) {
-        // Raw SQL condition
-        clauses.push(condition.raw)
-        if (condition.values) {
-          params.push(...condition.values)
-        }
-        continue
-      }
-
-      const { column, operator, value, or } = condition
-      const quotedCol = this._adapter.quoteIdentifier(column)
-      let clause
-
-      if (operator === 'IS NULL' || operator === 'IS NOT NULL') {
-        clause = `${quotedCol} ${operator}`
-      } else if (operator === 'IN' || operator === 'NOT IN') {
-        if (!Array.isArray(value) || value.length === 0) {
-          clause = operator === 'IN' ? 'FALSE' : 'TRUE'
-        } else {
-          const placeholders = value.map(() => `$${paramIndex++}`)
-          params.push(...value)
-          clause = `${quotedCol} ${operator} (${placeholders.join(', ')})`
-        }
-      } else if (operator === 'BETWEEN') {
-        params.push(value[0], value[1])
-        clause = `${quotedCol} BETWEEN $${paramIndex} AND $${paramIndex + 1}`
-        paramIndex += 2
-      } else {
-        params.push(value)
-        clause = `${quotedCol} ${operator} $${paramIndex++}`
-      }
-
-      if (or && clauses.length > 0) {
-        const lastClause = clauses.pop()
-        clauses.push(`(${lastClause} OR ${clause})`)
-      } else {
-        clauses.push(clause)
-      }
-    }
-
-    return { sql: clauses.join(' AND '), params }
+    // One WHERE builder: the adapter's, which toSQL() uses too.
+    const { sql, params } = this._adapter.whereClauseSQL(this.conditions, startIndex)
+    return { sql, params }
   }
 
   /**

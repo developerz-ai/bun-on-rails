@@ -151,6 +151,71 @@ export const RESERVED_WORDS = new Set([
  *   { name: 'email', type: 'string', unique: true }
  * ])
  */
+/**
+ * Bind a raw where() condition's placeholders at `start`: each `?` outside a
+ * quoted literal ('...', "...", $$...$$ or $tag$...$tag$) becomes the next `$n`, or `$1..$k` written by hand are
+ * shifted past the params before them. With no values the SQL is returned
+ * unchanged, because `?` is also a jsonb operator. A count that does not match
+ * the values throws. Pinned by test/database/raw_conditions.test.js.
+ *
+ * @param {string} raw
+ * @param {Array} values
+ * @param {number} start - the first free parameter number
+ * @returns {{ sql: string, nextIndex: number }}
+ */
+export function bindRawPlaceholders(raw, values, start) {
+  if (values.length === 0) return { sql: raw, nextIndex: start }
+
+  let sql = ''
+  let questionMarks = 0
+  let highestDollar = 0
+  let quote = null
+
+  for (let i = 0; i < raw.length; i++) {
+    const c = raw[i]
+    if (quote) {
+      sql += c
+      if (c === quote) {
+        if (raw[i + 1] === quote) sql += raw[++i] // escaped '' or ""
+        else quote = null
+      }
+      continue
+    }
+    const dollarTag = c === '$' ? raw.slice(i).match(/^\$([A-Za-z_][A-Za-z0-9_]*)?\$/) : null
+    if (dollarTag) {
+      // A dollar-quoted literal: copy it whole, through its closing tag.
+      const tag = dollarTag[0]
+      const close = raw.indexOf(tag, i + tag.length)
+      const end = close === -1 ? raw.length : close + tag.length
+      sql += raw.slice(i, end)
+      i = end - 1
+    } else if (c === "'" || c === '"') {
+      quote = c
+      sql += c
+    } else if (c === '?') {
+      sql += `$${start + questionMarks++}`
+    } else if (c === '$' && /\d/.test(raw[i + 1] ?? '')) {
+      let j = i + 1
+      while (/\d/.test(raw[j] ?? '')) j++
+      const n = Number(raw.slice(i + 1, j))
+      highestDollar = Math.max(highestDollar, n)
+      sql += `$${start + n - 1}`
+      i = j - 1
+    } else {
+      sql += c
+    }
+  }
+
+  if (questionMarks && highestDollar) {
+    throw new Error(`where("${raw}") mixes ? and $n placeholders; use one style`)
+  }
+  const placeholders = questionMarks || highestDollar
+  if (placeholders !== values.length) {
+    throw new Error(`where("${raw}") has ${placeholders} placeholder(s) but ${values.length} value(s)`)
+  }
+  return { sql, nextIndex: start + values.length }
+}
+
 export class PostgresAdapter {
   constructor(options = {}) {
     this.options = {
@@ -1097,10 +1162,11 @@ export class PostgresAdapter {
 
       // Handle object with raw property
       if (condition.raw) {
-        clauses.push(condition.raw)
-        if (condition.values) {
-          params.push(...condition.values)
-        }
+        const values = condition.values || []
+        const bound = bindRawPlaceholders(condition.raw, values, paramIndex)
+        clauses.push(bound.sql)
+        params.push(...values)
+        paramIndex = bound.nextIndex
         continue
       }
 

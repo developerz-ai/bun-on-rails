@@ -36,14 +36,18 @@ Post.where({ views: 50 }).orWhere({ views: 500 }); // (views = 50 OR views = 500
 
 `orWhere` joins its condition to the condition right before it with `OR`.
 
-A string condition is inserted into the SQL as written:
+A string condition is inserted into the SQL as written. Pass values after it, with a `?` for each,
+and they are sent as query parameters, never spliced into the SQL:
 
 ```js
-Post.where("views > 100 AND published");
+Post.where("views > ? AND views < ?", 10, 100);
+Post.where({ status: "published" }).where("title ILIKE ?", `%${term}%`);
 ```
 
-It takes no parameters (`where("views > ?", 100)` produces invalid SQL), so never build one from
-user input. Pass values with the object forms above, which send them as query parameters.
+PostgreSQL-style `$1`, `$2` work too, numbered from 1 within the condition. A `?` inside a quoted (`'...'`, `$$...$$` or `$tag$...$tag$`)
+literal is left alone, and a condition with no values is not scanned at all (so the jsonb `?`
+operator still works). A placeholder count that does not match the values throws. Never build the
+condition string itself from user input.
 
 Column names in the object forms are quoted as one identifier, so `{ "users.name": "Ada" }` does
 not reach a joined table. Use a string condition for that.
@@ -162,7 +166,6 @@ transaction. If the callback throws, the transaction rolls back and `transaction
 
 - **Aggregate columns in `select`.** Every argument is quoted as a column name, so
   `select("COUNT(*) AS n")` fails. Use raw SQL.
-- **Placeholders in string conditions** (`where("views > ?", 100)`).
 - **Affected-row counts** from `updateAll`, `deleteAll`, `Model.updateWhere` and
   `Model.deleteWhere`.
 - **Model queries in a transaction.** Models always use the global connection, outside any

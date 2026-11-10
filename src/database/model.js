@@ -395,8 +395,8 @@ export class Model {
    * const users = await User.where({ active: true }).all()
    * const posts = await Post.where({ author_id: 1 }).order({ created_at: 'desc' }).all()
    */
-  static where(conditions) {
-    return this.query().where(conditions)
+  static where(conditions, ...values) {
+    return this.query().where(conditions, ...values)
   }
 
   /**
