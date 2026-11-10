@@ -242,6 +242,21 @@ export class PostgresAdapter {
   }
 
   /**
+   * Quote a column reference: `table.column` becomes `"table"."column"`, and a
+   * qualified `*` (`posts.*`) keeps its star. Used wherever a query refers to a
+   * column (SELECT, WHERE, GROUP BY, ORDER BY), so a joined table's columns can
+   * be named. Pinned by test/database/qualified_columns.test.js.
+   * @param {string} column
+   * @returns {string}
+   */
+  quoteColumn(column) {
+    return column
+      .split('.')
+      .map((part) => (part === '*' ? part : this.quoteIdentifier(part)))
+      .join('.')
+  }
+
+  /**
    * Quote a table name, handling schema if present
    * @param {string} tableName
    * @returns {string}
@@ -929,7 +944,7 @@ export class PostgresAdapter {
         return `${col.expression} AS ${this.quoteIdentifier(col.alias)}`
       }
       if (col === '*') return '*'
-      return this.quoteIdentifier(col)
+      return this.quoteColumn(col)
     })
     parts.push(colStrs.join(', '))
 
@@ -956,7 +971,7 @@ export class PostgresAdapter {
     // GROUP BY
     if (groupBy.length > 0) {
       parts.push('GROUP BY')
-      parts.push(groupBy.map(col => this.quoteIdentifier(col)).join(', '))
+      parts.push(groupBy.map(col => this.quoteColumn(col)).join(', '))
     }
 
     // HAVING
@@ -972,7 +987,7 @@ export class PostgresAdapter {
       parts.push('ORDER BY')
       const orderStrs = order.map(o => {
         if (typeof o === 'string') return this.quoteIdentifier(o)
-        return `${this.quoteIdentifier(o.column)} ${o.direction?.toUpperCase() || 'ASC'}`
+        return `${this.quoteColumn(o.column)} ${o.direction?.toUpperCase() || 'ASC'}`
       })
       parts.push(orderStrs.join(', '))
     }
@@ -1177,29 +1192,29 @@ export class PostgresAdapter {
       let clause
 
       if (op === 'IS NULL' || op === 'IS NOT NULL') {
-        clause = `${this.quoteIdentifier(column)} ${op}`
+        clause = `${this.quoteColumn(column)} ${op}`
       } else if (op === 'IN' || op === 'NOT IN') {
         if (!Array.isArray(value) || value.length === 0) {
           clause = op === 'IN' ? 'FALSE' : 'TRUE'
         } else {
           const placeholders = value.map(() => `$${paramIndex++}`)
           params.push(...value)
-          clause = `${this.quoteIdentifier(column)} ${op} (${placeholders.join(', ')})`
+          clause = `${this.quoteColumn(column)} ${op} (${placeholders.join(', ')})`
         }
       } else if (op === 'BETWEEN') {
         params.push(value[0], value[1])
-        clause = `${this.quoteIdentifier(column)} BETWEEN $${paramIndex} AND $${paramIndex + 1}`
+        clause = `${this.quoteColumn(column)} BETWEEN $${paramIndex} AND $${paramIndex + 1}`
         paramIndex += 2
       } else if (op === 'LIKE' || op === 'ILIKE') {
         params.push(value)
-        clause = `${this.quoteIdentifier(column)} ${op} $${paramIndex++}`
+        clause = `${this.quoteColumn(column)} ${op} $${paramIndex++}`
       } else if (op === 'ANY' || op === 'ALL') {
         params.push(value)
-        clause = `${this.quoteIdentifier(column)} = ${op}($${paramIndex++})`
+        clause = `${this.quoteColumn(column)} = ${op}($${paramIndex++})`
       } else {
         // Standard comparison operator
         params.push(value)
-        clause = `${this.quoteIdentifier(column)} ${op} $${paramIndex++}`
+        clause = `${this.quoteColumn(column)} ${op} $${paramIndex++}`
       }
 
       // Handle OR condition

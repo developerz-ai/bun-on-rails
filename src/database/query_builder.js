@@ -838,7 +838,8 @@ export class QueryBuilder {
   async first() {
     const clone = this.limit(1)
     if (clone.orders.length === 0) {
-      clone.orders.push({ column: this.model.primaryKey, direction: 'ASC' })
+      // Qualified, so a joined table's own `id` does not make it ambiguous
+      clone.orders.push({ column: `${this._getTableName()}.${this.model.primaryKey}`, direction: 'ASC' })
     }
 
     const results = await clone.all()
@@ -868,7 +869,8 @@ export class QueryBuilder {
 
     // Reverse ordering or add default desc order
     if (clone.orders.length === 0) {
-      clone.orders.push({ column: this.model.primaryKey, direction: 'DESC' })
+      // Qualified, so a joined table's own `id` does not make it ambiguous
+      clone.orders.push({ column: `${this._getTableName()}.${this.model.primaryKey}`, direction: 'DESC' })
     } else {
       clone.orders = clone.orders.map(o => ({
         ...o,
