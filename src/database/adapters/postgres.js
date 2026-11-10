@@ -992,13 +992,13 @@ export class PostgresAdapter {
       parts.push(orderStrs.join(', '))
     }
 
-    // LIMIT
-    if (limit !== undefined) {
+    // LIMIT (QueryBuilder uses null for none, which printed "LIMIT null")
+    if (limit !== undefined && limit !== null) {
       parts.push(`LIMIT ${limit}`)
     }
 
     // OFFSET
-    if (offset !== undefined) {
+    if (offset !== undefined && offset !== null) {
       parts.push(`OFFSET ${offset}`)
     }
 

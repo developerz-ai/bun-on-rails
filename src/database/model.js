@@ -11,7 +11,7 @@ import { QueryBuilder, RecordNotFoundError, PaginatedResult } from './query_buil
 import { getConnection } from './connection.js'
 import { PostgresAdapter } from './adapters/postgres.js'
 import { foreignKey, tableize } from '../support/inflector.js'
-import { resolveAssociationModel } from './associations.js'
+import { resolveAssociationModel, loadThroughJoinTable } from './associations.js'
 import { runValidations } from './validations.js'
 
 // Re-export for convenience
@@ -1215,7 +1215,9 @@ export class Model {
       return AssociatedModel.where({ [fk]: this.id }).first()
     }
 
-    return null
+    // hasAndBelongsToMany: the only type left
+    const groups = await loadThroughJoinTable(this.constructor, assocConfig, [this.id])
+    return groups.get(String(this.id))
   }
 
   // ============================================

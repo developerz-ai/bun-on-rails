@@ -33,13 +33,14 @@ does: it gives the table name and the name associations look the model up by.
 
 ## Database conventions
 
-| What        | Convention                                                                                                           |
-| ----------- | -------------------------------------------------------------------------------------------------------------------- |
-| Table       | the class name, snake_case and pluralized (`Category` is `categories`). Set `static tableName` to override           |
-| Primary key | `id`                                                                                                                 |
-| Foreign key | `belongsTo: ["user"]` reads `user_id`; `hasMany: ["comments"]` on `Post` reads `comments.post_id`                    |
-| Timestamps  | `created_at` and `updated_at`: set on insert, `updated_at` refreshed on update. `static timestamps = false` opts out |
-| Booleans    | plain names such as `published`; no prefix rule                                                                      |
+| What        | Convention                                                                                                                        |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| Table       | the class name, snake_case and pluralized (`Category` is `categories`). Set `static tableName` to override                        |
+| Primary key | `id`                                                                                                                              |
+| Foreign key | `belongsTo: ["user"]` reads `user_id`; `hasMany: ["comments"]` on `Post` reads `comments.post_id`                                 |
+| Join table  | `hasAndBelongsToMany: ["tags"]` on `Post` reads `posts_tags` (both table names, in lexical order), columns `post_id` and `tag_id` |
+| Timestamps  | `created_at` and `updated_at`: set on insert, `updated_at` refreshed on update. `static timestamps = false` opts out              |
+| Booleans    | plain names such as `published`; no prefix rule                                                                                   |
 
 ```js
 import { Model } from "bun-on-rails";
@@ -99,4 +100,3 @@ See [Routing & Controllers](../routing/overview.md) for every routing option.
 ## Not implemented yet
 
 - **Generators beyond migration, model and controller.** `brails generate migration`, `model` and `controller` write those files in place; scaffold, job, mailer, channel and auth generators are not implemented yet.
-- **Join tables for many-to-many associations.** A `hasAndBelongsToMany` reader throws `NotImplementedError`; the join query is not written yet.
