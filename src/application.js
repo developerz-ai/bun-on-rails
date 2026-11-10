@@ -5,6 +5,7 @@
  * @module bun-on-rails/application
  */
 
+import { existsSync } from 'fs'
 import { join } from 'path'
 import { createConfig, getEnvironment, isDevelopment, isProduction } from './config/loader.js'
 import { Router } from './routing/router.js'
@@ -487,35 +488,34 @@ export class Application {
   async _runInitializers() {
     const initializersDir = join(this.root, 'config', 'initializers')
 
-    try {
-      const { Glob } = await import('bun')
-      const glob = new Glob('*.js')
-
-      const files = []
-      for await (const file of glob.scan({ cwd: initializersDir, absolute: true })) {
-        files.push(file)
-      }
-
-      // Sort for predictable order
-      files.sort()
-
-      for (const file of files) {
-        try {
-          const module = await import(file)
-          const initializer = module.default || module
-
-          if (typeof initializer === 'function') {
-            await initializer(this)
-            this.logger.debug(`Ran initializer: ${file.split('/').pop()}`)
-          }
-        } catch (error) {
-          this.logger.error(`Initializer failed: ${file}: ${error.message}`)
-          throw error
-        }
-      }
-    } catch (error) {
-      // No initializers directory
+    // A missing directory is the one case to tolerate. Any failure inside an
+    // initializer fails boot: the database guide connects in one, and a
+    // swallowed error left an app that booted and answered 500 to every query.
+    if (!existsSync(initializersDir)) {
       this.logger.debug('No initializers directory found')
+      return
+    }
+
+    const { Glob } = await import('bun')
+    const files = []
+    for await (const file of new Glob('*.js').scan({ cwd: initializersDir, absolute: true })) {
+      files.push(file)
+    }
+    files.sort()
+
+    for (const file of files) {
+      const name = file.split('/').pop()
+      try {
+        const module = await import(file)
+        const initializer = module.default || module
+
+        if (typeof initializer === 'function') {
+          await initializer(this)
+          this.logger.debug(`Ran initializer: ${name}`)
+        }
+      } catch (error) {
+        throw new Error(`Initializer config/initializers/${name} failed: ${error.message}`, { cause: error })
+      }
     }
   }
 

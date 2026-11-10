@@ -33,9 +33,8 @@ automatically. The URL must start with `postgres://`: a `postgresql://` URL is r
 unsupported adapter `postgre`. `setConnection` makes this the connection every model and query
 uses.
 
-If the initializer throws (a wrong password, a database that is down), the error is logged and
-the app still boots. Every query then fails with `Database connection not established`, and the
-request answers `500`.
+If the initializer throws (a wrong password, a database that is down), boot fails: `brails dev`
+exits 1 with `Initializer config/initializers/database.js failed: <the cause>`.
 
 `new Connection({...})` also takes `host`, `port`, `database`, `username`, `password` and `ssl`
 instead of `url`. It uses Bun's built-in `Bun.sql` driver when that works and falls back to the
