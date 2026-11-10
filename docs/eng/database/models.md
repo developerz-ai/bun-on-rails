@@ -28,8 +28,15 @@ in an association.
 The same rule names the table for queries, `save()`, `update` and `delete`. Set `tableName` only
 when your table does not follow it, such as `static tableName = "tbl_legacy"`.
 
-`save()` fills in `created_at` and `updated_at` when it inserts a row, so every table a model
-writes to needs both columns (`t.timestamps()` in a migration).
+`save()` fills in `created_at` and `updated_at` when it inserts a row, and refreshes `updated_at`
+on every update, so a model's table needs both columns (`t.timestamps()` in a migration). For a
+table without them, turn this off:
+
+```js
+export default class Setting extends Model {
+  static timestamps = false;
+}
+```
 
 ## Attributes
 
@@ -234,7 +241,5 @@ association. It finds the class by capitalising the association name, so it does
 - **Association methods** such as `post.user()` or `user.posts()` are not wired up. Use
   `includes()` or `loadAssociation()`.
 - **`hasAndBelongsToMany`.** Its join query is a TODO.
-- **Refreshing `updated_at`.** Saving a record loaded from the database keeps its old
-  `updated_at`: set it yourself.
 - **Model annotations.** Nothing writes the schema into model files.
 - **Generators.** `brails generate model` is not implemented yet (it exits 1): write the file by hand.
