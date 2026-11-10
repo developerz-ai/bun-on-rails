@@ -117,7 +117,7 @@ See [Scopes](./models.md#scopes).
 
 `sum`, `average`, `minimum`, `maximum`, `findEach`, `findInBatches`, `updateAll` and `deleteAll`
 are on the builder only (`Post.query().sum("views")`). `updateAll` and `deleteAll` skip
-validations and callbacks, and the number they return is not the count of affected rows yet.
+validations and callbacks, and return the number of affected rows.
 
 `toSQL()` returns `{ sql, params }` without running the query, and `toSQLString()` the SQL with
 the parameters filled in, for debugging.
