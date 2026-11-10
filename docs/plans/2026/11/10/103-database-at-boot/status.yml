@@ -1,12 +1,13 @@
 plan: 103-database-at-boot
 title: Connect to the database at boot from config/database.js
-status: in-progress
+status: done
 owner: unassigned
-percent: 0
-current_focus: B1
+percent: 100
+current_focus: done; the app connects at boot when DATABASE_URL is set
 slices:
-  - { id: B1, status: in-progress }
+  - { id: B1, status: done }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
-  prs: []
+  prs:
+    - "#59 merged as f0e41a0 (B1)"
 last_updated: 2026-11-10
