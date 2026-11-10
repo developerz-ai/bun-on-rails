@@ -169,7 +169,7 @@ export default class PostsController extends Controller {
 
 Context available in an action: `this.request`, `this.params`, `this.session`, `this.csrfToken` (the session's CSRF token, which writes must echo in `X-CSRF-Token` while `security.csrf` is on), `this.currentUser`, `this.cache`, `this.db`.
 
-A filter entry may also be an object — `{ name, only, except }` (`src/controller/middleware.js:299`) — but the plain array of names is the form every dispatch path understands (`src/application.js:858`).
+`beforeAction` / `afterAction` take a list of names and/or `{ name, only, except, if, unless }`, or an object keyed by method name (`{ authenticate: { except: ['index'] } }`); dispatch runs them through `ControllerMiddleware.runBeforeFilters` / `runAfterFilters` (`src/controller/middleware.js`), and a filter naming a missing method throws (`test/controller/filters_dispatch.test.js`).
 
 Router — `src/routing/router.js`, used from `config/routes.js`:
 
