@@ -66,6 +66,7 @@ describe("brails new <name> --skip-install", () => {
         "README.md",
         "app/controllers/health_controller.js",
         "app/controllers/home_controller.js",
+        "config/database.js",
         "config/routes.js",
         "package.json",
       ].sort(),
@@ -112,8 +113,15 @@ describe("brails new <name> --skip-install", () => {
     mkdirSync(join(app, "node_modules"), { recursive: true });
     symlinkSync(repoRoot, join(app, "node_modules", pkg.name), "dir");
 
+    // The skeleton connects when DATABASE_URL is set; this test is about booting without one.
+    const savedUrl = process.env.DATABASE_URL;
+    delete process.env.DATABASE_URL;
     const application = new Application({ root: app });
-    await application.initialize();
+    try {
+      await application.initialize();
+    } finally {
+      if (savedUrl !== undefined) process.env.DATABASE_URL = savedUrl;
+    }
     await application.start({ port: 0, hostname: "127.0.0.1" });
     try {
       const base = `http://127.0.0.1:${application.server.port}`;

@@ -59,15 +59,15 @@ returns a `404`.
 
 ## What works today
 
-| Area        | What you get                                                                                                                         |
-| ----------- | ------------------------------------------------------------------------------------------------------------------------------------ |
-| CLI         | `brails new` creates an app, `brails dev` and `brails start` serve it, and `brails help` lists every command                         |
-| Routing     | a Rails-like DSL: `root`, the HTTP verbs, `resources` with `only` / `except`, `resource`, `namespace`                                |
-| Controllers | classes found by file name, with merged params, JSON responses, redirects, before/after filters, and per-session CSRF tokens         |
-| Config      | one file per section in `config/`, per-environment overrides, initializers                                                           |
-| ORM         | an Active-Record-style `Model` with a query builder, validations and associations on PostgreSQL. It is not connected at app boot yet |
-| Jobs        | a `Job` base class. `performNow` runs a job inline                                                                                   |
-| Cache       | an in-process memory store                                                                                                           |
+| Area        | What you get                                                                                                                                  |
+| ----------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| CLI         | `brails new` creates an app, `brails dev` and `brails start` serve it, and `brails help` lists every command                                  |
+| Routing     | a Rails-like DSL: `root`, the HTTP verbs, `resources` with `only` / `except`, `resource`, `namespace`                                         |
+| Controllers | classes found by file name, with merged params, JSON responses, redirects, before/after filters, and per-session CSRF tokens                  |
+| Config      | one file per section in `config/`, per-environment overrides, initializers                                                                    |
+| ORM         | an Active-Record-style `Model` with a query builder, validations and associations on PostgreSQL, connected at boot when `DATABASE_URL` is set |
+| Jobs        | a `Job` base class. `performNow` runs a job inline                                                                                            |
+| Cache       | an in-process memory store                                                                                                                    |
 
 ## Planned
 
@@ -75,7 +75,7 @@ These are designed and partly built, but not usable yet:
 
 - **CLI**: `brails generate`, the `brails db:*` commands, `brails console`, `brails routes`,
   `brails test` and `brails credentials`. Each exits with an error until it lands.
-- **Database**: connecting at app boot, running migrations, and test-database isolation.
+- **Database**: running migrations from the CLI, and test-database isolation.
 - **Jobs**: queueing with BullMQ (`performLater`, `performAt`, `performIn`).
 - **Mail delivery**, **S3 file storage**, and the **Redis cache**.
 - **Real-time**: WebSocket channels (the broadcast manager exists, the channel server does

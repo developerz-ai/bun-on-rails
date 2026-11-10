@@ -31,7 +31,7 @@ describe a bug that is already fixed.
 Order: F1 first (smallest, and the database guide's connect-in-an-initializer advice depends on
 it), then F2 to F7 (each a wrong result for ordinary use), then F8 to F11.
 
-Connecting to the database at boot from `config/database.js` is a feature, not a defect, and is
-out of this plan.
+Connecting to the database at boot from `config/database.js` is a feature, not a defect: plan
+103 (`docs/plans/2026/11/10/103-database-at-boot/`).
 
 F12 and F13 were first noted while verifying F2 and F9; added as tasks after F11.
