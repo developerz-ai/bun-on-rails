@@ -2,6 +2,8 @@
  * Channel - WebSocket channel base class
  */
 
+import { NotImplementedError } from '../support/not_implemented.js'
+
 export class Channel {
   constructor(socket, params) {
     this.socket = socket
@@ -46,6 +48,7 @@ export class Channel {
    */
   send(_data) {
     // TODO: Send via WebSocket
+    throw new NotImplementedError('Channel#send', 'WebSocket channels')
   }
 
   /**
@@ -55,6 +58,7 @@ export class Channel {
    */
   broadcast(_streamName, _data) {
     // TODO: Publish to Redis pub/sub
+    throw new NotImplementedError('Channel#broadcast', 'WebSocket channels')
   }
 
   /**
@@ -62,6 +66,7 @@ export class Channel {
    */
   reject() {
     // TODO: Close connection with rejection
+    throw new NotImplementedError('Channel#reject', 'WebSocket channels')
   }
 }
 
@@ -92,6 +97,7 @@ export class WebSocketServer {
   async start(_port) {
     // TODO: Initialize Redis pub/sub
     // TODO: Start Bun WebSocket server
+    throw new NotImplementedError('WebSocketServer#start', 'WebSocket channels')
   }
 
   /**
@@ -102,6 +108,7 @@ export class WebSocketServer {
     // TODO: Generate connection ID
     // TODO: Store connection
     // TODO: Set up message handlers
+    throw new NotImplementedError('WebSocketServer#handleConnection', 'WebSocket channels')
   }
 
   /**
@@ -113,6 +120,7 @@ export class WebSocketServer {
     // TODO: Parse message
     // TODO: Route to channel action
     // TODO: Handle subscribe/unsubscribe/message
+    throw new NotImplementedError('WebSocketServer#handleMessage', 'WebSocket channels')
   }
 
   /**
@@ -122,6 +130,7 @@ export class WebSocketServer {
   handleClose(_ws) {
     // TODO: Clean up subscriptions
     // TODO: Remove connection
+    throw new NotImplementedError('WebSocketServer#handleClose', 'WebSocket channels')
   }
 
   /**
@@ -132,6 +141,7 @@ export class WebSocketServer {
   broadcast(_channel, _data) {
     // TODO: Publish to Redis
     // TODO: Will be received by all server instances
+    throw new NotImplementedError('WebSocketServer#broadcast', 'WebSocket channels')
   }
 
   /**
@@ -140,6 +150,7 @@ export class WebSocketServer {
   async stop() {
     // TODO: Close all connections
     // TODO: Close Redis connection
+    throw new NotImplementedError('WebSocketServer#stop', 'WebSocket channels')
   }
 }
 
@@ -163,6 +174,7 @@ export class Connection {
     // TODO: Instantiate channel
     // TODO: Call subscribed()
     // TODO: Store subscription
+    throw new NotImplementedError('Connection#subscribe', 'WebSocket channels')
   }
 
   /**
@@ -172,6 +184,7 @@ export class Connection {
   async unsubscribe(_channelName) {
     // TODO: Call unsubscribed()
     // TODO: Remove subscription
+    throw new NotImplementedError('Connection#unsubscribe', 'WebSocket channels')
   }
 
   /**
@@ -189,5 +202,6 @@ export class Connection {
   async authenticate(_token) {
     // TODO: Verify token
     // TODO: Load user
+    throw new NotImplementedError('Connection#authenticate', 'WebSocket channels')
   }
 }

@@ -71,7 +71,8 @@ returns a `404`.
 
 ## Planned
 
-These are designed and partly built, but not usable yet:
+These are designed and partly built, but not usable yet. A planned API throws `NotImplementedError`, naming
+itself, instead of doing nothing:
 
 - **CLI**: `brails generate scaffold` (and the job, mailer, channel and auth generators), `brails console`,
   `brails test` and `brails credentials`. Each exits with an error until it lands.

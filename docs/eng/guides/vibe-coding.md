@@ -63,11 +63,11 @@ export default class PostsController extends Controller {
 
 ## Not implemented yet
 
-Tell your assistant, or it will write code against these:
+Tell your assistant, or it will write code against these. Each fails when used: a planned command exits with an error, and a planned API throws `NotImplementedError` naming itself.
 
 - **Generators beyond migration, model and controller.** `brails g migration`, `g model` and `g controller` work; `g scaffold`, `g job`, `g auth` and the rest are not implemented yet.
 - **`brails console`, `brails credentials`** are not implemented yet either. (`brails routes` lists the routes.)
-- **Background jobs.** `performLater` does nothing; only `performNow` runs a job (see
+- **Background jobs.** `performLater` throws `NotImplementedError`; only `performNow` runs a job (see
   [Background Jobs](../jobs/overview.md)).
 - **Authentication, mail delivery, file storage, WebSocket channels, HTML views and React
   helpers.** See the status table in [Core Philosophy](../core-concepts/philosophy.md#batteries-included).
@@ -75,5 +75,5 @@ Tell your assistant, or it will write code against these:
 ## A note for AI agents
 
 Read the module (`node_modules/bun-on-rails/src/`) before relying on it. Several modules are
-scaffolds whose methods return `undefined` without doing anything, so code that calls them fails
-silently rather than loudly.
+planned, not built: their methods throw `NotImplementedError`, naming themselves, so code that calls
+them fails at the call rather than silently.

@@ -240,5 +240,6 @@ one), else the association name singularized and capitalized: `comments` is `Com
 
 - **Association methods** such as `post.user()` or `user.posts()` are not wired up. Use
   `includes()` or `loadAssociation()`.
-- **`hasAndBelongsToMany`.** Its join query is a TODO.
+- **`hasAndBelongsToMany`.** Its reader (`post.tags()`) throws `NotImplementedError`; the join query is not
+  written yet.
 - **Model annotations.** Nothing writes the schema into model files.

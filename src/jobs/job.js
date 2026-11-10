@@ -2,6 +2,8 @@
  * Job - Background job base class
  */
 
+import { NotImplementedError } from '../support/not_implemented.js'
+
 export class Job {
   static queue = 'default'
   static attempts = 3
@@ -27,6 +29,7 @@ export class Job {
    */
   static async performLater(_data, _options = {}) {
     // TODO: Add to BullMQ queue
+    throw new NotImplementedError('Job.performLater', 'queued jobs')
   }
 
   /**
@@ -37,6 +40,7 @@ export class Job {
    */
   static async performAt(_at, _data) {
     // TODO: Add to BullMQ with delay
+    throw new NotImplementedError('Job.performAt', 'queued jobs')
   }
 
   /**
@@ -47,6 +51,7 @@ export class Job {
    */
   static async performIn(_ms, _data) {
     // TODO: Add to BullMQ with delay
+    throw new NotImplementedError('Job.performIn', 'queued jobs')
   }
 
   /**
@@ -80,6 +85,7 @@ export class JobQueue {
    */
   async initialize() {
     // TODO: Create BullMQ Queue instance
+    throw new NotImplementedError('JobQueue#initialize', 'queued jobs')
   }
 
   /**
@@ -91,6 +97,7 @@ export class JobQueue {
    */
   async add(_jobName, _data, _options = {}) {
     // TODO: Add job to BullMQ
+    throw new NotImplementedError('JobQueue#add', 'queued jobs')
   }
 
   /**
@@ -99,6 +106,7 @@ export class JobQueue {
    */
   async getJob(_jobId) {
     // TODO: Get job from BullMQ
+    throw new NotImplementedError('JobQueue#getJob', 'queued jobs')
   }
 
   /**
@@ -106,6 +114,7 @@ export class JobQueue {
    */
   async getStats() {
     // TODO: Get counts by status
+    throw new NotImplementedError('JobQueue#getStats', 'queued jobs')
   }
 
   /**
@@ -113,6 +122,7 @@ export class JobQueue {
    */
   async pause() {
     // TODO: Pause queue
+    throw new NotImplementedError('JobQueue#pause', 'queued jobs')
   }
 
   /**
@@ -120,6 +130,7 @@ export class JobQueue {
    */
   async resume() {
     // TODO: Resume queue
+    throw new NotImplementedError('JobQueue#resume', 'queued jobs')
   }
 
   /**
@@ -127,6 +138,7 @@ export class JobQueue {
    */
   async close() {
     // TODO: Close BullMQ connection
+    throw new NotImplementedError('JobQueue#close', 'queued jobs')
   }
 }
 
@@ -146,6 +158,7 @@ export class JobWorker {
   async start() {
     // TODO: Create BullMQ Worker for each queue
     // TODO: Register job handlers
+    throw new NotImplementedError('JobWorker#start', 'queued jobs')
   }
 
   /**
@@ -153,6 +166,7 @@ export class JobWorker {
    */
   async stop() {
     // TODO: Graceful shutdown
+    throw new NotImplementedError('JobWorker#stop', 'queued jobs')
   }
 
   /**
@@ -163,6 +177,7 @@ export class JobWorker {
     // TODO: Load job class
     // TODO: Run perform with callbacks
     // TODO: Handle errors and retries
+    throw new NotImplementedError('JobWorker#processJob', 'queued jobs')
   }
 }
 
@@ -193,6 +208,7 @@ export class JobScheduler {
    */
   async start() {
     // TODO: Set up cron jobs with BullMQ
+    throw new NotImplementedError('JobScheduler#start', 'queued jobs')
   }
 
   /**
@@ -200,5 +216,6 @@ export class JobScheduler {
    */
   async stop() {
     // TODO: Remove scheduled jobs
+    throw new NotImplementedError('JobScheduler#stop', 'queued jobs')
   }
 }

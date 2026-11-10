@@ -2,6 +2,8 @@
  * Mailer - Email sending system
  */
 
+import { NotImplementedError } from '../support/not_implemented.js'
+
 export class Mailer {
   static defaults = {
     from: null,
@@ -35,6 +37,7 @@ export class Mail {
   async deliver() {
     // TODO: Render template if specified
     // TODO: Send via configured adapter
+    throw new NotImplementedError('Mail#deliver', 'mail delivery')
   }
 
   /**
@@ -42,6 +45,7 @@ export class Mail {
    */
   async deliverLater() {
     // TODO: Enqueue SendEmailJob
+    throw new NotImplementedError('Mail#deliverLater', 'mail delivery')
   }
 
   /**
@@ -140,6 +144,7 @@ export const MailAdapters = {
   smtp: {
     async send(_mail) {
       // TODO: Send via SMTP
+      throw new NotImplementedError('MailAdapters.smtp.send', 'mail delivery')
     }
   },
 
@@ -149,6 +154,7 @@ export const MailAdapters = {
   sendgrid: {
     async send(_mail) {
       // TODO: Send via SendGrid API
+      throw new NotImplementedError('MailAdapters.sendgrid.send', 'mail delivery')
     }
   },
 
@@ -158,6 +164,7 @@ export const MailAdapters = {
   postmark: {
     async send(_mail) {
       // TODO: Send via Postmark API
+      throw new NotImplementedError('MailAdapters.postmark.send', 'mail delivery')
     }
   },
 
@@ -167,6 +174,7 @@ export const MailAdapters = {
   ses: {
     async send(_mail) {
       // TODO: Send via AWS SES
+      throw new NotImplementedError('MailAdapters.ses.send', 'mail delivery')
     }
   },
 
@@ -202,5 +210,6 @@ export class MailRenderer {
     // TODO: Load React component
     // TODO: Render to static HTML
     // TODO: Apply email layout
+    throw new NotImplementedError('MailRenderer#render', 'mail delivery')
   }
 }

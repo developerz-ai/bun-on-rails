@@ -2,6 +2,8 @@
  * Database Testing Utilities
  */
 
+import { NotImplementedError } from '../support/not_implemented.js'
+
 /**
  * Set up the test database
  */
@@ -9,6 +11,7 @@ export async function setupDatabase() {
   // TODO: Load schema
   // TODO: Run migrations if needed
   // TODO: Clear data
+  throw new NotImplementedError('setupDatabase', 'test-database isolation')
 }
 
 /**
@@ -17,6 +20,7 @@ export async function setupDatabase() {
 export async function cleanDatabase() {
   // TODO: Truncate all tables
   // TODO: Reset sequences
+  throw new NotImplementedError('cleanDatabase', 'test-database isolation')
 }
 
 /**
@@ -27,6 +31,7 @@ export async function withinTransaction(_callback) {
   // TODO: Begin transaction
   // TODO: Run callback
   // TODO: Rollback transaction
+  throw new NotImplementedError('withinTransaction', 'test-database isolation')
 }
 
 /**
@@ -35,6 +40,7 @@ export async function withinTransaction(_callback) {
  */
 export async function createTestDatabases(_count) {
   // TODO: Create myapp_test_0, myapp_test_1, etc.
+  throw new NotImplementedError('createTestDatabases', 'test-database isolation')
 }
 
 /**
@@ -56,6 +62,7 @@ export const CleaningStrategies = {
    */
   truncation: async (_tables) => {
     // TODO: TRUNCATE each table
+    throw new NotImplementedError('CleaningStrategies.truncation', 'test-database isolation')
   },
 
   /**
@@ -63,6 +70,7 @@ export const CleaningStrategies = {
    */
   deletion: async (_tables) => {
     // TODO: DELETE FROM each table
+    throw new NotImplementedError('CleaningStrategies.deletion', 'test-database isolation')
   },
 
   /**
@@ -70,6 +78,7 @@ export const CleaningStrategies = {
    */
   transaction: async (_callback) => {
     // TODO: Wrap in transaction, rollback after
+    throw new NotImplementedError('CleaningStrategies.transaction', 'test-database isolation')
   }
 }
 

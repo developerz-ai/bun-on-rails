@@ -2,6 +2,8 @@
  * Cache - Caching layer
  */
 
+import { NotImplementedError } from '../support/not_implemented.js'
+
 export class Cache {
   constructor(store) {
     this.store = store
@@ -171,33 +173,41 @@ export class RedisStore {
 
   async get(_key) {
     // TODO: Get from Redis, parse JSON
+    throw new NotImplementedError('RedisStore#get', 'the Redis cache')
   }
 
   async set(_key, _value, _options = {}) {
     // TODO: Set in Redis with optional TTL
+    throw new NotImplementedError('RedisStore#set', 'the Redis cache')
   }
 
   async delete(_key) {
     // TODO: DEL key
+    throw new NotImplementedError('RedisStore#delete', 'the Redis cache')
   }
 
   async deleteMatching(_pattern) {
     // TODO: SCAN and DEL matching keys
+    throw new NotImplementedError('RedisStore#deleteMatching', 'the Redis cache')
   }
 
   async exists(_key) {
     // TODO: EXISTS key
+    throw new NotImplementedError('RedisStore#exists', 'the Redis cache')
   }
 
   async increment(_key, _amount = 1) {
     // TODO: INCRBY
+    throw new NotImplementedError('RedisStore#increment', 'the Redis cache')
   }
 
   async decrement(_key, _amount = 1) {
     // TODO: DECRBY
+    throw new NotImplementedError('RedisStore#decrement', 'the Redis cache')
   }
 
   async clear() {
     // TODO: FLUSHDB (be careful!)
+    throw new NotImplementedError('RedisStore#clear', 'the Redis cache')
   }
 }

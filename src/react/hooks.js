@@ -2,6 +2,8 @@
  * React Hooks - Framework integration for React
  */
 
+import { NotImplementedError } from '../support/not_implemented.js'
+
 /**
  * useResource - Fetch and manage a REST resource
  * @param {string} resource
@@ -16,13 +18,7 @@ export function useResource(_resource, _options = {}) {
   // - Support pagination
   // - Handle caching
 
-  return {
-    data: null,
-    loading: true,
-    error: null,
-    mutate: () => {},
-    refresh: () => {}
-  }
+  throw new NotImplementedError('useResource', 'the React hooks and forms')
 }
 
 /**
@@ -39,11 +35,7 @@ export function useAction(_action, _options = {}) {
   // - Handle errors
   // - Support optimistic updates
 
-  return {
-    submit: async (_data) => {},
-    submitting: false,
-    error: null
-  }
+  throw new NotImplementedError('useAction', 'the React hooks and forms')
 }
 
 /**
@@ -59,6 +51,7 @@ export function useChannel(_channel, _callback, _options = {}) {
   // - Call callback on messages
   // - Auto cleanup on unmount
   // - Handle reconnection
+  throw new NotImplementedError('useChannel', 'the React hooks and forms')
 }
 
 /**
@@ -70,11 +63,7 @@ export function useCurrentUser() {
   // - Load from context or fetch
   // - Provide loading state
 
-  return {
-    user: null,
-    loading: true,
-    refresh: () => {}
-  }
+  throw new NotImplementedError('useCurrentUser', 'the React hooks and forms')
 }
 
 /**
@@ -86,10 +75,7 @@ export function useFlash() {
   // - Read flash messages from context
   // - Clear after reading
 
-  return {
-    messages: [],
-    clear: () => {}
-  }
+  throw new NotImplementedError('useFlash', 'the React hooks and forms')
 }
 
 /**
@@ -100,7 +86,7 @@ export function useParams() {
   // TODO: Implement
   // - Extract params from current route
 
-  return {}
+  throw new NotImplementedError('useParams', 'the React hooks and forms')
 }
 
 /**
@@ -111,7 +97,7 @@ export function useQuery() {
   // TODO: Implement
   // - Parse query string
 
-  return {}
+  throw new NotImplementedError('useQuery', 'the React hooks and forms')
 }
 
 /**
@@ -124,17 +110,7 @@ export function usePagination(_options = {}) {
   // - Track current page
   // - Provide navigation functions
 
-  return {
-    page: 1,
-    perPage: 20,
-    total: 0,
-    totalPages: 0,
-    nextPage: () => {},
-    prevPage: () => {},
-    goToPage: (_page) => {},
-    hasNext: false,
-    hasPrev: false
-  }
+  throw new NotImplementedError('usePagination', 'the React hooks and forms')
 }
 
 /**
@@ -145,7 +121,7 @@ export function usePagination(_options = {}) {
  */
 export function useDebounce(value, _delay = 300) {
   // TODO: Implement
-  return value
+  throw new NotImplementedError('useDebounce', 'the React hooks and forms')
 }
 
 /**
@@ -160,10 +136,5 @@ export function useFetch(_url, _options = {}) {
   // - Handle CSRF
   // - Parse response
 
-  return {
-    data: null,
-    loading: true,
-    error: null,
-    refetch: () => {}
-  }
+  throw new NotImplementedError('useFetch', 'the React hooks and forms')
 }

@@ -2,6 +2,8 @@
  * Storage - File upload and storage system
  */
 
+import { NotImplementedError } from '../support/not_implemented.js'
+
 export class Storage {
   constructor(adapter) {
     this.adapter = adapter
@@ -17,6 +19,7 @@ export class Storage {
     // TODO: Generate key
     // TODO: Upload via adapter
     // TODO: Return StoredFile
+    throw new NotImplementedError('Storage#upload', 'file storage')
   }
 
   /**
@@ -26,6 +29,7 @@ export class Storage {
    */
   async get(_key) {
     // TODO: Get file info from adapter
+    throw new NotImplementedError('Storage#get', 'file storage')
   }
 
   /**
@@ -34,6 +38,7 @@ export class Storage {
    */
   async delete(_key) {
     // TODO: Delete via adapter
+    throw new NotImplementedError('Storage#delete', 'file storage')
   }
 
   /**
@@ -44,6 +49,7 @@ export class Storage {
    */
   async getUploadUrl(_filename, _options = {}) {
     // TODO: Generate presigned URL for direct upload
+    throw new NotImplementedError('Storage#getUploadUrl', 'file storage')
   }
 
   /**
@@ -76,6 +82,7 @@ export class StoredFile {
    */
   url(_variant = null) {
     // TODO: Return URL, optionally with variant
+    throw new NotImplementedError('StoredFile#url', 'file storage')
   }
 
   /**
@@ -84,6 +91,7 @@ export class StoredFile {
    */
   async download() {
     // TODO: Download from storage
+    throw new NotImplementedError('StoredFile#download', 'file storage')
   }
 
   /**
@@ -91,6 +99,7 @@ export class StoredFile {
    */
   async delete() {
     // TODO: Delete from storage
+    throw new NotImplementedError('StoredFile#delete', 'file storage')
   }
 }
 
@@ -112,6 +121,7 @@ export class Attachment {
     // TODO: Upload file
     // TODO: Generate variants if image
     // TODO: Update model record
+    throw new NotImplementedError('Attachment#attach', 'file storage')
   }
 
   /**
@@ -121,6 +131,7 @@ export class Attachment {
     // TODO: Delete from storage
     // TODO: Delete variants
     // TODO: Update model record
+    throw new NotImplementedError('Attachment#detach', 'file storage')
   }
 
   /**
@@ -129,6 +140,7 @@ export class Attachment {
    */
   get attached() {
     // TODO: Check if model has attachment
+    throw new NotImplementedError('Attachment#attached', 'file storage')
   }
 
   /**
@@ -138,6 +150,7 @@ export class Attachment {
    */
   urlVariant(_variant = null) {
     // TODO: Return URL
+    throw new NotImplementedError('Attachment#urlVariant', 'file storage')
   }
 }
 
@@ -151,15 +164,19 @@ export const StorageAdapters = {
   local: {
     async upload(_file, _key) {
       // TODO: Write to disk
+      throw new NotImplementedError('StorageAdapters.local.upload', 'file storage')
     },
     async get(_key) {
       // TODO: Read from disk
+      throw new NotImplementedError('StorageAdapters.local.get', 'file storage')
     },
     async delete(_key) {
       // TODO: Delete from disk
+      throw new NotImplementedError('StorageAdapters.local.delete', 'file storage')
     },
     url(_key) {
       // TODO: Return local URL
+      throw new NotImplementedError('StorageAdapters.local.url', 'file storage')
     }
   },
 
@@ -169,18 +186,23 @@ export const StorageAdapters = {
   s3: {
     async upload(_file, _key, _options) {
       // TODO: Upload to S3
+      throw new NotImplementedError('StorageAdapters.s3.upload', 'file storage')
     },
     async get(_key) {
       // TODO: Get from S3
+      throw new NotImplementedError('StorageAdapters.s3.get', 'file storage')
     },
     async delete(_key) {
       // TODO: Delete from S3
+      throw new NotImplementedError('StorageAdapters.s3.delete', 'file storage')
     },
     url(_key, _options) {
       // TODO: Return S3 URL (signed or public)
+      throw new NotImplementedError('StorageAdapters.s3.url', 'file storage')
     },
     async getUploadUrl(_key, _options) {
       // TODO: Generate presigned upload URL
+      throw new NotImplementedError('StorageAdapters.s3.getUploadUrl', 'file storage')
     }
   }
 }
@@ -198,6 +220,7 @@ export class ImageProcessor {
   static async process(_buffer, _options = {}) {
     // TODO: Resize, crop, format conversion
     // TODO: Use sharp or similar
+    throw new NotImplementedError('ImageProcessor.process', 'file storage')
   }
 
   /**
@@ -207,5 +230,6 @@ export class ImageProcessor {
    */
   static async dimensions(_buffer) {
     // TODO: Read image metadata
+    throw new NotImplementedError('ImageProcessor.dimensions', 'file storage')
   }
 }

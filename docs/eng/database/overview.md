@@ -135,6 +135,6 @@ connection.
   `db/schema.js`; a `MigrationRunner` you call from your own script does not, so call
   `dumpSchema(connection, appRoot)` after it.
 - **Model annotations.** Nothing writes schema comments into model files.
-- **Many-to-many associations.** `hasAndBelongsToMany` does not load anything yet: its join
-  query is a TODO, and `includes()` skips it with a warning.
+- **Many-to-many associations.** `hasAndBelongsToMany` does not load anything yet: its
+  reader (`post.tags()`) throws `NotImplementedError`, and `includes()` skips it with a warning.
 - **Other databases.** PostgreSQL is the only adapter.

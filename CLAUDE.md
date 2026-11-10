@@ -36,19 +36,19 @@ No auth module ships in `src/` — bcrypt is a dependency only, and the demo's p
 
 ## Scaffolds
 
-Parts of the tree are stubs. Read the module before you rely on it.
+Parts of the tree are planned, not built. Each such function throws `NotImplementedError` (`src/support/not_implemented.js`), and `test/support/no_silent_stubs.test.js` rejects a function whose body is only TODO comments, so none resolves `undefined` as if it worked. Read the module before you rely on it.
 
-| Module                         | State                                                                                                                                                                               |
-| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/cli/commands/`            | `console`, `test`, `credentials` exit 1 as not implemented — see Commands                                                                                                           |
-| `src/jobs/job.js`              | `performNow` runs a job; `performLater` / `performAt` / `performIn` are TODO stubs (`src/jobs/job.js:29`)                                                                           |
-| `src/mail/mailer.js`           | `deliver()` and `deliverLater()` are TODO stubs (`src/mail/mailer.js:36`)                                                                                                           |
-| `src/storage/storage.js`       | upload, download and delete are TODO stubs (`src/storage/storage.js:17`)                                                                                                            |
-| `src/cache/cache.js`           | `MemoryStore` works; the `RedisStore` methods are TODO stubs (`src/cache/cache.js:173`)                                                                                             |
-| `src/websocket/channel.js`     | the channel base class and the server wiring are TODOs (`src/websocket/channel.js:93`); `BroadcastManager` is implemented and covered by `test/websocket/broadcast_manager.test.js` |
-| `src/react/`                   | the hooks and forms are scaffolds (`src/react/hooks.js:12`)                                                                                                                         |
-| `src/testing/`                 | `request.js` never reaches the app (`src/testing/request.js:90`); `database.js` is stubs — see Conventions                                                                          |
-| `src/database/associations.js` | the HABTM join query is a TODO (`src/database/associations.js:681`)                                                                                                                 |
+| Module                         | State                                                                                                                                                                                                 |
+| ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/cli/commands/`            | `console`, `test`, `credentials` exit 1 as not implemented — see Commands                                                                                                                             |
+| `src/jobs/job.js`              | `performNow` runs a job; `performLater` / `performAt` / `performIn` throw `NotImplementedError` (`src/jobs/job.js:32`)                                                                                |
+| `src/mail/mailer.js`           | `deliver()` and `deliverLater()` throw `NotImplementedError` (`src/mail/mailer.js:40`)                                                                                                                |
+| `src/storage/storage.js`       | upload, download and delete throw `NotImplementedError` (`src/storage/storage.js:22`)                                                                                                                 |
+| `src/cache/cache.js`           | `MemoryStore` works; the `RedisStore` methods throw `NotImplementedError` (`src/cache/cache.js:176`)                                                                                                  |
+| `src/websocket/channel.js`     | the `Channel` methods and the server wiring throw `NotImplementedError` (`src/websocket/channel.js:100`); `BroadcastManager` is implemented and covered by `test/websocket/broadcast_manager.test.js` |
+| `src/react/`                   | the hooks and forms throw `NotImplementedError` (`src/react/hooks.js:21`)                                                                                                                             |
+| `src/testing/`                 | `TestRequest#request` (`src/testing/request.js:95`) and the `database.js` helpers throw `NotImplementedError` — see Conventions                                                                       |
+| `src/database/associations.js` | a HABTM reader throws `NotImplementedError` (`src/database/associations.js:683`)                                                                                                                      |
 
 ## Commands
 
@@ -114,7 +114,7 @@ The CLI has no top-level `setup` verb: `brails db:setup` creates, loads and seed
 | `src/websocket/`                                                     | `channel.js`, `broadcast_manager.js`                                                                                                                                                                                                                                                                                          |
 | `src/mail/mailer.js`, `src/storage/storage.js`, `src/cache/cache.js` | mail, S3 storage, cache                                                                                                                                                                                                                                                                                                       |
 | `src/react/`                                                         | `hooks.js`, `forms.js`                                                                                                                                                                                                                                                                                                        |
-| `src/testing/`                                                       | `factory.js`, `request.js`, `database.js` (stubs — see Conventions)                                                                                                                                                                                                                                                           |
+| `src/testing/`                                                       | `factory.js`, `request.js`, `database.js` (the last two throw `NotImplementedError` — see Conventions)                                                                                                                                                                                                                        |
 | `src/cli/`                                                           | `index.js` (entry), `parser.js`, `help.js`, `build.js`, `commands/`, `templates/app/` (the `brails new` skeleton; a leading `_` in a template name becomes `.`)                                                                                                                                                               |
 | `src/support/inflector.js`                                           | `pluralize` / `singularize` / `classify` / `tableize` / `foreignKey`                                                                                                                                                                                                                                                          |
 | `src/config/loader.js`                                               | configuration loading                                                                                                                                                                                                                                                                                                         |
@@ -138,7 +138,7 @@ The CLI has no top-level `setup` verb: `brails db:setup` creates, loads and seed
 | Migrations     | `db/migrations/<timestamp>_<name>.js` with `up()` and `down()`; both a `Migration` subclass and `export async function up(db)` are accepted (`src/database/migration.js:343`)                     |
 | Schema dump    | `db/schema.js` is generated — never hand-edited                                                                                                                                                   |
 | Tests          | `bun:test`; files at `test/<area>/<name>.test.js`; the database is mocked                                                                                                                         |
-| Test isolation | none — `setupDatabase`, `cleanDatabase` and `withinTransaction` are TODO stubs (`src/testing/database.js:8-30`); the suite mocks the database (`test/database/connection.test.js:5`)              |
+| Test isolation | none — `setupDatabase`, `cleanDatabase` and `withinTransaction` throw `NotImplementedError` (`src/testing/database.js:14`); the suite mocks the database (`test/database/connection.test.js:5`)   |
 | Test names     | no `unit:` / `integration:` prefix convention here — `bun run test:unit` matches zero tests, `bun run test:integration` only the few tests whose name contains `integration`                      |
 | Lint           | ESLint over `src/` with `--max-warnings=0`; `bin/check` lints `demo/` separately                                                                                                                  |
 
@@ -194,7 +194,7 @@ export default class SendWelcomeEmailJob extends Job {
 // SendWelcomeEmailJob.performNow({ userId })
 ```
 
-`performNow(data)` runs the job inline; `performLater` / `performAt` / `performIn` are stubs (see Scaffolds).
+`performNow(data)` runs the job inline; `performLater` / `performAt` / `performIn` throw `NotImplementedError` (see Scaffolds).
 
 Migration — `db/migrations/<timestamp>_<name>.js`:
 

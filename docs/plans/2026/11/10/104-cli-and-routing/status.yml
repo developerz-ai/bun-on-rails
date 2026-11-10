@@ -1,9 +1,9 @@
 plan: 104-cli-and-routing
 title: The planned CLI commands and routing gaps
-status: in-progress
+status: done
 owner: unassigned
-percent: 86
-current_focus: R2 (nested resources and scope(path))
+percent: 100
+current_focus: done; the database commands, routes, generators, filter options and nested routes work
 slices:
   - { id: C1, status: done }
   - { id: C2, status: done }
@@ -11,7 +11,7 @@ slices:
   - { id: C4, status: done }
   - { id: C5, status: done }
   - { id: R1, status: done }
-  - { id: R2, status: in-progress }
+  - { id: R2, status: done }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
   prs:
@@ -21,4 +21,5 @@ evidence:
     - "#64 merged as 10fea54 (C4)"
     - "#65 merged as 787c4b8 (C5)"
     - "#66 merged as 136afdc (R1)"
+    - "#67 merged as a570f7e (R2)"
 last_updated: 2026-11-10

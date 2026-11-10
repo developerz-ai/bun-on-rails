@@ -35,6 +35,7 @@ export { Channel } from './websocket/channel.js'
 export { BroadcastManager, createBroadcastManager } from './websocket/broadcast_manager.js'
 export { Cache } from './cache/cache.js'
 export { Storage } from './storage/storage.js'
+export { NotImplementedError } from './support/not_implemented.js'
 
 // Configuration
 export {

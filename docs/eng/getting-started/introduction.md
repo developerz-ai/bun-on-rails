@@ -41,7 +41,8 @@ config/
 
 ## Planned
 
-These are designed and partly built, but not usable yet:
+These are designed and partly built, but not usable yet. Each fails when used, rather than doing
+nothing: a planned command exits with an error, and a planned API throws `NotImplementedError`.
 
 - `brails generate scaffold` and the job, mailer, channel and auth generators, and
   `brails console`;
