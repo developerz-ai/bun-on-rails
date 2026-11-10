@@ -205,7 +205,9 @@ rather than being skipped, so a misspelled auth filter cannot silently stop guar
 
 `POST`, `PUT`, `PATCH` and `DELETE` are CSRF-checked by default. A write must carry an
 `X-CSRF-Token` header (or a `_csrf` param) equal to its session's token, or it gets `403` with
-`{"error":"CSRF token mismatch"}` before any controller runs.
+`{"error":"CSRF token mismatch"}` before any controller runs. In the test environment the check is
+off by default, as in Rails, so a request test can post without a token; a test of the check itself
+sets `security: { csrf: true }`.
 
 Every session gets a token on its first request, and an action reads it as `this.csrfToken`.
 Hand it to the client, which then sends it back with the session cookie on each write:

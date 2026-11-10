@@ -410,8 +410,10 @@ export class Application {
       this.middleware.use(Middleware.session(sessionConfig))
     }
 
-    // CSRF protection for mutations
-    if (this.config.get('security.csrf', true)) {
+    // CSRF protection for mutations: on by default, except in the test
+    // environment (as Rails does), so a request test can post without a
+    // session token. Pinned by test/core/csrf_default.test.js.
+    if (this.config.get('security.csrf', getEnvironment() !== 'test')) {
       this.middleware.use(Middleware.csrf())
     }
 
