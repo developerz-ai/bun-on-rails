@@ -31,10 +31,11 @@ skipped.
 | `app/channels/**/*.js`         | WebSocket channel classes. The channel server wiring is not implemented yet                                  |
 | `config/<name>.js`             | the config section `<name>`: `config/security.js` exporting `{ csrf: false }` sets `security.csrf`           |
 | `config/environments/<env>.js` | overrides for the current environment, taken from `BUN_ENV`, else `NODE_ENV`, else `development`             |
-| `config/initializers/*.js`     | functions run once at boot, in file-name order, each called with the application                             |
+| `config/initializers/*.js`     | functions run once at boot, in file-name order, each called with the application. One that throws fails boot |
 
 Each file in those directories default-exports its class (or function, for initializers).
-A file that fails to import is skipped with a warning in the log, and its routes answer `404`.
+A file under `app/` that fails to import is skipped with a warning in the log, and its routes
+answer `404`. An initializer is different: one that fails to import, or throws, fails boot.
 
 ## Naming
 

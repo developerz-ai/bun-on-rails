@@ -120,7 +120,7 @@ file-set and one PR.
      yet. The getting-started pages say so; this is outside v0.1.0's bar.
    - In `_runInitializers`, the outer `try` catches an initializer's rethrown error and logs it
      at debug level as "No initializers directory found", so a failing initializer does not
-     stop boot. Noted for a follow-up; not a release-bar item.
+     stop boot. Fixed by plan 102 task F1.
 10. **ORM defects found while verifying the database pages (T6), each run against
     `postgres:16`.** The database pages now document them as current behaviour. None blocks the
     release bar, and none is filed as an issue, because `.dz/maintainer/maintainer.yml` would
