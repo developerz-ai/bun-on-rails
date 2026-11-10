@@ -15,6 +15,7 @@ import { ControllerContext } from './controller/base.js'
 import { BroadcastManager } from './websocket/broadcast_manager.js'
 import { Connection, getConnection, setConnection } from './database/connection.js'
 import { selectDatabaseConfig } from './database/config.js'
+import { NotImplementedError } from './support/not_implemented.js'
 
 /**
  * Application - Main framework entry point
@@ -48,7 +49,6 @@ export class Application {
     this.database = null
     this.cache = null
     this.redis = null
-    this.jobs = null
     this.websocket = null
     this.broadcastManager = null
     this.server = null
@@ -86,8 +86,9 @@ export class Application {
 
     this.logger.info('Initializing BunOnRails application...')
 
-    // 1. Load configuration
+    // 1. Load configuration, and refuse a backend the framework does not have
     await this._loadConfiguration()
+    this._refuseUnbuiltBackends()
 
     // 2. Initialize Redis (if configured)
     await this._initializeRedis()
@@ -114,10 +115,7 @@ export class Application {
     // 8. Run initializers
     await this._runInitializers()
 
-    // 9. Initialize job queue (if configured)
-    await this._initializeJobs()
-
-    // 10. Initialize WebSocket server (if configured)
+    // 9. Initialize the broadcast manager
     await this._initializeWebSocket()
 
     // 11. Set up error reporting (Sentry)
@@ -174,9 +172,6 @@ export class Application {
     // Set up graceful shutdown handlers
     this._setupShutdownHandlers()
 
-    // Start job workers (if configured)
-    await this._startJobWorkers()
-
     this.running = true
 
     this.logger.info(`🚀 BunOnRails server running at http://${hostname}:${port}`)
@@ -209,16 +204,13 @@ export class Application {
       this.server = null
     }
 
-    // 2. Stop job workers
-    await this._stopJobWorkers()
-
-    // 3. Close WebSocket connections
+    // 2. Close WebSocket connections
     await this._closeWebSockets()
 
-    // 4. Close database connections
+    // 3. Close database connections
     await this._closeDatabase()
 
-    // 5. Close Redis connections
+    // 4. Close Redis connections
     await this._closeRedis()
 
     this.running = false
@@ -230,6 +222,39 @@ export class Application {
   // ==========================================
   // Private: Configuration
   // ==========================================
+
+  /**
+   * Refuse a config that names a backend the framework does not have, before
+   * anything connects. Booting anyway hid it: cache.store 'redis' ran the
+   * memory store, jobs.adapter 'bullmq' logged "Job queue initialized with
+   * BullMQ" and queued nothing, websocket.enabled logged "WebSocket enabled"
+   * with no upgrade path. Pinned by test/core/boot_backends.test.js.
+   */
+  _refuseUnbuiltBackends() {
+    const store = this.config.get('cache.store', 'memory')
+    if (store === 'redis') {
+      throw new NotImplementedError("cache.store 'redis'", 'the Redis cache')
+    }
+    if (store !== 'memory') {
+      throw new Error(`Unknown cache.store '${store}'. The built-in store is 'memory'.`)
+    }
+
+    const jobs = this.config.section('jobs')
+    const adapter = jobs.adapter ?? 'memory'
+    if (adapter === 'bullmq') {
+      throw new NotImplementedError("jobs.adapter 'bullmq'", 'queued jobs')
+    }
+    if (adapter !== 'memory') {
+      throw new Error(`Unknown jobs.adapter '${adapter}'. The built-in adapter is 'memory' (jobs run with performNow).`)
+    }
+    if (jobs.worker) {
+      throw new NotImplementedError('jobs.worker', 'queued jobs')
+    }
+
+    if (this.config.section('websocket').enabled) {
+      throw new NotImplementedError('websocket.enabled', 'WebSocket channels')
+    }
+  }
 
   async _loadConfiguration() {
     this.config = createConfig()
@@ -325,18 +350,9 @@ export class Application {
   // ==========================================
 
   async _initializeCache() {
-    const cacheConfig = this.config.section('cache')
-    const store = cacheConfig.store || 'memory'
-
-    if (store === 'redis' && this.redis) {
-      // RedisStore methods are not yet fully implemented (stub with TODOs)
-      // Fall back to MemoryStore until RedisStore is complete
-      this.cache = new Cache(new MemoryStore())
-      this.logger.warn('RedisStore not fully implemented, using MemoryStore as fallback')
-    } else {
-      this.cache = new Cache(new MemoryStore())
-      this.logger.debug('Cache initialized with memory store')
-    }
+    // cache.store is 'memory': _refuseUnbuiltBackends refused anything else
+    this.cache = new Cache(new MemoryStore())
+    this.logger.debug('Cache initialized with memory store')
   }
 
   // ==========================================
@@ -532,39 +548,6 @@ export class Application {
   }
 
   // ==========================================
-  // Private: Jobs
-  // ==========================================
-
-  async _initializeJobs() {
-    const jobsConfig = this.config.section('jobs')
-
-    if (jobsConfig.adapter === 'bullmq' && this.redis) {
-      // Will be fully implemented in jobs/job.js
-      this.logger.debug('Job queue initialized with BullMQ')
-    } else {
-      this.logger.debug('Using in-memory job queue')
-    }
-  }
-
-  async _startJobWorkers() {
-    const jobsConfig = this.config.section('jobs')
-
-    if (!jobsConfig.worker) {
-      return // Don't start workers unless explicitly enabled
-    }
-
-    // Workers will be started by the job system
-    this.logger.debug('Job workers started')
-  }
-
-  async _stopJobWorkers() {
-    if (this.jobs) {
-      // Stop job workers
-      this.logger.debug('Job workers stopped')
-    }
-  }
-
-  // ==========================================
   // Private: WebSocket
   // ==========================================
 
@@ -576,15 +559,8 @@ export class Application {
       logger: this.logger
     })
 
-    const wsConfig = this.config.section('websocket')
-
-    if (!wsConfig.enabled) {
-      this.logger.debug('WebSocket disabled, broadcast manager ready for HTTP-only use')
-      return
-    }
-
-    // WebSocket is handled by Bun.serve
-    this.logger.debug('WebSocket enabled with broadcast manager')
+    // websocket.enabled is refused by _refuseUnbuiltBackends until channels land
+    this.logger.debug('Broadcast manager ready for HTTP-only use')
   }
 
   _getWebSocketHandler() {

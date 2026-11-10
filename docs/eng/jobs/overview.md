@@ -41,7 +41,8 @@ keep working once it runs from a queue.
 
 - **Enqueuing.** `performLater(data)`, `performIn(ms, data)` and `performAt(date, data)` throw
   `NotImplementedError`.
-- **Workers.** Nothing processes a queue, and no command starts a worker.
+- **Workers.** Nothing processes a queue, and no command starts a worker. `jobs.adapter: 'bullmq'`
+  and `jobs.worker: true` fail at boot with `NotImplementedError`.
 - **Job settings.** `Job` declares `static queue`, `attempts`, `backoff`, `priority`, `unique`,
   `uniqueKey` and `schedule`, but nothing reads them yet.
 - **Job callbacks.** `beforePerform`, `afterPerform`, `onError` and `onRetry` exist on `Job`, but

@@ -15,16 +15,13 @@ export default {
     format: 'json'
   },
 
-  // Cache
+  // Cache and session: 'memory' is the only built-in store, one per process
   cache: {
-    store: 'redis',
-    url: process.env.REDIS_URL
+    store: 'memory'
   },
 
-  // Session
   session: {
-    store: 'redis',
-    url: process.env.REDIS_URL,
+    store: 'memory',
     secret: process.env.SECRET_KEY_BASE
   },
 
