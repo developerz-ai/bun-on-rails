@@ -158,9 +158,12 @@ export default class UsersController extends Controller {
 
 1. path params (`:id`);
 2. the query string;
-3. a JSON or form-encoded body on `POST`, `PUT` and `PATCH`.
+3. a JSON, form-encoded or multipart body on `POST`, `PUT` and `PATCH`.
 
-`this.request` is the raw `Request`.
+Bracketed keys nest, in the query string and in a form: `filter[status]=draft` is
+`this.params.filter.status`, and `post[title]=Hi` is `this.params.post.title`. A body that does not
+parse (say, truncated JSON) answers `400` with `{"error":"Malformed request body: ..."}`, and the
+action does not run; an empty JSON body means no params. `this.request` is the raw `Request`.
 
 ### Responses
 

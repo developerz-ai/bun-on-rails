@@ -402,11 +402,22 @@ export class ControllerMiddleware {
 }
 
 // Import the comprehensive request parser
-import { requestParserMiddleware as createRequestParser } from "./request_parser.js";
+import {
+  requestParserMiddleware as createRequestParser,
+  parseBody,
+} from "./request_parser.js";
 
 /**
  * Built-in middleware functions
  */
+/** A JSON request with no body means no params, as in Rails, not a 400. */
+async function isEmptyJsonBody(request, contentType) {
+  return (
+    contentType.includes("application/json") &&
+    (await request.clone().text()).trim() === ""
+  );
+}
+
 export const Middleware = {
   /**
    * Parse request body (JSON, form data, multipart)
@@ -422,49 +433,34 @@ export const Middleware = {
       const request = context.request;
       const contentType = request.headers.get("content-type") || "";
 
-      // Only parse for methods that typically have bodies
-      if (["POST", "PUT", "PATCH"].includes(request.method)) {
+      // The one place the body is read (Application#_buildContext leaves it):
+      // JSON, url-encoded and multipart, with nested keys (thing[name]), merged
+      // over the route and query params. A body that does not parse answers
+      // 400 rather than running the action without it. Pinned by
+      // test/core/dispatch_params.test.js.
+      if (
+        ["POST", "PUT", "PATCH"].includes(request.method) &&
+        /application\/json|application\/x-www-form-urlencoded|multipart\/form-data/.test(
+          contentType,
+        ) &&
+        !(await isEmptyJsonBody(request, contentType))
+      ) {
+        let parsed;
         try {
-          if (contentType.includes("application/json")) {
-            const body = await request.clone().json();
-            context.body = body;
-            context.params = { ...context.params, ...body };
-          } else if (
-            contentType.includes("application/x-www-form-urlencoded")
-          ) {
-            const formData = await request.clone().formData();
-            const body = Object.fromEntries(formData);
-            context.body = body;
-            context.params = { ...context.params, ...body };
-          } else if (contentType.includes("multipart/form-data")) {
-            const formData = await request.clone().formData();
-            const body = {};
-            const files = {};
-            for (const [key, value] of formData.entries()) {
-              // Check if value is a File/Blob
-              if (
-                value &&
-                typeof value === "object" &&
-                typeof value.arrayBuffer === "function" &&
-                value.name !== undefined
-              ) {
-                files[key] = {
-                  name: value.name,
-                  type: value.type,
-                  size: value.size,
-                  file: value,
-                };
-              } else {
-                body[key] = value;
-              }
-            }
-            context.body = body;
-            context.files = files;
-            context.params = { ...context.params, ...body };
-          }
+          parsed = await parseBody(request.clone(), contentType, {
+            throwOnError: true,
+          });
         } catch (error) {
-          console.warn(`Failed to parse request body: ${error.message}`);
+          return new Response(
+            JSON.stringify({
+              error: `Malformed request body: ${error.message}`,
+            }),
+            { status: 400, headers: { "Content-Type": "application/json" } },
+          );
         }
+        context.body = parsed.body;
+        context.files = parsed.files;
+        context.params = { ...context.params, ...parsed.body };
       }
 
       // Initialize defaults if not set
