@@ -242,4 +242,3 @@ one), else the association name singularized and capitalized: `comments` is `Com
   `includes()` or `loadAssociation()`.
 - **`hasAndBelongsToMany`.** Its join query is a TODO.
 - **Model annotations.** Nothing writes the schema into model files.
-- **Generators.** `brails generate model` is not implemented yet (it exits 1): write the file by hand.

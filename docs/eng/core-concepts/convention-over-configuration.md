@@ -98,5 +98,5 @@ See [Routing & Controllers](../routing/overview.md) for every routing option.
 
 ## Not implemented yet
 
-- **Generators.** `brails generate` is not implemented yet, so no command writes these files for you.
+- **Generators beyond migration, model and controller.** `brails generate migration`, `model` and `controller` write those files in place; scaffold, job, mailer, channel and auth generators are not implemented yet.
 - **Join tables for many-to-many associations.** `hasAndBelongsToMany` is a TODO.

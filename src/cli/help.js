@@ -35,10 +35,10 @@ Commands:
   db:schema:load         Load db/schema.js into an empty database
   db:seed                Run db/seeds.js
   routes [filter]        List the app's routes
+  generate, g            Generate a migration, model or controller
   help                   Show this help
 
 Planned (registered, not implemented yet; each exits with an error):
-  generate, g            Generate code (model, controller, scaffold, etc.)
   console, c             Start interactive console
   test, t                Run tests (use \`bun test\` for now)
   credentials            Manage encrypted credentials
@@ -86,6 +86,21 @@ Usage: brails db:<command>   (or: brails db <command>)
 
 Each uses the database config/database.js names (DATABASE_URL in a generated app).
 db:create and db:drop run on the server's postgres maintenance database.
+`,
+
+  generate: `
+Usage: brails generate <migration|model|controller> <Name> [args]   (alias: brails g)
+
+  brails g migration CreateTags name:string     db/migrations/<version>_create_tags.js
+  brails g migration AddSlugToPosts             an empty up/down to fill in
+  brails g model Post title:string user:references
+                                                app/models/post.js and its create_posts migration
+  brails g controller Posts index show          app/controllers/posts_controller.js
+
+Field types: string, text, integer, bigint, smallint, float, double, decimal, numeric,
+boolean, date, datetime, time, timestamp, json, jsonb, uuid, binary, and references.
+Existing files are never overwritten. scaffold, job, mailer, channel, component, auth
+and admin are not implemented yet.
 `,
 
   routes: `
