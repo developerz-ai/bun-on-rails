@@ -10,6 +10,7 @@
 import { getConnection } from './connection.js'
 import { PostgresAdapter } from './adapters/postgres.js'
 import { trackQuery } from './n_plus_one_detector.js'
+import { tableize } from '../support/inflector.js'
 
 /**
  * Record not found error
@@ -1113,7 +1114,7 @@ export class QueryBuilder {
    */
   async deleteAll() {
     const connection = getConnection()
-    const tableName = this.model.tableName || this._getTableName()
+    const tableName = this._getTableName()
 
     const whereClause = this._buildWhereClause()
 
@@ -1133,7 +1134,7 @@ export class QueryBuilder {
    */
   async updateAll(attributes) {
     const connection = getConnection()
-    const tableName = this.model.tableName || this._getTableName()
+    const tableName = this._getTableName()
 
     const setClauses = []
     const params = []
@@ -1161,7 +1162,7 @@ export class QueryBuilder {
    * @returns {Object} { sql, params }
    */
   toSQL() {
-    const tableName = this.model.tableName || this._getTableName()
+    const tableName = this._getTableName()
 
     return this._adapter.selectSQL({
       table: tableName,
@@ -1197,17 +1198,12 @@ export class QueryBuilder {
   // ============================================
 
   /**
-   * Get table name from model class name
+   * The model's table: its `tableName`, else tableize(name), the same rule
+   * Model.getTableName() and Model#save() use (test/database/table_names.test.js).
    * @private
    */
   _getTableName() {
-    // Import tableize dynamically to avoid circular deps
-    const name = this.model.name
-    // Simple conversion: UserPost -> user_posts
-    return name
-      .replace(/([A-Z])/g, '_$1')
-      .toLowerCase()
-      .replace(/^_/, '') + 's'
+    return this.model.tableName || tableize(this.model.name)
   }
 
   /**

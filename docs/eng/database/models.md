@@ -20,13 +20,13 @@ The app imports every file under `app/models/` at boot. `Post.register()` adds t
 registry that associations use to find a model by name; call it for every model that takes part
 in an association.
 
-| Setting             | Default                                                                           |
-| ------------------- | --------------------------------------------------------------------------------- |
-| `static tableName`  | the snake_case class name plus `s`: `Post` is `posts`, `BlogPost` is `blog_posts` |
-| `static primaryKey` | `id`                                                                              |
+| Setting             | Default                                                                                                              |
+| ------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `static tableName`  | the class name, snake_case and pluralized: `Post` is `posts`, `BlogPost` is `blog_posts`, `Category` is `categories` |
+| `static primaryKey` | `id`                                                                                                                 |
 
-Set `tableName` whenever the plural is not the name plus `s`. For `Category`, write
-`static tableName = "categories"`: without it, queries read a `categorys` table.
+The same rule names the table for queries, `save()`, `update` and `delete`. Set `tableName` only
+when your table does not follow it, such as `static tableName = "tbl_legacy"`.
 
 `save()` fills in `created_at` and `updated_at` when it inserts a row, so every table a model
 writes to needs both columns (`t.timestamps()` in a migration).

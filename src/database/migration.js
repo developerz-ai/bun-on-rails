@@ -8,7 +8,7 @@
  */
 
 import { PostgresAdapter } from './adapters/postgres.js'
-import { singularize } from '../support/inflector.js'
+import { pluralize, singularize } from '../support/inflector.js'
 
 // Default adapter instance
 const defaultAdapter = new PostgresAdapter()
@@ -804,7 +804,7 @@ export class TableBuilder {
    * @param {Object} options - Reference options
    * @param {string} options.type - Column type (default: 'bigint')
    * @param {string} options.column - Custom column name (default: {name}_id)
-   * @param {string} options.table - Custom referenced table (default: {name}s)
+   * @param {string} options.table - Custom referenced table (default: pluralize(name))
    * @param {string} options.foreignKey - Custom foreign key column (default: 'id')
    * @param {string} options.onDelete - ON DELETE action (CASCADE, SET NULL, etc.)
    * @param {string} options.onUpdate - ON UPDATE action
@@ -824,7 +824,8 @@ export class TableBuilder {
    */
   references(name, options = {}) {
     const columnName = options.column || `${name}_id`
-    const tableName = options.table || `${name}s`
+    // pluralize(), the rule Model.getTableName() and the schema dumper share.
+    const tableName = options.table || pluralize(name)
     const foreignKey = options.foreignKey || 'id'
     const columnType = options.type || 'bigint'
 
