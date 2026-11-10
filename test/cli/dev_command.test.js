@@ -43,15 +43,15 @@ describe("brails dev", () => {
     }
   });
 
-  test("answers a routed path with a JSON 404 in the development environment", async () => {
+  test("answers a routed path through the middleware stack in the development environment", async () => {
     // The demo's development environment configures `session.store = 'memory'`
     // (a store NAME, not a Map-like object). Booting in that environment proves
     // the session middleware can resolve a named store instead of blowing up
     // after the handler already produced its response.
     //
-    // `/health` is routed (health#index) but has no controller, so the request
-    // runs through the middleware stack and ends in a 404 - unlike an unknown
-    // path, which is answered before the middleware stack is entered.
+    // `/health` is routed (health#index), so the request runs through the
+    // middleware stack, session included, and reaches the demo's controller -
+    // unlike an unknown path, which is answered before the stack is entered.
     const originalBunEnv = process.env.BUN_ENV;
     const originalNodeEnv = process.env.NODE_ENV;
 
@@ -69,8 +69,8 @@ describe("brails dev", () => {
         `http://localhost:${app.server.port}/health`,
       );
 
-      expect(response.status).toBe(404);
-      expect(await response.json()).toEqual({ error: "Not Found" });
+      expect(response.status).toBe(200);
+      expect(await response.json()).toEqual({ status: "ok" });
     } finally {
       if (app) {
         await app.stop();

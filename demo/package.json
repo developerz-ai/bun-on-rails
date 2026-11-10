@@ -7,10 +7,9 @@
     "start": "brails start",
     "test": "bun test test/",
     "lint": "bunx eslint --max-warnings=0 app/ config/ test/ db/",
-    "setup": "brails setup",
+    "setup": "brails db:setup",
     "db:migrate": "brails db:migrate",
-    "db:seed": "brails db:seed",
-    "console": "brails console"
+    "db:seed": "brails db:seed"
   },
   "dependencies": {}
 }

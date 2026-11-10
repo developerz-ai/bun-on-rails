@@ -2,8 +2,8 @@ plan: 105-silent-stubs
 title: No silent stubs; test support that works
 status: in-progress
 owner: unassigned
-percent: 69
-current_focus: S7 (the demo's tests run in CI)
+percent: 77
+current_focus: S12 (the demo app uses the real API)
 slices:
   - { id: S1, status: done }
   - { id: S2, status: done }
@@ -11,12 +11,12 @@ slices:
   - { id: S4, status: done }
   - { id: S5, status: done }
   - { id: S6, status: todo }
-  - { id: S7, status: in-progress }
+  - { id: S7, status: done }
   - { id: S8, status: done }
   - { id: S9, status: done }
   - { id: S10, status: done }
   - { id: S11, status: done }
-  - { id: S12, status: todo }
+  - { id: S12, status: in-progress }
   - { id: S13, status: todo }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
@@ -34,4 +34,5 @@ evidence:
     - "#76 merged as ca1cce3 (S10 part 1)"
     - "#77 merged as 5e4c530 (S10 part 2)"
     - "#78 merged as eb28ca8 (S10 part 3)"
+    - "#79 merged as 86d823c (S7)"
 last_updated: 2026-11-10
