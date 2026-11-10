@@ -29,7 +29,6 @@ function brails(...args) {
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
 }
 
-// `new` / `create` is still a stub; plan 101 task T3 implements it.
 const IMPLEMENTED = new Set(["new", "create", "dev", "server", "s", "start"]);
 
 const UNIMPLEMENTED_INVOCATIONS = [

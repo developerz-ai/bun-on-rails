@@ -1,6 +1,21 @@
 /**
- * brails new - Create new application
+ * brails new <app-name> - Create a new application
+ *
+ * Copies src/cli/templates/app/ into ./<app-name>, fills in the app name and
+ * this framework's own package name and version, then runs `bun install`
+ * there (skip with --skip-install). The result boots with `brails dev` and no
+ * database. Pinned by test/cli/new.test.js.
  */
+
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'fs'
+import { dirname, join, resolve } from 'path'
+import { fileURLToPath } from 'url'
+
+const here = dirname(fileURLToPath(import.meta.url))
+const templateRoot = join(here, '..', 'templates', 'app')
+const frameworkPkg = JSON.parse(readFileSync(join(here, '..', '..', '..', 'package.json'), 'utf8'))
+
+const APP_NAME = /^[a-z][a-z0-9_-]*$/
 
 export const newCommand = {
   name: 'new',
@@ -10,100 +25,100 @@ export const newCommand = {
     const appName = args.subcommand
 
     if (!appName) {
-      throw new Error('Please provide an application name: brails new myapp')
+      throw new Error('Usage: brails new <app-name>')
+    }
+    if (!APP_NAME.test(appName)) {
+      throw new Error(
+        `Invalid app name "${appName}": use lowercase letters, digits, "-" and "_", starting with a letter`
+      )
     }
 
-    console.log(`Creating new BunOnRails application: ${appName}`)
+    const target = resolve(process.cwd(), appName)
+    if (existsSync(target)) {
+      throw new Error(`${target} already exists; choose another name or remove it`)
+    }
 
-    // TODO: Validate app name
-    // TODO: Create directory structure
-    // TODO: Generate base files
-    // TODO: Initialize package.json
-    // TODO: Generate docker-compose.yml
-    // TODO: Initialize git repository
-    // TODO: Install dependencies
+    const values = {
+      APP_NAME: appName,
+      FRAMEWORK_NAME: frameworkPkg.name,
+      FRAMEWORK_VERSION: frameworkPkg.version
+    }
 
-    const steps = [
-      'Creating directory structure...',
-      'Generating application files...',
-      'Setting up database configuration...',
-      'Generating Docker configuration...',
-      'Initializing git repository...',
-      'Installing dependencies...'
-    ]
+    console.log(`Creating ${appName}/`)
+    for (const template of listTemplates(templateRoot)) {
+      const relative = outputPath(template)
+      const destination = join(target, relative)
+      mkdirSync(dirname(destination), { recursive: true })
+      writeFileSync(destination, fill(readFileSync(join(templateRoot, template), 'utf8'), values))
+      console.log(`  create  ${relative}`)
+    }
 
-    for (const step of steps) {
-      console.log(`  ${step}`)
-      // TODO: Actually perform each step
+    if (args.flags['skip-install']) {
+      console.log('\nSkipped bun install (--skip-install).')
+    } else {
+      console.log('\nRunning bun install...')
+      const install = Bun.spawnSync([process.execPath, 'install'], {
+        cwd: target,
+        stdio: ['inherit', 'inherit', 'inherit']
+      })
+      if (install.exitCode !== 0) {
+        throw new Error(`bun install failed in ${appName}/ (exit ${install.exitCode}); run it there yourself`)
+      }
     }
 
     console.log(`
-Application created successfully!
+Created ${appName}. Next:
 
-Next steps:
   cd ${appName}
-  brails setup    # Start Docker and setup database
-  brails dev      # Start development server
+  brails dev
 
-Happy coding!
+Then open http://localhost:3000
 `)
   }
 }
 
 /**
- * Generate application directory structure
+ * Every template file under `dir`, as paths relative to it.
+ *
+ * @param {string} dir
+ * @param {string} [prefix]
+ * @returns {string[]}
  */
-async function _createDirectoryStructure(_appName) {
-  const _directories = [
-    'app/models',
-    'app/controllers',
-    'app/components/layouts',
-    'app/components/pages',
-    'app/components/shared',
-    'app/jobs',
-    'app/mailers',
-    'app/channels',
-    'config/environments',
-    'config/initializers',
-    'config/locales',
-    'db/migrations',
-    'lib',
-    'public',
-    'storage',
-    'test/factories',
-    'test/fixtures',
-    'test/integration',
-    'test/models',
-    'test/support'
-  ]
-
-  // TODO: Create directories
+function listTemplates(dir, prefix = '') {
+  return readdirSync(dir).sort().flatMap((name) => {
+    const relative = prefix ? `${prefix}/${name}` : name
+    return statSync(join(dir, name)).isDirectory() ? listTemplates(join(dir, name), relative) : [relative]
+  })
 }
 
 /**
- * Generate base application files
+ * Template path to output path: drop `.tmpl`, and a leading `_` becomes `.`
+ * (npm strips `.gitignore` from published packages, so dotfiles ship as `_name`).
+ *
+ * @param {string} template
+ * @returns {string}
  */
-async function _generateBaseFiles(_appName, _options) {
-  // TODO: Generate from templates:
-  // - package.json
-  // - bunfig.toml
-  // - .gitignore
-  // - .env
-  // - config/routes.js
-  // - config/database.js
-  // - config/environments/*.js
-  // - db/schema.js
-  // - db/seeds.js
-  // - app/controllers/application_controller.js
-  // - app/models/application_record.js
+function outputPath(template) {
+  return template
+    .replace(/\.tmpl$/, '')
+    .split('/')
+    .map((part) => part.replace(/^_/, '.'))
+    .join('/')
 }
 
 /**
- * Generate Docker configuration
+ * Replace `{{KEY}}` placeholders. An unknown key throws, so a template typo
+ * cannot ship a literal `{{...}}` into a user's app.
+ *
+ * @param {string} text
+ * @param {Record<string, string>} values
+ * @returns {string}
  */
-async function _generateDockerConfig(_appName, _options) {
-  // TODO: Generate:
-  // - docker-compose.yml
-  // - Dockerfile
-  // - .dockerignore
+function fill(text, values) {
+  return text.replace(/\{\{([A-Z_]+)\}\}/g, (_match, key) => {
+    if (!(key in values)) {
+      throw new Error(`template placeholder {{${key}}} has no value`)
+    }
+    return values[key]
+  })
 }

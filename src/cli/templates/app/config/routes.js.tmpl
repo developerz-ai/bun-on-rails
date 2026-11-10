@@ -1,0 +1,8 @@
+/**
+ * Routes: each maps a path to `controller#action`.
+ */
+
+export default (router) => {
+  router.root('home#index')
+  router.get('/health', 'health#index')
+}

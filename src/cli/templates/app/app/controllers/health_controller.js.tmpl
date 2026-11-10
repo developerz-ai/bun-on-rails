@@ -1,0 +1,7 @@
+import { Controller } from '{{FRAMEWORK_NAME}}'
+
+export default class HealthController extends Controller {
+  async index() {
+    return this.render({ status: 'ok' })
+  }
+}

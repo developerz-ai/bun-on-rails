@@ -2,8 +2,8 @@ plan: 101-public-release
 title: Public release of bun-on-rails v0.1.0
 status: in-progress
 owner: unassigned
-percent: 20
-current_focus: T2 (stub commands fail loudly)
+percent: 30
+current_focus: T3 (brails new)
 slices:
   - id: T10
     title: Land the QA script as bin/qa-release
@@ -15,11 +15,11 @@ slices:
     depends_on: [D1, D2]
   - id: T2
     title: Stub commands fail loudly
-    status: in-progress
+    status: done
     depends_on: []
   - id: T3
     title: brails new generates a bootable app
-    status: todo
+    status: in-progress
     depends_on: [D5]
   - id: T8
     title: Routing & Controllers guide
@@ -60,5 +60,6 @@ evidence:
     - "#32 merged as 880b79e (D6)"
     - "#33 merged as ccacc47 (T10)"
     - "#34 merged as b72966f (T1)"
+    - "#35 merged as 892d649 (T2)"
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 last_updated: 2026-11-10
