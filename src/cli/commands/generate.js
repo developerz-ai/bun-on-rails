@@ -8,9 +8,11 @@
  *   brails g scaffold Post title:string body:text the model and migration, a JSON
  *                                                 controller, a request test, and
  *                                                 router.resources('posts')
+ *   brails g job SendDigest                       app/jobs/send_digest_job.js and its test
+ *   brails g mailer User welcome                  app/mailers/user_mailer.js and its test
  *
- * Existing files are never overwritten. Other generator types (job, mailer,
- * auth, ...) are not implemented yet. Pinned by test/cli/generate.test.js and
+ * Existing files are never overwritten. Other generator types (channel, auth,
+ * ...) are not implemented yet. Pinned by test/cli/generate.test.js and
  * test/cli/scaffold.test.js.
  */
 
@@ -25,7 +27,7 @@ const COLUMN_TYPES = new Set([
   'boolean', 'date', 'datetime', 'time', 'timestamp', 'json', 'jsonb', 'uuid', 'binary'
 ])
 
-const IMPLEMENTED = ['migration', 'model', 'controller', 'scaffold']
+const IMPLEMENTED = ['migration', 'model', 'controller', 'scaffold', 'job', 'mailer']
 
 /**
  * Parse `name:type` field arguments. `user:references` (or `belongs_to`)
@@ -340,6 +342,126 @@ function generateScaffold(root, name, fields, now, created) {
   }
 }
 
+/** A job, and a test that runs it with performNow. */
+function generateJob(root, name, created) {
+  if (!/^[A-Z][A-Za-z0-9]*$/.test(name || '')) {
+    throw new Error('Usage: brails generate job <Name>, e.g. SendDigest')
+  }
+  const className = name.endsWith('Job') ? name : `${name}Job`
+  if (className === 'Job') {
+    // The file imports Job from the framework; a class of the same name cannot sit beside it.
+    throw new Error('"Job" is the class every job extends; choose another name')
+  }
+  const file = underscore(className)
+  const jobFile = join('app', 'jobs', `${file}.js`)
+  const testFile = join('test', 'jobs', `${file}.test.js`)
+  checkFree(root, [jobFile, testFile])
+  writeNew(
+    root,
+    jobFile,
+    `import { Job } from 'bun-on-rails'
+
+export default class ${className} extends Job {
+  async perform(data) {
+    // Do the work here. \`data\` is what performLater(data) was given.
+    return data
+  }
+}
+`,
+    created
+  )
+  writeNew(
+    root,
+    testFile,
+    `import { test, expect } from 'bun:test'
+import ${className} from '../../app/jobs/${file}.js'
+
+test('${className} runs', async () => {
+  expect(await ${className}.performNow({ id: 1 })).toEqual({ id: 1 })
+})
+`,
+    created
+  )
+}
+
+/** A mailer with a static method per mail, and a test that delivers each. */
+function generateMailer(root, name, mails, created) {
+  if (!/^[A-Z][A-Za-z0-9]*$/.test(name || '') || mails.length === 0) {
+    throw new Error('Usage: brails generate mailer <Name> <mail ...>, e.g. User welcome password_reset')
+  }
+  for (const mail of mails) {
+    if (!/^[a-z][a-z0-9_]*$/.test(mail)) {
+      throw new Error(`Invalid mail name "${mail}": use snake_case`)
+    }
+    if (['mail', 'defaults'].includes(camelize(mail))) {
+      // A static `mail` would call itself through this.mail(); `defaults` holds the sender.
+      throw new Error(`"${mail}" would replace Mailer.${camelize(mail)}, which every mail method uses; choose another name`)
+    }
+  }
+  const className = name.endsWith('Mailer') ? name : `${name}Mailer`
+  if (className === 'Mailer') {
+    throw new Error('"Mailer" is the class every mailer extends; choose another name')
+  }
+  const file = underscore(className)
+  const mailerFile = join('app', 'mailers', `${file}.js`)
+  const testFile = join('test', 'mailers', `${file}.test.js`)
+  checkFree(root, [mailerFile, testFile])
+  const subject = (mail) => capitalize(mail.replace(/_/g, ' '))
+  const methods = mails
+    .map(
+      (mail) => `  static ${camelize(mail)}(to) {
+    return this.mail({ to, subject: '${subject(mail)}', text: '${subject(mail)}' })
+  }`
+    )
+    .join('\n\n')
+  writeNew(
+    root,
+    mailerFile,
+    `import { Mailer } from 'bun-on-rails'
+
+export default class ${className} extends Mailer {
+  static defaults = { from: 'from@example.com' }
+
+${methods}
+}
+`,
+    created
+  )
+  const tests = mails
+    .map(
+      (mail) => `test('${className}.${camelize(mail)}', async () => {
+  await ${className}.${camelize(mail)}('to@example.com').deliver()
+  expect(mailDeliveries()).toEqual([expect.objectContaining({ to: 'to@example.com', subject: '${subject(mail)}' })])
+})`
+    )
+    .join('\n\n')
+  writeNew(
+    root,
+    testFile,
+    `import { beforeEach, test, expect } from 'bun:test'
+import { configureMail, mailDeliveries, clearMailDeliveries } from 'bun-on-rails'
+import ${className} from '../../app/mailers/${file}.js'
+
+beforeEach(() => {
+  configureMail({ adapter: 'test' })
+  clearMailDeliveries()
+})
+
+${tests}
+`,
+    created
+  )
+}
+
+/** Throw before writing anything when one of `files` exists. */
+function checkFree(root, files) {
+  for (const relative of files) {
+    if (existsSync(join(root, relative))) {
+      throw new Error(`${relative} already exists; not overwriting it`)
+    }
+  }
+}
+
 /**
  * Run a generator.
  *
@@ -360,6 +482,10 @@ export function generate(root, type, name, args = [], { now = new Date() } = {})
     generateController(root, name, args, created)
   } else if (type === 'scaffold') {
     generateScaffold(root, name, parseFieldArgs(args), now, created)
+  } else if (type === 'job') {
+    generateJob(root, name, created)
+  } else if (type === 'mailer') {
+    generateMailer(root, name, args, created)
   } else if (!type) {
     throw new Error(`Usage: brails generate <${IMPLEMENTED.join('|')}> <Name> ...`)
   } else {
@@ -370,7 +496,7 @@ export function generate(root, type, name, args = [], { now = new Date() } = {})
 
 export const generateCommand = {
   name: 'generate',
-  description: 'Generate a migration, model, controller or scaffold',
+  description: 'Generate a migration, model, controller, scaffold, job or mailer',
 
   async run(args) {
     const [name, ...rest] = args.positional

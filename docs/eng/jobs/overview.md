@@ -20,7 +20,8 @@ export default class SendWelcomeEmailJob extends Job {
 ```
 
 A job extends `Job` and implements `perform(data)`. The app imports every file under
-`app/jobs/` at boot.
+`app/jobs/` at boot. `brails g job SendWelcomeEmail` writes the file (the class name gets `Job`
+added) and `test/jobs/send_welcome_email_job.test.js`, which runs it with `performNow`.
 
 ## Running a job
 
@@ -76,4 +77,3 @@ await performEnqueuedJobs(); // runs every waiting job now, delays included
   (Redis) and `jobs.worker: true` fail at boot with `NotImplementedError`.
 - **Queue settings.** `static queue` and `priority` are not read: the memory queue is one queue,
   run in time order. `unique`, `uniqueKey` and `schedule` throw when the job is queued.
-- **Generators.** `brails generate job` is not implemented yet: write the file by hand.

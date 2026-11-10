@@ -65,7 +65,7 @@ export default class PostsController extends Controller {
 
 Tell your assistant, or it will write code against these. Each fails when used: a planned command exits with an error, and a planned API throws `NotImplementedError` naming itself.
 
-- **Generators beyond migration, model, controller and scaffold.** `brails g migration`, `g model`, `g controller` and `g scaffold` work; `g job`, `g mailer`, `g auth` and the rest are not implemented yet.
+- **Generators beyond migration, model, controller, scaffold, job and mailer.** `brails g migration`, `g model`, `g controller`, `g scaffold`, `g job` and `g mailer` work; `g channel`, `g auth` and the rest are not implemented yet.
 - **`brails console`, `brails credentials`** are not implemented yet either. (`brails routes` lists the routes.)
 - **Background jobs.** `performLater` queues a job in the app's own process; a persistent queue
   (BullMQ) is not implemented (see [Background Jobs](../jobs/overview.md)).

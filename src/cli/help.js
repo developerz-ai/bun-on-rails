@@ -35,7 +35,7 @@ Commands:
   db:schema:load         Load db/schema.js into an empty database
   db:seed                Run db/seeds.js
   routes [filter]        List the app's routes
-  generate, g            Generate a migration, model, controller or scaffold
+  generate, g            Generate a migration, model, controller, scaffold, job or mailer
   test, t [args]         Run the tests with bun test (arguments pass through)
   help                   Show this help
 
@@ -89,7 +89,7 @@ db:create and db:drop run on the server's postgres maintenance database.
 `,
 
   generate: `
-Usage: brails generate <migration|model|controller|scaffold> <Name> [args]   (alias: brails g)
+Usage: brails generate <migration|model|controller|scaffold|job|mailer> <Name> [args]   (alias: brails g)
 
   brails g migration CreateTags name:string     db/migrations/<version>_create_tags.js
   brails g migration AddSlugToPosts             an empty up/down to fill in
@@ -99,12 +99,14 @@ Usage: brails generate <migration|model|controller|scaffold> <Name> [args]   (al
   brails g scaffold Post title:string body:text the model and migration, a JSON controller
                                                 with the five resource actions, a request
                                                 test, and router.resources('posts')
+  brails g job SendDigest                       app/jobs/send_digest_job.js and its test
+  brails g mailer User welcome                  app/mailers/user_mailer.js and its test
 
 Field types: string, text, integer, bigint, smallint, float, double, decimal, numeric,
 boolean, date, datetime, time, timestamp, json, jsonb, uuid, binary, and references.
 Existing files are never overwritten (a scaffold checks every file first, so a
-conflict writes nothing). job, mailer, channel, component, auth and admin are not
-implemented yet.
+conflict writes nothing). channel, component, auth and admin are not implemented
+yet.
 `,
 
   test: `

@@ -24,6 +24,10 @@ export default class UserMailer extends Mailer {
 }
 ```
 
+`brails g mailer User welcome password_reset` writes this file, with a static method per mail
+(`welcome`, `passwordReset`), and `test/mailers/user_mailer.test.js`, which delivers each through
+the `test` adapter.
+
 `this.mail(options)` builds a message from the mailer's `defaults` and the options: `to`, `cc`,
 `bcc` (an address or a list), `replyTo`, `subject`, `text`, `html` and `attachments`. The builder
 methods `to()`, `cc()`, `bcc()`, `subject()`, `text()`, `html()` and `attach()` set the same fields.
@@ -82,4 +86,3 @@ clearMailDeliveries(); // between tests
 - **Transports.** SMTP, SendGrid, Postmark and SES.
 - **Templates.** `template(name, data)` throws `NotImplementedError` until HTML views land: write
   `text` or `html` yourself.
-- **Generators.** `brails generate mailer` is not implemented yet.

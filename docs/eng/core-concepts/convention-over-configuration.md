@@ -102,4 +102,4 @@ See [Routing & Controllers](../routing/overview.md) for every routing option.
 
 ## Not implemented yet
 
-- **Generators beyond migration, model, controller and scaffold.** `brails generate migration`, `model`, `controller` and `scaffold` write those files in place; job, mailer, channel and auth generators are not implemented yet.
+- **The channel and auth generators.** `brails generate migration`, `model`, `controller`, `scaffold`, `job` and `mailer` write their files in place; the channel and auth generators are not implemented yet.
