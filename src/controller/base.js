@@ -60,6 +60,16 @@ export class Controller {
   }
 
   /**
+   * The session's CSRF token. Hand it to the client, which sends it back in an
+   * X-CSRF-Token header (or a `_csrf` param) on every POST, PUT, PATCH and
+   * DELETE while CSRF protection is on.
+   * @returns {string|undefined}
+   */
+  get csrfToken() {
+    return this.session?.csrfToken
+  }
+
+  /**
    * Render a response
    * @param {Object} data
    * @param {Object} options

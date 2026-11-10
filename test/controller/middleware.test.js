@@ -839,7 +839,8 @@ describe('Middleware.session()', () => {
 
     const response = await middleware(context, async () => new Response('OK'))
 
-    expect(context.session).toEqual({})
+    // A new session starts with only its CSRF token (test/controller/csrf_token.test.js).
+    expect(context.session).toEqual({ csrfToken: expect.stringMatching(/^[0-9a-f]{64}$/) })
     const setCookie = response.headers.get('Set-Cookie')
     expect(setCookie).toContain('_session=')
     expect(setCookie).toContain('HttpOnly')

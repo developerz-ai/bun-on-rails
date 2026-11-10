@@ -17,6 +17,7 @@ Every example on this page is a complete file. Drop them into an app made by
 export default (router) => {
   router.root("home#index");
   router.get("/health", "health#index");
+  router.get("/csrf", "csrf#show");
 
   router.resources("posts", { only: ["index", "show", "create"] });
   router.post("/posts/:id/publish", "posts#publish");
@@ -156,13 +157,29 @@ Filters take no `only` / `except` options yet: a filter runs for every action, s
 ### CSRF protection
 
 `POST`, `PUT`, `PATCH` and `DELETE` are CSRF-checked by default. A write must carry an
-`X-CSRF-Token` header (or a `_csrf` param) equal to `this.session.csrfToken`, or it gets `403`
-with `{"error":"CSRF token mismatch"}` before any controller runs.
+`X-CSRF-Token` header (or a `_csrf` param) equal to its session's token, or it gets `403` with
+`{"error":"CSRF token mismatch"}` before any controller runs.
 
-The framework does not issue that token yet (see [Not implemented yet](#not-implemented-yet)),
-so with the default config every write is refused. The check guards cookie-authenticated
-browser sessions. An API that authenticates each request with a header, as `requireToken`
-does here, can turn it off:
+Every session gets a token on its first request, and an action reads it as `this.csrfToken`.
+Hand it to the client, which then sends it back with the session cookie on each write:
+
+**`app/controllers/csrf_controller.js`**
+
+```js [app/controllers/csrf_controller.js]
+import { Controller } from "bun-on-rails";
+
+export default class CsrfController extends Controller {
+  show() {
+    return this.render({ csrfToken: this.csrfToken });
+  }
+}
+```
+
+`GET /csrf` answers `{"csrfToken":"…"}` and sets the `_session` cookie. A browser app keeps
+the cookie and puts the token in an `X-CSRF-Token` header (or a `_csrf` form field).
+
+The check protects cookie-authenticated browser sessions. An API that authenticates each
+request with a header, as `requireToken` does here, can turn it off:
 
 **`config/security.js`**
 
@@ -195,7 +212,5 @@ curl localhost:3000/admin/users/7                           # 200 {"user":{"id":
   Write nested paths out with `get` / `post`, as `/posts/:id/publish` does above.
 - **`scope(path, callback)`** and **`middleware(list, callback)`** run the callback without a
   path prefix or middleware.
-- **CSRF tokens.** Nothing sets `session.csrfToken`, so with CSRF on, every write gets `403`. See
-  [CSRF protection](#csrf-protection).
 - **Filter options**: see [Filters](#filters).
 - **HTML views.** `render` returns JSON only.

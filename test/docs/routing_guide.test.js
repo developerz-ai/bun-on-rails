@@ -33,6 +33,7 @@ describe("the guide's code", () => {
     expect([...guide.files].sort()).toEqual(
       [
         "app/controllers/admin/users_controller.js",
+        "app/controllers/csrf_controller.js",
         "app/controllers/posts_controller.js",
         "config/routes.js",
         "config/security.js",
@@ -127,21 +128,33 @@ describe("the rest of the guide's claims", () => {
     });
   });
 
-  test("CSRF is on by default and nothing issues a token: every write gets 403", async () => {
+  test("with CSRF on, a write needs the session cookie and the token GET /csrf hands out", async () => {
     const strict = new Application({
       root: guide.app,
       config: { security: { csrf: true } },
     });
     await strict.initialize();
     await strict.start({ port: 0, hostname: "127.0.0.1" });
-    try {
-      const res = await fetch(`http://127.0.0.1:${strict.server.port}/posts`, {
+    const at = `http://127.0.0.1:${strict.server.port}`;
+    const write = (headers) =>
+      fetch(`${at}/posts`, {
         method: "POST",
-        headers: { ...token, "content-type": "application/json" },
-        body: JSON.stringify({ title: "Blocked" }),
+        headers: { ...token, "content-type": "application/json", ...headers },
+        body: JSON.stringify({ title: "Protected" }),
       });
-      expect(res.status).toBe(403);
-      expect(await res.json()).toEqual({ error: "CSRF token mismatch" });
+    try {
+      const refused = await write({});
+      expect(refused.status).toBe(403);
+      expect(await refused.json()).toEqual({ error: "CSRF token mismatch" });
+
+      const issued = await fetch(`${at}/csrf`);
+      const cookie = issued.headers.get("set-cookie").split(";")[0];
+      const { csrfToken } = await issued.json();
+      expect(cookie).toStartWith("_session=");
+      expect(csrfToken).toMatch(/^[0-9a-f]{64}$/);
+
+      const accepted = await write({ cookie, "x-csrf-token": csrfToken });
+      expect(accepted.status).toBe(201);
     } finally {
       await strict.stop();
     }

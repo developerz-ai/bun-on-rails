@@ -2,8 +2,8 @@ plan: 101-public-release
 title: Public release of bun-on-rails v0.1.0
 status: in-progress
 owner: unassigned
-percent: 70
-current_focus: T9 (release workflow), T6 (rest of docs) prepared in parallel
+percent: 80
+current_focus: T11 (CSRF tokens), T6 (rest of docs) prepared in parallel
 slices:
   - id: T10
     title: Land the QA script as bin/qa-release
@@ -43,11 +43,11 @@ slices:
     depends_on: [T5, T6, T8, pages-admin-setting]
   - id: T11
     title: Issue CSRF tokens so writes work with CSRF on
-    status: todo
+    status: in-progress
     depends_on: [T8]
   - id: T9
     title: release.yml first-release fixes and QA gate
-    status: in-progress
+    status: done
     depends_on: [T10]
 decisions:
   D1: bun-on-rails
@@ -69,5 +69,6 @@ evidence:
     - "#37 merged as ba772a0 (T8)"
     - "#38 merged as 1f24a3d (T5)"
     - "#39 merged as 08e34cb (T4)"
+    - "#40 merged as f3a0241 (T9)"
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 last_updated: 2026-11-10
