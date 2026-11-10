@@ -40,7 +40,7 @@ Parts of the tree are stubs. Read the module before you rely on it.
 
 | Module                         | State                                                                                                                                                                               |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/cli/commands/`            | `new`, `generate`, `db:*`, `console`, `routes`, `test`, `credentials` are stubs — see Commands                                                                                      |
+| `src/cli/commands/`            | `new` is a stub, and `generate`, `db:*`, `console`, `routes`, `test`, `credentials` exit 1 as not implemented — see Commands                                                        |
 | `src/jobs/job.js`              | `performNow` runs a job; `performLater` / `performAt` / `performIn` are TODO stubs (`src/jobs/job.js:29`)                                                                           |
 | `src/mail/mailer.js`           | `deliver()` and `deliverLater()` are TODO stubs (`src/mail/mailer.js:36`)                                                                                                           |
 | `src/storage/storage.js`       | upload, download and delete are TODO stubs (`src/storage/storage.js:17`)                                                                                                            |
@@ -85,22 +85,20 @@ Parts of the tree are stubs. Read the module before you rely on it.
 | `brails start`                       | production server                                     |
 | `--help`                             | command list and per-command help (`src/cli/help.js`) |
 
-Registered but not implemented — a stub prints its plan and returns, so never rely on it:
+Registered but not implemented. Each is built by `notImplemented()` (`src/cli/commands/not_implemented.js`) and exits 1 with `brails <cmd> is not implemented yet`, printing nothing to stdout. `brails help` lists them under Planned. Pinned by `test/cli/not_implemented.test.js`:
 
-| Command                                                   | Stub at                                                                |
-| --------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `brails new` (`create`)                                   | `src/cli/commands/new.js:18`                                           |
-| `brails generate` (`g`)                                   | `src/cli/commands/generate.js:36`                                      |
-| `brails db:create` / `db:drop` / `db:migrate` / `db:seed` | `src/cli/commands/db.js:42`                                            |
-| `brails db rollback`                                      | `src/cli/commands/db.js:76`                                            |
-| `brails db:reset` / `brails db:setup`                     | `src/cli/commands/db.js:84` — they only call the stubs above           |
-| `brails db:schema:dump` / `db:schema:load`                | `src/cli/commands/db.js:126` — prints "requires a database connection" |
-| `brails console` (`c`)                                    | `src/cli/commands/console.js:12`                                       |
-| `brails routes`                                           | `src/cli/commands/routes.js:14`                                        |
-| `brails test` (`t`)                                       | `src/cli/commands/test.js:15` — use `bun test`                         |
-| `brails credentials` (`credentials:edit`)                 | `src/cli/commands/credentials.js:27`                                   |
+| Command                                                                                              | Where                                                                          |
+| ---------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `brails generate` (`g`)                                                                              | `src/cli/commands/generate.js`                                                 |
+| `brails db:<command>`: create, drop, migrate, rollback, reset, seed, setup, schema:load, schema:dump | `src/cli/commands/db.js`. The dumper/loader itself is `src/database/schema.js` |
+| `brails console` (`c`)                                                                               | `src/cli/commands/console.js`                                                  |
+| `brails routes`                                                                                      | `src/cli/commands/routes.js`                                                   |
+| `brails test` (`t`)                                                                                  | `src/cli/commands/test.js`. The error says to use `bun test`                   |
+| `brails credentials` (`credentials:edit`)                                                            | `src/cli/commands/credentials.js`                                              |
 
-The CLI has no top-level `setup` verb — the registry (`src/cli/commands/index.js:15-49`) lists `db:setup`, and that one is a stub.
+`brails new` (`create`) is still the old kind of stub: it prints "Application created successfully!" and creates nothing (`src/cli/commands/new.js:18`). Plan 101 task T3 replaces it.
+
+The CLI has no top-level `setup` verb — the registry (`src/cli/commands/index.js:15-49`) lists `db:setup`, and it exits 1 as not implemented.
 
 ## Structure
 
