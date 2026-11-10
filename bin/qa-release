@@ -1,0 +1,281 @@
+#!/usr/bin/env bash
+# bin/qa-release — check the public-release bar from scratch.
+# The bar and the plan behind it: docs/plans/2026/11/10/101-public-release/overview.md
+#
+# Usage:  bin/qa-release [SOURCE]
+#   SOURCE  a git URL or a local checkout (only COMMITTED files count — this is a
+#           from-scratch check). Default: https://github.com/developerz-ai/bun-on-rails (main).
+#
+# Host needs: docker with the compose plugin (run as a user that may use docker),
+# git, gh (authenticated; bar 4 only), tar, grep, sed, awk. Nothing else: npm, bun
+# and lychee all run in pinned containers.
+#
+# Bar 1 runs the README's own commands, verbatim, inside a clean oven/bun container.
+# The tarball built by `npm pack` is published to a throwaway Verdaccio registry
+# first and the container installs from it, so the README's real package name and
+# any `bun install` that `brails new` runs both resolve to the tarball under test —
+# nothing is published to npmjs.org. Postgres 16 and Redis 7 run as compose services
+# (the framework has no SQLite adapter — src/database/adapters/ holds only
+# postgres.js) and reach the app as DATABASE_URL / REDIS_URL.
+#
+# Exit 0 when all four bar items PASS, 1 when any FAILs, 75 when docker or the source
+# is unreachable and nothing was graded (the exit-code contract in
+# .claude/skills/verify-change/SKILL.md).
+
+set -uo pipefail
+
+SRC=${1:-https://github.com/developerz-ai/bun-on-rails}
+GH_REPO=developerz-ai/bun-on-rails
+BUN_IMAGE=oven/bun:1.4.4
+NODE_IMAGE=node:22-slim
+LYCHEE_IMAGE=lycheeverse/lychee:0.24.2
+VERDACCIO_IMAGE=verdaccio/verdaccio:6
+APP_PORT=3000            # the framework default: src/application.js server.port
+BOOT_TIMEOUT_S=90
+
+WORK=$(mktemp -d)
+PROJECT="borqa$$"
+declare -A RESULT REASON
+
+pass() { RESULT[$1]=PASS; REASON[$1]=${2:-}; }
+fail() { RESULT[$1]=FAIL; REASON[$1]=$2; }
+log()  { printf '\n== %s\n' "$*"; }
+join() { local out=$1; shift; for x in "$@"; do out+="; $x"; done; printf "%s" "$out"; }
+
+compose() { docker compose -p "$PROJECT" -f "$WORK/compose.yml" "$@"; }
+# shellcheck disable=SC2329  # invoked by the EXIT trap below
+cleanup() { compose down -v --remove-orphans >/dev/null 2>&1 || true; rm -rf "$WORK"; }
+trap cleanup EXIT
+
+# ---------------------------------------------------------------- source
+log "source: $SRC"
+docker compose version >/dev/null 2>&1 \
+  || { echo "bin/qa-release: docker with the compose plugin is unreachable for $(id -un) — nothing graded" >&2; exit 75; }
+[ -d "$SRC" ] && SRC="file://$(cd "$SRC" && pwd)"
+git clone --quiet --depth 1 "$SRC" "$WORK/repo" \
+  || { echo "bin/qa-release: cannot clone $SRC — nothing graded" >&2; exit 75; }
+REPO="$WORK/repo"
+SHA=$(git -C "$REPO" rev-parse HEAD)
+echo "commit $SHA"
+
+# ---------------------------------------------------------------- pack
+log "npm pack"
+mkdir -p "$WORK/pkg"
+docker run --rm -v "$REPO":/repo:ro -v "$WORK/pkg":/pkg -w /repo "$NODE_IMAGE" \
+  npm pack --pack-destination /pkg >"$WORK/pack.log" 2>&1
+TGZ=$(find "$WORK/pkg" -maxdepth 1 -name '*.tgz' -print -quit)
+NAME=$(sed -n 's/^  "name": "\(.*\)",$/\1/p' "$REPO/package.json" | head -1)
+if [ -z "$TGZ" ]; then
+  tail -5 "$WORK/pack.log"
+  echo "npm pack produced no tarball"
+fi
+echo "package: ${NAME:-<none>}  tarball: ${TGZ:+$(basename "$TGZ")}"
+
+# ---------------------------------------------------------------- services
+cat >"$WORK/verdaccio.yaml" <<'YAML'
+storage: /verdaccio/storage/data
+auth:
+  htpasswd:
+    file: /verdaccio/storage/htpasswd
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+packages:
+  '@*/*':
+    access: $all
+    publish: $authenticated
+    proxy: npmjs
+  '**':
+    access: $all
+    publish: $authenticated
+    proxy: npmjs
+log: { type: stdout, format: pretty, level: warn }
+YAML
+
+cat >"$WORK/compose.yml" <<YAML
+services:
+  registry:
+    image: $VERDACCIO_IMAGE
+    volumes: ["$WORK/verdaccio.yaml:/verdaccio/conf/config.yaml:ro"]
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1:4873/-/ping"]
+      interval: 2s
+      retries: 30
+  postgres:
+    image: postgres:16
+    environment: { POSTGRES_USER: postgres, POSTGRES_PASSWORD: postgres, POSTGRES_DB: qa_app }
+    healthcheck: { test: ["CMD", "pg_isready", "-U", "postgres"], interval: 2s, retries: 30 }
+  redis:
+    image: redis:7
+    healthcheck: { test: ["CMD", "redis-cli", "ping"], interval: 2s, retries: 30 }
+  publish:
+    image: $NODE_IMAGE
+    profiles: [tools]
+    volumes: ["$WORK/pkg:/pkg"]
+    working_dir: /pkg
+  app:
+    image: $BUN_IMAGE
+    profiles: [tools]
+    volumes: ["$WORK/steps.sh:/steps.sh:ro"]
+    environment:
+      BUN_CONFIG_REGISTRY: http://registry:4873/
+      NPM_CONFIG_REGISTRY: http://registry:4873/
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/qa_app
+      REDIS_URL: redis://redis:6379
+YAML
+
+# ---------------------------------------------------------------- bar 1: install + boot
+bar1() {
+  local B=install
+  [ -n "$TGZ" ] || { fail $B "npm pack failed: $(tail -1 "$WORK/pack.log")"; return; }
+
+  # The install step, as the README writes it.
+  local install pkg
+  install=$(grep -m1 -E '^[[:space:]]*bun add -g ' "$REPO/README.md" | sed 's/[[:space:]]#.*//')
+  [ -n "$install" ] || { fail $B "README.md has no 'bun add -g <package>' install step"; return; }
+  pkg=$(awk '{print $4}' <<<"$install")
+  pkg=${pkg%@*}; [ -z "$pkg" ] && pkg=$(awk '{print $4}' <<<"$install")   # strip @version, keep @scope
+  [ "$pkg" = "$NAME" ] || { fail $B "README installs '$pkg' but package.json name is '$NAME'"; return; }
+
+  # The Quick Start block, as the README writes it.
+  local qs
+  qs=$(awk '/^## Quick Start/{f=1;next} f&&/^```/{if(open){exit}open=1;next} f&&open' "$REPO/README.md" \
+       | sed 's/[[:space:]]#.*//; s/[[:space:]]*$//' | grep -v '^[[:space:]]*$')
+  [ -n "$qs" ] || { fail $B "README.md has no Quick Start code block"; return; }
+  grep -qE '^brails (dev|server|s)\b' <<<"$qs" || { fail $B "README Quick Start never starts the server (brails dev)"; return; }
+
+  {
+    echo 'set -euo pipefail'
+    echo 'mkdir -p /work && cd /work'
+    echo "echo '+ $install'"; echo "$install"
+    while IFS= read -r line; do
+      [ "$line" = "$install" ] && continue   # the install step may also sit inside Quick Start
+      if grep -qE '^brails (dev|server|s)\b' <<<"$line"; then
+        echo "echo '+ $line &'"
+        echo "$line >/tmp/server.log 2>&1 &"
+        cat <<POLL
+for i in \$(seq 1 $BOOT_TIMEOUT_S); do
+  code=\$(bun -e 'try { const r = await fetch("http://localhost:$APP_PORT/"); console.log(r.status) } catch { console.log(0) }')
+  [ "\$code" != 0 ] && break; sleep 1
+done
+echo "GET http://localhost:$APP_PORT/ -> \$code"
+if [ "\$code" -lt 200 ] || [ "\$code" -ge 400 ]; then tail -20 /tmp/server.log; echo "QA_STATUS=\$code"; exit 3; fi
+echo "QA_STATUS=\$code"; exit 0
+POLL
+        break
+      fi
+      echo "echo '+ $line'"; echo "$line"
+    done <<<"$qs"
+  } >"$WORK/steps.sh"
+
+  log "bar 1: publish $NAME to the throwaway registry"
+  compose up -d --wait registry postgres redis >/dev/null 2>&1 \
+    || { fail $B "registry/postgres/redis did not become healthy"; return; }
+  printf '//registry:4873/:_authToken=%s\n' x >"$WORK/pkg/.npmrc"
+  # shellcheck disable=SC2016  # $token and $(node …) expand inside the publish container
+  compose run --rm publish bash -c '
+    set -e
+    token=$(node --input-type=module -e "
+      const r = await fetch(\"http://registry:4873/-/user/org.couchdb.user:qa\", {
+        method: \"PUT\", headers: { \"content-type\": \"application/json\" },
+        body: JSON.stringify({ name: \"qa\", password: \"qa-release-pass\" }) });
+      const j = await r.json(); if (!j.token) { console.error(JSON.stringify(j)); process.exit(1) }
+      console.log(j.token)")
+    printf "//registry:4873/:_authToken=%s\n" "$token" > /pkg/.npmrc
+    npm publish /pkg/'"$(basename "$TGZ")"' --registry http://registry:4873/ --userconfig /pkg/.npmrc --access public
+  ' >"$WORK/publish.log" 2>&1 || { tail -5 "$WORK/publish.log"; fail $B "publish to the local registry failed: $(grep -m1 -iE 'err' "$WORK/publish.log")"; return; }
+
+  log "bar 1: README steps in a clean $BUN_IMAGE container"
+  compose run --rm app bash /steps.sh 2>&1 | tee "$WORK/steps.log"
+  local status
+  status=$(sed -n 's/^QA_STATUS=//p' "$WORK/steps.log" | tail -1)
+  if [ -n "$status" ] && [ "$status" -ge 200 ] && [ "$status" -lt 400 ]; then
+    pass $B "README steps ran; GET / -> $status"
+  elif [ -n "$status" ]; then
+    fail $B "server started but GET / -> $status"
+  else
+    fail $B "a README step failed: $(grep '^+ ' "$WORK/steps.log" | tail -1)"
+  fi
+}
+
+# ---------------------------------------------------------------- bar 2: links
+bar2() {
+  local B=links problems=()
+  log "bar 2: lychee over README.md and docs/"
+  docker run --rm -v "$REPO":/input:ro -w /input "$LYCHEE_IMAGE" \
+    --no-progress --include-fragments --root-dir /input README.md docs/ >"$WORK/lychee.log" 2>&1
+  local rc=$?
+  grep -E '^\s*(\[ERROR\]|\[TIMEOUT\]|\[[0-9]{3}\])' "$WORK/lychee.log" | sed 's/^/  /'
+  [ $rc -eq 0 ] || problems+=("lychee: $(grep -cE '\[(ERROR|TIMEOUT|[0-9]{3})\]' "$WORK/lychee.log") broken")
+
+  # VitePress nav/sidebar links live in config.js, which lychee does not read.
+  local cfg="$REPO/docs/.vitepress/config.js" missing=0
+  if [ -f "$cfg" ]; then
+    grep -qE 'ignoreDeadLinks:[[:space:]]*true' "$cfg" && problems+=("config.js sets ignoreDeadLinks: true")
+    while IFS= read -r l; do
+      [ -f "$REPO/docs$l.md" ] || [ -f "$REPO/docs$l/index.md" ] || { echo "  [NAV] $l -> no page"; missing=$((missing+1)); }
+    done < <(grep -oE "link: *'/[^']*'" "$cfg" | sed "s/link: *'//; s/'$//; s/\/$//")
+    [ $missing -eq 0 ] || problems+=("config.js: $missing nav link(s) to missing pages")
+  fi
+  if [ ${#problems[@]} -eq 0 ]; then pass $B "all links resolve"; else fail $B "$(join "${problems[@]}")"; fi
+}
+
+# ---------------------------------------------------------------- bar 3: licence
+bar3() {
+  local B=licence
+  log "bar 3: licence"
+  [ -s "$REPO/LICENSE" ] || { fail $B "LICENSE missing or empty"; return; }
+  grep -q 'MIT License' "$REPO/LICENSE" || { fail $B "LICENSE is not the MIT text"; return; }
+  grep -qE '"license": *"MIT"' "$REPO/package.json" || { fail $B "package.json license is not MIT"; return; }
+  if [ -n "$TGZ" ]; then
+    # List to a file first: `tar | grep -q` under pipefail fails on tar's SIGPIPE.
+    tar tzf "$TGZ" >"$WORK/tar.lst"
+    grep -qx 'package/LICENSE' "$WORK/tar.lst" || { fail $B "LICENSE is not in the npm tarball"; return; }
+  fi
+  pass $B "MIT LICENSE in repo${TGZ:+ and tarball}"
+}
+
+# ---------------------------------------------------------------- bar 4: CI
+bar4() {
+  local B=ci bad=()
+  log "bar 4: CI on main ($GH_REPO)"
+  command -v gh >/dev/null || { fail $B "gh not installed"; return; }
+  local main_sha
+  main_sha=$(gh api "repos/$GH_REPO/commits/main" --jq .sha 2>/dev/null) || { fail $B "gh cannot read $GH_REPO"; return; }
+  [ "$main_sha" = "$SHA" ] || echo "  note: checked-out $SHA is not main HEAD $main_sha — CI is judged on main"
+  # Every workflow that runs on push to main: its latest completed main run must be green,
+  # and CI itself must have run on main HEAD.
+  for wf in $(grep -lE '^\s*branches:\s*\[\s*main\s*\]' "$REPO"/.github/workflows/*.yml | xargs -n1 basename); do
+    grep -qE '^\s*push:' "$REPO/.github/workflows/$wf" || continue
+    local row
+    row=$(gh run list -R "$GH_REPO" --workflow "$wf" --branch main --status completed --limit 1 \
+          --json conclusion,headSha,databaseId --jq '.[0] | "\(.conclusion) \(.headSha) \(.databaseId)"' 2>/dev/null)
+    echo "  $wf: ${row:-no runs}"
+    case "$row" in
+      success*) ;;
+      "") bad+=("$wf has never run on main") ;;
+      *) bad+=("$wf latest main run is ${row%% *} (run ${row##* })") ;;
+    esac
+    if [ "$wf" = ci.yml ] && [ -n "$row" ] && [ "$(awk '{print $2}' <<<"$row")" != "$main_sha" ]; then
+      bad+=("ci.yml has not completed on main HEAD $main_sha")
+    fi
+  done
+  if [ ${#bad[@]} -eq 0 ]; then pass $B "every push-to-main workflow is green"; else fail $B "$(join "${bad[@]}")"; fi
+}
+
+bar1; bar2; bar3; bar4
+
+# ---------------------------------------------------------------- verdict
+printf '\n==================== release bar (%s) ====================\n' "${SHA:0:9}"
+rc=0
+for k in install links licence ci; do
+  case $k in
+    install) label="1. installs on a clean machine from README";;
+    links)   label="2. every README/docs link resolves";;
+    licence) label="3. licence present";;
+    ci)      label="4. CI green on main";;
+  esac
+  printf '%-4s  %-44s %s\n' "${RESULT[$k]:-FAIL}" "$label" "${REASON[$k]:-not run}"
+  [ "${RESULT[$k]:-FAIL}" = PASS ] || rc=1
+done
+exit $rc
