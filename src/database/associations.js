@@ -14,6 +14,8 @@ import { getConnection } from './connection.js'
 import { PostgresAdapter } from './adapters/postgres.js'
 import { singularize, classify, underscore } from '../support/inflector.js'
 
+const definedAssociations = new WeakSet()
+
 /**
  * Define association methods on a model class
  *
@@ -31,6 +33,10 @@ import { singularize, classify, underscore } from '../support/inflector.js'
  * // Now post.user() and post.comments() are available
  */
 export function defineAssociations(modelClass) {
+  // Once per class: Model.register() calls it, and so may a test or an app
+  // that called it before register() did (some methods are not redefinable).
+  if (definedAssociations.has(modelClass)) return
+  definedAssociations.add(modelClass)
   const associations = modelClass.associations || {}
 
   // belongsTo: Post.user()

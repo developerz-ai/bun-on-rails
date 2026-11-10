@@ -234,19 +234,27 @@ lexical order) with the columns `post_id` and `tag_id`. `joinTable`, `foreignKey
 The associated class is found in the `register()` registry: `user` and `comments` resolve to the
 `User` and `Comment` classes.
 
-Load associations for many records with `includes()`, one query per association (two for
-`hasAndBelongsToMany`, the join table then the records). Each record gets a property named after
-the association, and a name the model does not declare throws:
+`register()` gives each association a method, which loads it on the first call and remembers it
+(`{ reload: true }` loads again):
+
+```js
+const post = await Post.find(1);
+await post.user(); // a User, or null
+await post.comments(); // an array of Comment
+```
+
+`includes()` loads an association for many records at once, one query per association (two for
+`hasAndBelongsToMany`, the join table then the records), and the methods then answer from what it
+loaded, without a query. A name the model does not declare throws:
 
 ```js
 const posts = await Post.includes("user", "comments").all();
-posts[0].user; // a User, or null
-posts[0].comments; // an array of Comment
+await posts[0].comments(); // no query
 
 await Post.includes("comments.user").all(); // nested
 ```
 
-These properties are not attributes, so `render` and `toJSON()` leave them out.
+Loaded associations are not attributes, so `render` and `toJSON()` leave them out.
 
 For one record, `await post.loadAssociation("comments")` loads any `belongsTo`, `hasMany`,
 `hasOne` or `hasAndBelongsToMany` association. The class is the one given as `model` (a class, or the name of a registered
@@ -255,6 +263,4 @@ one), else the association name singularized and capitalized: `comments` is `Com
 
 ## Not implemented yet
 
-- **Association methods** such as `post.user()` or `user.posts()` are not wired up. Use
-  `includes()` or `loadAssociation()`.
 - **Model annotations.** Nothing writes the schema into model files.

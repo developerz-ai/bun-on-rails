@@ -88,7 +88,7 @@ describe.skipIf(!serverUrl)('Post', () => {
       const user = await factory.create('user')
       const post = await factory.create('post', { user_id: user.id })
 
-      const author = await post.loadAssociation('user')
+      const author = await post.user()
 
       expect(author.id).toBe(user.id)
     })
@@ -98,7 +98,7 @@ describe.skipIf(!serverUrl)('Post', () => {
       await factory.create('comment', { post_id: post.id })
       await factory.create('comment', { post_id: post.id })
 
-      const comments = await post.loadAssociation('comments')
+      const comments = await post.comments()
 
       expect(comments.length).toBe(2)
     })

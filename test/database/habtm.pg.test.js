@@ -79,8 +79,9 @@ describe.skipIf(!serverUrl)("hasAndBelongsToMany on PostgreSQL", () => {
 
   test("includes() loads every post's tags", async () => {
     const posts = await HabtmPost.order("id").includes("tags").all();
+    const tags = await Promise.all(posts.map((p) => p.tags()));
     expect(
-      posts.map((p) => [p.get("title"), p.tags.map((t) => t.get("name"))]),
+      posts.map((p, i) => [p.get("title"), tags[i].map((t) => t.get("name"))]),
     ).toEqual([
       ["one", ["bun", "rails"]],
       ["two", ["rails"]],
