@@ -1159,12 +1159,15 @@ describe('Model - Associations', () => {
     })
 
     it('throws error when model cannot be resolved', async () => {
-      // Test with hasMany association where model isn't registered with correct name
-      const user = new User({ id: 1, name: 'John' })
-      user.persisted = true
+      // 'widgets' classifies to 'Widget', which nothing registers. ('posts' used to stand in
+      // here, because the old resolver looked up 'Posts'; it now resolves to the registered Post.)
+      class Gadget extends Model {
+        static associations = { hasMany: ['widgets'] }
+      }
+      const gadget = new Gadget({ id: 1 })
+      gadget.persisted = true
 
-      // 'posts' association will try to find 'Posts' model but only 'Post' is registered
-      await expect(user.loadAssociation('posts')).rejects.toThrow('Cannot resolve model for association: posts')
+      await expect(gadget.loadAssociation('widgets')).rejects.toThrow('Cannot resolve model for association: widgets')
     })
   })
 

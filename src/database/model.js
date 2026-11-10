@@ -10,7 +10,8 @@
 import { QueryBuilder, RecordNotFoundError, PaginatedResult } from './query_builder.js'
 import { getConnection } from './connection.js'
 import { PostgresAdapter } from './adapters/postgres.js'
-import { tableize } from '../support/inflector.js'
+import { foreignKey, tableize } from '../support/inflector.js'
+import { resolveAssociationModel } from './associations.js'
 import { runValidations } from './validations.js'
 
 // Re-export for convenience
@@ -1191,7 +1192,7 @@ export class Model {
     }
 
     // Get associated model
-    const AssociatedModel = assocConfig.model || this._getAssociatedModel(name)
+    const AssociatedModel = resolveAssociationModel(assocConfig, name)
     if (!AssociatedModel) {
       throw new Error(`Cannot resolve model for association: ${name}`)
     }
@@ -1205,27 +1206,15 @@ export class Model {
     }
 
     if (assocType === 'hasMany') {
-      const fk = assocConfig.foreignKey || this.constructor.name.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '') + '_id'
+      const fk = assocConfig.foreignKey || foreignKey(this.constructor.name)
       return AssociatedModel.where({ [fk]: this.id }).all()
     }
 
     if (assocType === 'hasOne') {
-      const fk = assocConfig.foreignKey || this.constructor.name.replace(/([A-Z])/g, '_$1').toLowerCase().replace(/^_/, '') + '_id'
+      const fk = assocConfig.foreignKey || foreignKey(this.constructor.name)
       return AssociatedModel.where({ [fk]: this.id }).first()
     }
 
-    return null
-  }
-
-  /**
-   * Get associated model class from registry
-   * @private
-   */
-  _getAssociatedModel(name) {
-    const className = name.charAt(0).toUpperCase() + name.slice(1)
-    if (globalThis._modelRegistry && globalThis._modelRegistry[className]) {
-      return globalThis._modelRegistry[className]
-    }
     return null
   }
 

@@ -702,6 +702,26 @@ function defineHasAndBelongsToMany(modelClass, config) {
  * await loader.load(posts)
  * // Now posts[0].user and posts[0].comments are pre-loaded
  */
+/**
+ * The model class an association points at. A class given as `model` is used
+ * as is; a string `model` names a registered class; otherwise the association
+ * name is classified (`comments` -> `Comment`, `author` -> `Author`). Returns
+ * null when no such class is registered (see Model.register()). The one
+ * resolver Model#loadAssociation, EagerLoader and QueryBuilder#includes use;
+ * pinned by test/database/association_models.test.js.
+ *
+ * @param {{ model?: Function|string }} config
+ * @param {string} name - the association name
+ * @returns {Function|null}
+ */
+export function resolveAssociationModel(config, name) {
+  if (config.model && typeof config.model !== 'string') {
+    return config.model
+  }
+  const className = typeof config.model === 'string' ? config.model : classify(name)
+  return globalThis._modelRegistry?.[className] ?? null
+}
+
 export class EagerLoader {
   /**
    * Create an eager loader
@@ -800,7 +820,7 @@ export class EagerLoader {
    */
   async _loadAssociation(records, name, type, config, nestedParts) {
     const foreignKey = config.foreignKey || this._inferForeignKey(name, type)
-    const AssociatedModel = this._getAssociatedModel(config, name)
+    const AssociatedModel = resolveAssociationModel(config, name)
 
     if (!AssociatedModel) {
       console.warn(`Could not resolve model for association '${name}'`)
@@ -930,38 +950,6 @@ export class EagerLoader {
     return foreignKeyForModel(this.model.name)
   }
 
-  /**
-   * Get the associated model class
-   * @private
-   */
-  _getAssociatedModel(config, name) {
-    // If model class is directly provided
-    if (config.model && typeof config.model !== 'string') {
-      return config.model
-    }
-
-    // Try to resolve from model name
-    const modelName = config.model || this._singularize(name)
-    const className = capitalize(modelName)
-
-    // Try global registry
-    if (globalThis._modelRegistry && globalThis._modelRegistry[className]) {
-      return globalThis._modelRegistry[className]
-    }
-
-    return null
-  }
-
-  /**
-   * Simple singularize helper
-   * @private
-   */
-  _singularize(str) {
-    if (str.endsWith('ies')) return str.slice(0, -3) + 'y'
-    if (str.endsWith('es')) return str.slice(0, -2)
-    if (str.endsWith('s')) return str.slice(0, -1)
-    return str
-  }
 }
 
 // ============================================
