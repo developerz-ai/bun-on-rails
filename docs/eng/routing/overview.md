@@ -233,6 +233,36 @@ export default {
 };
 ```
 
+### Testing a controller
+
+`request(app)` sends a request through an initialized app in-process, with no server: routing,
+middleware and the action run as they would for a real request. It returns a response with
+`status`, `json()` and assertions:
+
+**`test/controllers/posts_controller.test.js`**
+
+```js
+import { beforeAll, test, expect } from "bun:test";
+import { Application, request } from "bun-on-rails";
+
+let app;
+beforeAll(async () => {
+  app = new Application({ root: process.cwd() });
+  await app.initialize();
+});
+
+test("GET /posts/1", async () => {
+  const res = await request(app).get("/posts/1");
+  expect(res.status).toBe(200);
+  await res.assertJson({ post: { id: "1", title: "Hello" } });
+});
+```
+
+`get(path, query)`, `post(path, body)`, `put`, `patch` and `delete` send the request (a body as
+JSON), and `header(name, value)` sets a header first. `assertJson(expected)` compares the whole body
+and `assertJsonHas('post.title')` checks a key path; each throws when it does not match.
+`as(user)` is planned with authentication and throws `NotImplementedError`.
+
 ## Try it
 
 With the files above, `config/security.js` included, in a `brails new` app, run `brails dev`:

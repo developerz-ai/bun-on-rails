@@ -67,7 +67,8 @@ returns a `404`.
 | Config      | one file per section in `config/`, per-environment overrides, initializers                                                                                                                                                                                                           |
 | ORM         | an Active-Record-style `Model` with a query builder, validations and associations on PostgreSQL, connected at boot when `DATABASE_URL` is set                                                                                                                                        |
 | Jobs        | a `Job` base class. `performNow` runs a job inline                                                                                                                                                                                                                                   |
-| \1          | Testing                                                                                                                                                                                                                                                                              | `setupDatabase`, `withinTransaction` (each test rolled back) and `cleanDatabase`, against PostgreSQL |
+| Cache       | an in-process memory store                                                                                                                                                                                                                                                           |
+| Testing     | `request(app)` for controller tests without a server, and `setupDatabase`, `withinTransaction` (each test rolled back) and `cleanDatabase` against PostgreSQL                                                                                                                        |
 
 ## Planned
 

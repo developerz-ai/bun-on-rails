@@ -13,6 +13,7 @@
 
 import { test, expect, describe, beforeAll, afterAll } from "bun:test";
 import { Application } from "../../src/application.js";
+import { request } from "../../src/testing/request.js";
 import { Router } from "../../src/routing/router.js";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
@@ -161,6 +162,28 @@ describe("the rest of the guide's claims", () => {
     } finally {
       await strict.stop();
     }
+  });
+
+  test("Testing a controller: request(app) gets the body the section asserts", async () => {
+    const markdown = readFileSync(
+      join(repoRoot, "docs/eng/routing/overview.md"),
+      "utf8",
+    );
+    const section = markdown.match(
+      /^### Testing a controller\n([\s\S]*?)^#/m,
+    )[1];
+    const code = section.match(/^```js\n([\s\S]*?)^```$/m)[1];
+    const [, path] = code.match(/request\(app\)\.get\("([^"]+)"\)/);
+    const [, literal] = code.match(/assertJson\((\{.*\})\);/);
+
+    const app = new Application({
+      root: guide.app,
+      config: { logging: { level: "error" } },
+    });
+    await app.initialize();
+    const res = await request(app).get(path);
+    expect(res.status).toBe(200);
+    await res.assertJson(new Function(`return ${literal}`)());
   });
 
   test("Not implemented yet: middleware(list, callback) adds no middleware", () => {

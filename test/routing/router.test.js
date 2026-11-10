@@ -3,7 +3,7 @@
  */
 
 import { test, expect, describe, beforeEach } from 'bun:test'
-import { Router } from '../../src/routing/router.js'
+import { Router, buildQueryString } from '../../src/routing/router.js'
 
 describe('Router.match()', () => {
   let router
@@ -1202,29 +1202,29 @@ describe('Router.urlFor()', () => {
     })
   })
 
-  describe('helper method: _buildQueryString', () => {
+  describe('buildQueryString', () => {
     test('builds simple query string', () => {
-      const qs = router._buildQueryString({ page: 1, per_page: 10 })
+      const qs = buildQueryString({ page: 1, per_page: 10 })
       expect(qs).toBe('page=1&per_page=10')
     })
 
     test('encodes special characters', () => {
-      const qs = router._buildQueryString({ search: 'hello world', tag: 'a+b' })
+      const qs = buildQueryString({ search: 'hello world', tag: 'a+b' })
       expect(qs).toBe('search=hello%20world&tag=a%2Bb')
     })
 
     test('handles array values', () => {
-      const qs = router._buildQueryString({ ids: [1, 2, 3] })
+      const qs = buildQueryString({ ids: [1, 2, 3] })
       expect(qs).toBe('ids[]=1&ids[]=2&ids[]=3')
     })
 
     test('handles nested object values', () => {
-      const qs = router._buildQueryString({ filter: { status: 'active' } })
+      const qs = buildQueryString({ filter: { status: 'active' } })
       expect(qs).toBe('filter[status]=active')
     })
 
     test('returns empty string for empty object', () => {
-      const qs = router._buildQueryString({})
+      const qs = buildQueryString({})
       expect(qs).toBe('')
     })
   })

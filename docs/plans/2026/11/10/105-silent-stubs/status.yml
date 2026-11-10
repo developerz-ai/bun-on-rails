@@ -2,16 +2,19 @@ plan: 105-silent-stubs
 title: No silent stubs; test support that works
 status: in-progress
 owner: unassigned
-percent: 33
-current_focus: S3 (test-database isolation)
+percent: 40
+current_focus: S4 (request(app))
 slices:
   - { id: S1, status: done }
   - { id: S2, status: done }
-  - { id: S3, status: in-progress }
-  - { id: S4, status: todo }
+  - { id: S3, status: done }
+  - { id: S4, status: in-progress }
   - { id: S5, status: todo }
   - { id: S6, status: todo }
   - { id: S7, status: todo }
+  - { id: S8, status: todo }
+  - { id: S9, status: todo }
+  - { id: S10, status: todo }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
   census:
@@ -19,4 +22,5 @@ evidence:
   prs:
     - "#68 merged as 498f0a9 (S1)"
     - "#69 merged as 7bc7d63 (S2)"
+    - "#70 merged as cc2c072 (S3)"
 last_updated: 2026-11-10

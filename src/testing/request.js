@@ -1,8 +1,13 @@
 /**
  * Test Request - HTTP request testing utilities
+ *
+ * request(app).get('/posts') sends a Request through an initialized app
+ * in-process (app.handle: routing, middleware, the action) and returns a
+ * TestResponse. Pinned by test/testing/request.test.js.
  */
 
 import { NotImplementedError } from '../support/not_implemented.js'
+import { buildQueryString } from '../routing/router.js'
 
 export class TestRequest {
   constructor(app) {
@@ -29,7 +34,7 @@ export class TestRequest {
    */
   as(_user) {
     // TODO: Set auth headers/cookies
-    throw new NotImplementedError('TestRequest#as', 'the request test helper')
+    throw new NotImplementedError('TestRequest#as', 'authentication')
   }
 
   /**
@@ -88,11 +93,19 @@ export class TestRequest {
    * @param {Object} options
    * @returns {Promise<TestResponse>}
    */
-  async request(_method, _path, _options = {}) {
-    // TODO: Build Request object
-    // TODO: Send to app.handle()
-    // TODO: Return TestResponse
-    throw new NotImplementedError('TestRequest#request', 'the request test helper')
+  async request(method, path, { params = {}, body } = {}) {
+    const query = buildQueryString(params)
+    const init = { method, headers: { ...this.headers } }
+    if (body !== undefined && method !== 'GET') {
+      init.headers['content-type'] = 'application/json'
+      init.body = JSON.stringify(body)
+    }
+    // params join any query string already in the path
+    const url = new URL(path, 'http://localhost')
+    if (query) {
+      url.search = url.search ? `${url.search}&${query}` : query
+    }
+    return new TestResponse(await this.app.handle(new Request(url, init)))
   }
 }
 
@@ -189,9 +202,11 @@ export class TestResponse {
    * @param {Object} expected
    * @returns {Promise<TestResponse>}
    */
-  async assertJson(_expected) {
-    const _json = await this.json()
-    // TODO: Deep compare
+  async assertJson(expected) {
+    const json = await this.json()
+    if (!Bun.deepEquals(json, expected)) {
+      throw new Error(`Expected JSON ${JSON.stringify(expected)}, got ${JSON.stringify(json)}`)
+    }
     return this
   }
 
@@ -200,12 +215,24 @@ export class TestResponse {
    * @param {string} key
    * @returns {Promise<TestResponse>}
    */
-  async assertJsonHas(_key) {
-    const _json = await this.json()
-    // TODO: Check nested keys
+  async assertJsonHas(key) {
+    let value = await this.json()
+    const parts = key.split('.')
+    for (let i = 0; i < parts.length; i++) {
+      if (value === null || typeof value !== 'object' || !Object.hasOwn(value, parts[i])) {
+        throw new Error(`Expected JSON to have '${key}'; '${parts.slice(0, i + 1).join('.')}' is missing`)
+      }
+      value = value[parts[i]]
+    }
     return this
   }
 }
 
-// Create default request instance
-export const request = new TestRequest(null)
+/**
+ * A TestRequest for `app`: request(app).get('/posts')
+ * @param {Application} app - an initialized Application
+ * @returns {TestRequest}
+ */
+export function request(app) {
+  return new TestRequest(app)
+}
