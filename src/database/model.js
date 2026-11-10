@@ -14,6 +14,49 @@ import { foreignKey, tableize } from '../support/inflector.js'
 import { resolveAssociationModel, loadThroughJoinTable } from './associations.js'
 import { runValidations } from './validations.js'
 
+/** The hooks a model's methods can override; the framework calls only these. */
+const LIFECYCLE_HOOKS = [
+  'beforeValidation', 'afterValidation', 'beforeSave', 'afterSave', 'beforeCreate',
+  'afterCreate', 'beforeUpdate', 'afterUpdate', 'beforeDestroy', 'afterDestroy'
+]
+const checkedHookNames = new WeakSet()
+
+/**
+ * Throw for a method named like a lifecycle hook, but not quite
+ * (beforeValidate, afterSaved): the framework would never call it, so the
+ * work it does would silently not happen. A method far from every hook name
+ * (afterPublish) is a domain method and is left alone. Checked once per class.
+ * Pinned by test/database/attribute_accessors.test.js.
+ */
+function assertLifecycleHookNames(ModelClass) {
+  if (checkedHookNames.has(ModelClass)) return
+  for (let proto = ModelClass.prototype; proto && proto !== Model.prototype; proto = Object.getPrototypeOf(proto)) {
+    for (const name of Object.getOwnPropertyNames(proto)) {
+      if (!/^(before|after)[A-Z]/.test(name) || LIFECYCLE_HOOKS.includes(name)) continue
+      const meant = LIFECYCLE_HOOKS.find(hook => editDistance(name, hook) <= 3)
+      if (meant) {
+        throw new Error(
+          `${ModelClass.name}#${name} is not a lifecycle hook, so it would never run: did you mean ${meant}?`
+        )
+      }
+    }
+  }
+  checkedHookNames.add(ModelClass)
+}
+
+/** Levenshtein distance between two strings. */
+function editDistance(a, b) {
+  let previous = Array.from({ length: b.length + 1 }, (_, i) => i)
+  for (let i = 1; i <= a.length; i++) {
+    const current = [i]
+    for (let j = 1; j <= b.length; j++) {
+      current[j] = Math.min(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1))
+    }
+    previous = current
+  }
+  return previous[b.length]
+}
+
 // Re-export for convenience
 export { RecordNotFoundError, PaginatedResult }
 
@@ -165,6 +208,28 @@ export class Model {
     this.persisted = false
     this._originalAttributes = {}
     this._changedAttributes = new Set()
+    this._defineAttributeAccessors()
+  }
+
+  /**
+   * Make each attribute a property: reading it gives the attribute, assigning
+   * it calls set(), so the change is tracked and saved. A plain property
+   * assignment used to be dropped by save() without a word. A name the model
+   * already has (a method, a getter such as `id`, a field such as `errors`)
+   * keeps its meaning, and the properties stay out of JSON and Object.keys.
+   * Pinned by test/database/attribute_accessors.test.js.
+   * @private
+   */
+  _defineAttributeAccessors() {
+    for (const name of Object.keys(this.attributes)) {
+      if (name in this) continue
+      Object.defineProperty(this, name, {
+        get: () => this.attributes[name],
+        set: (value) => this.set(name, value),
+        enumerable: false,
+        configurable: true
+      })
+    }
   }
 
   /**
@@ -185,6 +250,7 @@ export class Model {
     if (this.attributes[name] !== value) {
       this._changedAttributes.add(name)
       this.attributes[name] = value
+      this._defineAttributeAccessors()
     }
   }
 
@@ -790,6 +856,7 @@ export class Model {
         const result = await connection.query(sql, params)
         if (result[0]) {
           this.attributes = { ...result[0] }
+          this._defineAttributeAccessors()
         }
 
         // Run afterUpdate callbacks
@@ -824,6 +891,7 @@ export class Model {
         const result = await connection.query(sql, params)
         if (result[0]) {
           this.attributes = { ...result[0] }
+          this._defineAttributeAccessors()
         }
 
         this.persisted = true
@@ -947,6 +1015,7 @@ export class Model {
 
     const fresh = await this.constructor.find(this.id)
     this.attributes = { ...fresh.attributes }
+    this._defineAttributeAccessors()
     this._originalAttributes = { ...fresh.attributes }
     this._changedAttributes.clear()
 
@@ -1245,6 +1314,8 @@ export class Model {
    * }
    */
   async _runCallbacks(callbackType) {
+    assertLifecycleHookNames(this.constructor)
+
     // 1. Run the instance method callback (e.g., this.beforeSave())
     // This preserves backwards compatibility with method overrides
     const instanceMethod = this[callbackType]
