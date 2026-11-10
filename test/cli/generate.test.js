@@ -143,6 +143,15 @@ describe("generate model", () => {
     expect(create).toContain('"created_at"');
   });
 
+  test("`Model` is refused (it would shadow the base class) and nothing is written", () => {
+    const root = app("model-shadow");
+    expect(() =>
+      generate(root, "model", "Model", ["name:string"], { now: NOW }),
+    ).toThrow(/"Model" is the base class/);
+    expect(existsSync(join(root, "app", "models", "model.js"))).toBe(false);
+    expect(existsSync(join(root, "db", "migrations"))).toBe(false);
+  });
+
   test("a model name must be singular PascalCase", () => {
     expect(() =>
       generate(app("model-bad"), "model", "widgets", [], { now: NOW }),

@@ -119,6 +119,10 @@ function generateModel(root, name, fields, now, created) {
   if (!/^[A-Z][A-Za-z0-9]*$/.test(name || '')) {
     throw new Error('Usage: brails generate model <Name> [field:type ...]; <Name> is singular PascalCase, e.g. Post')
   }
+  if (name === 'Model') {
+    // The file imports `Model` from the framework; a class of the same name cannot sit beside it.
+    throw new Error('"Model" is the base class every model extends; choose another name')
+  }
   const references = fields.filter((f) => f.reference).map((f) => `'${f.name}'`)
   const body = references.length > 0 ? ` {\n  static associations = { belongsTo: [${references.join(', ')}] }\n}` : ' {}'
   writeNew(
