@@ -158,14 +158,22 @@ const rows = await getConnection().query(
 );
 ```
 
-`connection.transaction(async (tx) => { await tx.query(...) })` runs its callback in a
-transaction. If the callback throws, the transaction rolls back and `transaction` throws. Only
-`tx.query` runs inside the transaction: model methods keep using the global connection.
+`connection.transaction(callback)` runs the callback in a transaction. Model queries in the
+callback join it, and so does `tx.query` on the connection the callback receives. If the callback
+throws, everything rolls back and `transaction` throws:
+
+```js
+await connection.transaction(async () => {
+  const account = await Account.where({ id: 1 }).lock().first(); // FOR UPDATE, held until commit
+  account.set("balance", account.get("balance") - 10);
+  await account.save();
+});
+```
+
+A `transaction()` called inside another joins the open transaction. Queries outside the callback,
+including ones running concurrently, are not part of it.
 
 ## Not implemented yet
 
 - **Aggregate columns in `select`.** Every argument is quoted as a column name, so
   `select("COUNT(*) AS n")` fails. Use raw SQL.
-- **Model queries in a transaction.** Models always use the global connection, outside any
-  `connection.transaction`. For the same reason `lock()`, which adds `FOR UPDATE`, holds the
-  lock only for its own statement.
