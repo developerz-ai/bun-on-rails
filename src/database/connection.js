@@ -7,7 +7,13 @@
  * @module bun-on-rails/database/connection
  */
 
+import { AsyncLocalStorage } from 'node:async_hooks'
 import { getConfig } from '../config/loader.js'
+
+// Inside connection.transaction(callback), getConnection() returns the
+// transaction's connection, so model queries written in the callback join the
+// transaction (pinned by test/database/transactions.test.js).
+const transactionScope = new AsyncLocalStorage()
 
 // Connection adapter types
 export const ADAPTERS = {
@@ -398,11 +404,7 @@ export class Connection {
     }
 
     try {
-      if (this._adapter === 'bun') {
-        return await this._transactionBunSql(callback)
-      } else {
-        return await this._transactionPostgresJs(callback)
-      }
+      return await this._runInTransaction(callback)
     } catch (error) {
       if (error instanceof DatabaseError) {
         throw error
@@ -415,41 +417,25 @@ export class Connection {
   }
 
   /**
-   * Execute transaction using Bun.sql
+   * Run `callback` in a transaction on either driver (Bun.sql and postgres.js
+   * share `begin` and `unsafe`). The callback gets a transaction connection,
+   * and getConnection() returns it for the callback's whole async extent, so
+   * models use it too. A nested transaction() joins the open transaction.
    * @private
    */
-  async _transactionBunSql(callback) {
-    // Bun.sql transaction
+  async _runInTransaction(callback) {
     return await this._client.begin(async (sql) => {
-      // Create a transaction-scoped connection wrapper
       const txConn = {
+        connected: true,
         query: async (query, params = []) => {
           if (params.length === 0) {
             return await sql.unsafe(query)
           }
           return await sql.unsafe(query, params)
-        }
+        },
+        transaction: async (nested) => await nested(txConn)
       }
-      return await callback(txConn)
-    })
-  }
-
-  /**
-   * Execute transaction using postgres.js
-   * @private
-   */
-  async _transactionPostgresJs(callback) {
-    // postgres.js transaction
-    return await this._client.begin(async (sql) => {
-      const txConn = {
-        query: async (query, params = []) => {
-          if (params.length === 0) {
-            return await sql.unsafe(query)
-          }
-          return await sql.unsafe(query, params)
-        }
-      }
-      return await callback(txConn)
+      return await transactionScope.run(txConn, () => callback(txConn))
     })
   }
 
@@ -1240,6 +1226,10 @@ let _globalConnection = null
  * @returns {Connection}
  */
 export function getConnection(config = null) {
+  const inTransaction = transactionScope.getStore()
+  if (inTransaction) {
+    return inTransaction
+  }
   if (!_globalConnection && config) {
     _globalConnection = new Connection(config)
   }

@@ -2,8 +2,8 @@ plan: 102-pre-release-defects
 title: Fix the boot and ORM defects found while preparing v0.1.0
 status: in-progress
 owner: unassigned
-percent: 55
-current_focus: F7 (association model resolution)
+percent: 64
+current_focus: F8 (model queries in transactions)
 slices:
   - { id: F1, status: done }
   - { id: F2, status: done }
@@ -11,8 +11,8 @@ slices:
   - { id: F4, status: done }
   - { id: F5, status: done }
   - { id: F6, status: done }
-  - { id: F7, status: in-progress }
-  - { id: F8, status: todo }
+  - { id: F7, status: done }
+  - { id: F8, status: in-progress }
   - { id: F9, status: todo }
   - { id: F10, status: todo }
   - { id: F11, status: todo }
@@ -25,4 +25,5 @@ evidence:
     - "#48 merged as 71aabcf (F4)"
     - "#49 merged as e574c2c (F5)"
     - "#50 merged as 20d589a (F6)"
+    - "#51 merged as 5696200 (F7)"
 last_updated: 2026-11-10
