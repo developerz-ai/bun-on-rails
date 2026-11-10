@@ -3,8 +3,8 @@ layout: home
 
 hero:
   name: BunOnRails
-  text: Full-stack JavaScript Framework
-  tagline: Rails-like conventions built on Bun
+  text: Rails-like conventions for Bun
+  tagline: An early-stage JavaScript framework. Routing, controllers and a PostgreSQL ORM work today; the rest is being built.
   actions:
     - theme: brand
       text: Get Started
@@ -14,10 +14,12 @@ hero:
       link: https://github.com/developerz-ai/bun-on-rails
 
 features:
-  - title: Batteries Included
-    details: ORM, jobs, WebSockets, auth, file uploads, caching, and email out of the box.
-  - title: Convention over Configuration
-    details: Predictable patterns for both humans and AI assistants.
+  - title: Routing and controllers
+    details: A Rails-style routing DSL with resources and namespaces, and controllers whose actions return JSON.
+  - title: Active Record-style ORM
+    details: Models with validations, callbacks, scopes and a query builder, plus migrations, on PostgreSQL. You open the connection yourself for now.
   - title: Built on Bun
-    details: Leverage Bun's speed for both development and production.
+    details: Plain JavaScript ES modules served by Bun.serve. No build step, and bun test for tests.
+  - title: Not there yet
+    details: Background jobs, mail, file storage, WebSocket channels, React helpers and authentication are scaffolds or missing. Each guide lists what is not implemented yet.
 ---

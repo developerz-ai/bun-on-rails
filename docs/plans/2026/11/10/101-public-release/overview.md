@@ -121,9 +121,23 @@ file-set and one PR.
    - In `_runInitializers`, the outer `try` catches an initializer's rethrown error and logs it
      at debug level as "No initializers directory found", so a failing initializer does not
      stop boot. Noted for a follow-up; not a release-bar item.
-10. **Native dependencies are fine.** `bcrypt` and `sharp` install and load in
+10. **ORM defects found while verifying the database pages (T6), each run against
+    `postgres:16`.** The database pages now document them as current behaviour. None blocks the
+    release bar, and none is filed as an issue, because `.dz/maintainer/maintainer.yml` would
+    dispatch the bot to code them:
+    - a `postgresql://` URL is rejected as adapter `postgre`;
+    - query table names add `s` (`Category` becomes `categorys`) while `save()` uses `tableize`;
+    - `where("x > ?", v)` placeholders produce invalid SQL;
+    - `updateAll`, `deleteAll`, `updateWhere` and `deleteWhere` return 0 even when rows change;
+    - `save()` always inserts `created_at` / `updated_at` and never refreshes `updated_at`;
+    - `loadAssociation` fails for `hasMany`;
+    - model queries ignore `connection.transaction`;
+    - `MigrationRunner` fails on a relative path;
+    - `loadSchema` creates tables alphabetically and fails on foreign keys;
+    - `first()` / `last()` are ambiguous after a join.
+11. **Native dependencies are fine.** `bcrypt` and `sharp` install and load in
     `oven/bun:1.4.4` from the tarball. Not a risk.
-11. **On this box**, user `din` is not in the `docker` group, so the QA script ran under
+12. **On this box**, user `din` is not in the `docker` group, so the QA script ran under
     `sudo` with `GH_CONFIG_DIR` passed through.
 
 ---
