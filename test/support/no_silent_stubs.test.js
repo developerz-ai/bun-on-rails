@@ -28,9 +28,34 @@ const FUNCTIONS = new Set([
   "ArrowFunctionExpression",
 ]);
 
+/** Whether `fn` throws in its own body (a nested function's throw does not count). */
+function throwsDirectly(fn) {
+  let found = false;
+  const visit = (node) => {
+    if (found || !node || typeof node.type !== "string") return;
+    if (node.type === "ThrowStatement") {
+      found = true;
+      return;
+    }
+    if (node !== fn && FUNCTIONS.has(node.type)) return;
+    for (const [key, value] of Object.entries(node)) {
+      if (key === "loc" || key === "range") continue;
+      if (Array.isArray(value)) value.forEach(visit);
+      else if (value && typeof value === "object") visit(value);
+    }
+  };
+  visit(fn);
+  return found;
+}
+
 /**
+ * A TODO comment marks unfinished work, so the innermost function holding it
+ * must throw (NotImplementedError) rather than return as if it were done: an
+ * empty body, a placeholder return, or statements that compute and return
+ * (assertJson read the body and returned) all count as silent.
+ *
  * @param {string} root - a directory holding src/
- * @returns {string[]} `file:line name` for each silent stub
+ * @returns {string[]} `file:line name` for each function that holds a TODO and never throws
  */
 function findSilentStubs(root) {
   const found = [];
@@ -43,38 +68,53 @@ function findSilentStubs(root) {
       loc: true,
       range: true,
     });
-    const todos = ast.comments.filter((c) => c.value.includes("TODO"));
-    const visit = (node) => {
+    const functions = [];
+    const visit = (node, name) => {
       if (!node || typeof node.type !== "string") return;
       if (FUNCTIONS.has(node.type) && node.body?.type === "BlockStatement") {
-        const [start, end] = node.body.range;
-        const statements = node.body.body.filter(
-          (s) => s.type !== "EmptyStatement",
-        );
-        const hasTodo = todos.some(
-          (c) => c.range[0] > start && c.range[1] < end,
-        );
-        const silent =
-          statements.length === 0 ||
-          statements.every((s) => s.type === "ReturnStatement");
-        if (hasTodo && silent)
-          found.push(
-            `${rel}:${node.loc.start.line} ${node.id?.name ?? ""}`.trim(),
-          );
+        functions.push({ node, name: node.id?.name ?? name ?? "" });
       }
+      const childName =
+        node.type === "MethodDefinition" || node.type === "Property"
+          ? (node.key?.name ?? node.key?.value)
+          : undefined;
       for (const [key, value] of Object.entries(node)) {
         if (key === "loc" || key === "range") continue;
-        if (Array.isArray(value)) value.forEach(visit);
-        else if (value && typeof value === "object") visit(value);
+        if (Array.isArray(value)) value.forEach((v) => visit(v, childName));
+        else if (value && typeof value === "object") visit(value, childName);
       }
     };
     visit(ast);
+    const flagged = new Set();
+    for (const todo of ast.comments.filter((c) => c.value.includes("TODO"))) {
+      const holders = functions.filter(
+        ({ node }) =>
+          node.body.range[0] < todo.range[0] &&
+          todo.range[1] < node.body.range[1],
+      );
+      const innermost = holders.sort(
+        (a, b) =>
+          a.node.body.range[1] -
+          a.node.body.range[0] -
+          (b.node.body.range[1] - b.node.body.range[0]),
+      )[0];
+      if (
+        innermost &&
+        !throwsDirectly(innermost.node) &&
+        !flagged.has(innermost)
+      ) {
+        flagged.add(innermost);
+        found.push(
+          `${rel}:${innermost.node.loc.start.line} ${innermost.name}`.trim(),
+        );
+      }
+    }
   }
-  return found;
+  return found.sort();
 }
 
 describe("no silent stubs", () => {
-  test("no function under src/ is only TODO comments, or TODO comments and a return", () => {
+  test("every function under src/ that holds a TODO throws", () => {
     // A planned API throws instead:
     //   throw new NotImplementedError('Job.performLater', 'queued jobs')
     expect(findSilentStubs(repoRoot)).toEqual([]);
@@ -84,7 +124,7 @@ describe("no silent stubs", () => {
     const fixture = mkdtempSync(join(tmpdir(), "silent-stubs-"));
     afterAll(() => rmSync(fixture, { recursive: true, force: true }));
 
-    test("finds an empty TODO body and a TODO placeholder return; passes a throw and a plain empty body", () => {
+    test("finds a TODO in an empty body, a placeholder return, statements that return, or a nested function; passes a throw and a plain empty body", () => {
       mkdirSync(join(fixture, "src", "lib"), { recursive: true });
       writeFileSync(
         join(fixture, "src", "lib", "mixed.js"),
@@ -103,13 +143,28 @@ export class Queue {
   close() {}
 }
 export const adapters = { local: { put: async () => { /* TODO: write */ } } }
+export class Response {
+  async assertJson(expected) {
+    const json = await this.json()
+    // TODO: deep compare
+    return this
+  }
+  register(model) {
+    this.models.push(() => {
+      // TODO: subscribe; the nested arrow is what does not throw
+    })
+    throw new Error('not yet')
+  }
+}
 `,
       );
 
       expect(findSilentStubs(fixture)).toEqual([
         "src/lib/mixed.js:1 send",
+        "src/lib/mixed.js:15 put",
+        "src/lib/mixed.js:17 assertJson",
+        "src/lib/mixed.js:23",
         "src/lib/mixed.js:4 useThing",
-        "src/lib/mixed.js:15",
       ]);
     });
   });

@@ -279,5 +279,7 @@ curl localhost:3000/admin/users/7                           # 200 {"user":{"id":
 
 ## Not implemented yet
 
-- **`middleware(list, callback)`** runs the callback without adding the middleware.
+- **`middleware(list, callback)`** throws `NotImplementedError`. It ran the callback without adding
+  the middleware, so routes meant to be guarded were not. Guard a controller with a
+  [filter](#filters) instead.
 - **HTML views.** `render` returns JSON only.

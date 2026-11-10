@@ -186,10 +186,12 @@ describe("the rest of the guide's claims", () => {
     await res.assertJson(new Function(`return ${literal}`)());
   });
 
-  test("Not implemented yet: middleware(list, callback) adds no middleware", () => {
+  test("Not implemented yet: middleware(list, callback) throws instead of leaving the routes unguarded", () => {
     const router = new Router();
-    router.middleware(["auth"], () => router.get("/inbox", "inbox#index"));
-    expect(router.routes[0].middleware).toEqual([]);
+    expect(() =>
+      router.middleware(["auth"], () => router.get("/inbox", "inbox#index")),
+    ).toThrow("Router#middleware is not implemented yet");
+    expect(router.routes).toEqual([]);
   });
 
   test("Nesting and scopes: the section's code defines the routes its table lists", () => {

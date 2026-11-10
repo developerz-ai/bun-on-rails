@@ -81,6 +81,7 @@ itself, instead of doing nothing:
 - **Mail delivery**, **S3 file storage**, and the **Redis cache**.
 - **Real-time**: WebSocket channels (the broadcast manager exists, the channel server does
   not).
+- **Routing**: route-scoped middleware (`router.middleware(list, callback)`); use a controller filter.
 - **Frontend**: the React hooks and forms, and HTML views. Controllers render JSON.
 - **Authentication**.
 

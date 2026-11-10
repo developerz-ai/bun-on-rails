@@ -3,6 +3,7 @@
  */
 
 import { singularize } from '../support/inflector.js'
+import { NotImplementedError } from '../support/not_implemented.js'
 
 export class Router {
   constructor() {
@@ -204,9 +205,11 @@ export class Router {
    * @param {string[]} middleware
    * @param {Function} callback
    */
-  middleware(middleware, callback) {
+  middleware(_middleware, _callback) {
     // TODO: Implement middleware scoping
-    callback()
+    // Running the callback without the middleware left routes meant to be
+    // guarded (say, by authentication) open, with no error.
+    throw new NotImplementedError('Router#middleware', 'route-scoped middleware')
   }
 
   /**
