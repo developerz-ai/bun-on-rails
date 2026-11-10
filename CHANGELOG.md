@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Changed
 
+- Each attribute is also a property: `post.title` reads it and `post.title = 'x'` sets it, as `set()` does, so `save()` writes it. A plain property assignment used to be dropped by `save()` without a word. Methods, getters and fields such as `errors` keep their names; the properties stay out of JSON. Pinned by `test/database/attribute_accessors.test.js`.
 - The demo app is a working JSON API for posts and their comments, tested through `request(app)` on PostgreSQL: `/health`, `/posts` (published, newest first, paginated) and `/posts/:post_id/comments`, with writes guarded by a `DEMO_API_TOKEN` filter and fields whitelisted with `StrongParams`. Its routes had pointed at controllers that did not exist (home, registrations, users, api/v1, admin), its controllers used `this.currentUser` and camelCase columns, and its sessions controller, job, mailer, channel and React components used planned APIs that throw; those are gone.
 - CI runs the demo app's test suite against PostgreSQL (its steps had been commented out: "Demo tests require database implementations"). The demo's models, factories and test now use the framework's API: `get` / `set`, snake_case columns, `beforeValidation`, `Model.register()`, `loadAssociation`; the `User` model drops the `password` attribute and `hasSecurePassword`, which wait on authentication.
 - A request body that does not parse (truncated JSON, say) answers `400` with `Malformed request body: ...` instead of running the action without it. An empty JSON body still means no params.
@@ -67,6 +68,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A model method named like a lifecycle hook but not quite (`beforeValidate`, `afterSaved`) throws on the first validation, save or destroy, naming the hook it was meant to be. The framework never called it, so its work silently did not happen.
 - Request params are parsed once, with nested keys. Dispatch flattened the query string (`filter[status]=draft` gave `params["filter[status]"]`) and form bodies, and read the body itself, so the body parser middleware read a consumed request and logged "Failed to parse request body" on every `POST`. The query string now nests through `parseQueryString`, and the body is read once, by `bodyParser`, through `parseBody`. Pinned by `test/core/dispatch_params.test.js`.
 - Route params are URL-decoded on the request path: `/tags/hello%20world` gave `params.name` `"hello%20world"`. Pinned by `test/core/dispatch_matching.test.js`.
 - A file under `app/` that fails to import fails boot, naming the file and the error. Boot logged "Failed to load" and went on, so an app with a syntax error in a controller started and answered 404 for its routes. Pinned by `test/core/boot_loading.test.js`.

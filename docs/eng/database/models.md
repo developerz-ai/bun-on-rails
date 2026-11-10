@@ -53,8 +53,10 @@ post.changedAttributes; // ["title"]
 await post.save();
 ```
 
-Assigning a property (`post.title = "x"`) does **not** change the attribute, and `save()` ignores
-it. Use `set` or `update`.
+Each attribute is also a property: `post.title` reads it, and `post.title = "Updated"` sets it as
+`set` does, so `save()` writes it. A name the model already has, such as a method, a getter or
+`errors`, keeps its meaning; use `get` and `set` for such a column. The properties stay out of
+`toJSON()` and `Object.keys()`.
 
 `record.id` is the primary key value, and `record.persisted` (or its opposite, `record.isNew`)
 says whether the row exists. `bigint` columns, `id` included, come back as strings (`"1"`).
@@ -180,6 +182,10 @@ The order on save is `beforeValidation`, `afterValidation`, `beforeSave`, then `
 `afterCreate` (new record) or `beforeUpdate` and `afterUpdate` (existing record), then
 `afterSave`. `destroy()` runs `beforeDestroy` and `afterDestroy`. A `before` callback other than
 `beforeValidation` that returns `false` stops the save or destroy, which then returns `false`.
+
+A method named like a callback but not quite (`beforeValidate`, `afterSaved`) would never run, so
+the first validation, save or destroy throws: `Post#beforeValidate is not a lifecycle hook, so it
+would never run: did you mean beforeValidation?`.
 
 ## Scopes
 
