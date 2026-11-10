@@ -57,7 +57,8 @@ export function parseDatabaseUrl(url) {
   const parsed = new URL(url)
 
   return {
-    adapter: parsed.protocol.replace(':', '').replace('sql', ''),
+    // The scheme is the adapter: postgres:// and postgresql:// are both supported names.
+    adapter: parsed.protocol.replace(/:$/, ''),
     host: parsed.hostname,
     port: parseInt(parsed.port, 10) || 5432,
     database: parsed.pathname.slice(1),

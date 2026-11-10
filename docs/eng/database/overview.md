@@ -29,9 +29,8 @@ export default async function connectDatabase() {
 ```
 
 Put `DATABASE_URL=postgres://user:password@localhost:5432/myapp` in `.env`: Bun loads it
-automatically. The URL must start with `postgres://`: a `postgresql://` URL is rejected as the
-unsupported adapter `postgre`. `setConnection` makes this the connection every model and query
-uses.
+automatically. Both `postgres://` and `postgresql://` URLs work. `setConnection` makes this the
+connection every model and query uses.
 
 If the initializer throws (a wrong password, a database that is down), boot fails: `brails dev`
 exits 1 with `Initializer config/initializers/database.js failed: <the cause>`.

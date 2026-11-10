@@ -31,3 +31,7 @@ it), then F2 to F7 (each a wrong result for ordinary use), then F8 to F11.
 
 Connecting to the database at boot from `config/database.js` is a feature, not a defect, and is
 out of this plan.
+
+Observed while verifying F2, not yet a task: on Bun 1.3, `Connection.connect()` logs
+`Bun.sql connection failed: SQLHelper is not a function` and falls back to postgres.js. The
+fallback works, so queries succeed, but the native path is dead code on this Bun.

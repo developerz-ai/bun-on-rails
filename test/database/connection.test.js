@@ -21,6 +21,22 @@ import {
 } from '../../src/database/connection.js'
 
 describe('parseDatabaseUrl', () => {
+  // `postgresql://` is the scheme libpq and most hosting providers print. The
+  // parser used to strip "sql" from it, producing adapter "postgre", which
+  // connect() rejected as unsupported.
+  test('accepts postgresql:// as well as postgres://', () => {
+    for (const url of ['postgresql://u:p@db.example.com:5433/app', 'postgres://u:p@db.example.com:5433/app']) {
+      const config = parseDatabaseUrl(url)
+      expect(Object.values(ADAPTERS)).toContain(config.adapter)
+      expect(config).toMatchObject({ host: 'db.example.com', port: 5433, database: 'app', username: 'u', password: 'p' })
+    }
+  })
+
+  test('a Connection built from a postgresql:// URL has a supported adapter', () => {
+    const connection = new Connection({ url: 'postgresql://u:p@localhost:5432/app' })
+    expect(Object.values(ADAPTERS)).toContain(connection.config.adapter)
+  })
+
   test('parses basic PostgreSQL URL', () => {
     const config = parseDatabaseUrl('postgres://user:pass@localhost:5432/mydb')
 
