@@ -65,6 +65,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Removed
 
+- `EagerLoader` in `src/database/associations.js`: a second eager loader beside `QueryBuilder#includes()`, used only by its own tests and not exported from the package. It knew no `hasAndBelongsToMany` and kept warning on an unknown association, which `includes()` no longer does.
 - `Router#handle`, `Router#configure` and `Router#patternToRegex`: a second request pipeline (matching, context, body parsing, filters, errors) beside `Application`'s, run only by its own tests. Apps never went through it, so fixes to dispatch (filter options, params) did not reach it, and it kept the old filter loop. `Application#handle(request)` handles a request in-process.
 - N/A
 

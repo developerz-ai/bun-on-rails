@@ -15,7 +15,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'bun:test'
 import { Model } from '../../src/database/model.js'
 import { setConnection } from '../../src/database/connection.js'
-import { defineAssociations, EagerLoader } from '../../src/database/associations.js'
+import { defineAssociations } from '../../src/database/associations.js'
 
 // Mock connection that tracks query count
 class MockConnection {
@@ -650,102 +650,6 @@ describe('Eager Loading - N+1 Prevention', () => {
       const user = posts[0].user
       expect(user.attributes.name).toBe('John')
     })
-  })
-})
-
-describe('EagerLoader Class - Standalone API', () => {
-  let mockConnection
-
-  beforeEach(() => {
-    mockConnection = new MockConnection()
-    setConnection(mockConnection)
-  })
-
-  afterEach(() => {
-    setConnection(null)
-  })
-
-  it('can load associations on pre-fetched records', async () => {
-    // First fetch posts without eager loading
-    mockConnection.setMockResults([
-      [
-        { id: 1, title: 'Post 1', user_id: 1 },
-        { id: 2, title: 'Post 2', user_id: 2 }
-      ],
-      // Eager loader will query for users
-      [
-        { id: 1, name: 'John' },
-        { id: 2, name: 'Jane' }
-      ]
-    ])
-
-    const posts = await Post.all()
-    expect(posts.length).toBe(2)
-
-    // Verify the cache key is not set (association not pre-loaded)
-    expect(posts[0]._association_user).toBeUndefined()
-
-    // Now use EagerLoader to load associations
-    const loader = new EagerLoader(Post, ['user'])
-    await loader.load(posts)
-
-    // Users should now be attached (EagerLoader assigns directly to the property)
-    // Note: This is different from the cache key used by the association method
-    expect(posts[0].user).toBeDefined()
-    expect(posts[0].user).toBeInstanceOf(User)
-    expect(posts[0].user.attributes.name).toBe('John')
-    expect(posts[1].user.attributes.name).toBe('Jane')
-  })
-
-  it('handles multiple associations', async () => {
-    mockConnection.setMockResults([
-      [{ id: 1, name: 'User 1' }],
-      [{ id: 1, title: 'Post', user_id: 1 }],
-      [{ id: 1, bio: 'Bio', user_id: 1 }]
-    ])
-
-    const users = await User.all()
-    const loader = new EagerLoader(User, ['posts', 'profile'])
-    await loader.load(users)
-
-    expect(users[0].posts).toBeInstanceOf(Array)
-    expect(users[0].posts.length).toBe(1)
-    expect(users[0].profile).not.toBeNull()
-  })
-
-  it('handles nested associations', async () => {
-    mockConnection.setMockResults([
-      [{ id: 1, title: 'Post', user_id: 1 }],
-      [{ id: 1, body: 'Comment', post_id: 1, user_id: 2 }],
-      [{ id: 2, name: 'Commenter' }]
-    ])
-
-    const posts = await Post.all()
-    const loader = new EagerLoader(Post, ['comments.user'])
-    await loader.load(posts)
-
-    expect(posts[0].comments[0].user.attributes.name).toBe('Commenter')
-  })
-
-  it('handles empty records array', async () => {
-    const loader = new EagerLoader(Post, ['user'])
-
-    // Should not throw
-    await loader.load([])
-    await loader.load(null)
-  })
-
-  it('warns but continues for unknown associations', async () => {
-    mockConnection.setMockResults([
-      [{ id: 1, title: 'Post' }]
-    ])
-
-    const posts = await Post.all()
-    const loader = new EagerLoader(Post, ['nonexistent'])
-
-    // Should not throw
-    await loader.load(posts)
-    expect(posts.length).toBe(1)
   })
 })
 

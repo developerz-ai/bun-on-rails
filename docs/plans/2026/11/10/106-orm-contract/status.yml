@@ -2,14 +2,15 @@ plan: 106-orm-contract
 title: The ORM contract
 status: in-progress
 owner: unassigned
-percent: 0
-current_focus: O1 (save and destroy let exceptions through)
+percent: 25
+current_focus: O3 (delete EagerLoader)
 slices:
-  - { id: O1, status: in-progress }
+  - { id: O1, status: done }
   - { id: O2, status: todo }
-  - { id: O3, status: todo }
+  - { id: O3, status: in-progress }
   - { id: O4, status: todo }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
-  prs: []
+  prs:
+    - "#83 merged as 16b3a45 (O1)"
 last_updated: 2026-11-10
