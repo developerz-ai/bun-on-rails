@@ -2,97 +2,63 @@
  * Posts Controller
  */
 
-import { Controller } from '../../../src/index.js'
+import ApplicationController from './application_controller.js'
 import Post from '../models/post.js'
 
-export default class PostsController extends Controller {
+export default class PostsController extends ApplicationController {
   static beforeAction = {
-    authenticate: { except: ['index', 'show'] }
+    requireToken: { only: ['create', 'update', 'destroy'] }
   }
 
   /**
-   * GET /posts
+   * GET /posts?page=2 - published posts, newest first, 20 a page
    */
   async index() {
-    const posts = await Post
-      .published()
-      .recent()
-      .includes('user')
-      .page(this.params.page || 1)
+    // a builder does not carry the scope methods: chain a second one with .scope()
+    const result = await Post.published()
+      .scope('recent')
+      .page(Number(this.params.page) || 1)
       .per(20)
+      .paginate()
 
-    return this.render({ posts })
+    return this.render({ posts: result.records, page: result.currentPage, totalPages: result.totalPages })
   }
 
   /**
-   * GET /posts/:id
+   * GET /posts/:id - a post and its comments
    */
   async show() {
-    const post = await Post.find(this.params.id)
-
+    const post = await Post.findById(this.params.id)
     if (!post) {
       return this.notFound('Post not found')
     }
 
-    // Eager load comments with authors
-    const comments = await post.comments({ include: 'user' })
-
+    const comments = await post.loadAssociation('comments')
     return this.render({ post, comments })
   }
 
   /**
-   * GET /posts/new
-   */
-  async new() {
-    const post = new Post()
-    return this.render({ post })
-  }
-
-  /**
-   * POST /posts
+   * POST /posts - { post: { title, body, slug?, published?, user_id } }
    */
   async create() {
-    const post = await Post.create({
-      ...this.params.post,
-      userId: this.currentUser.id
-    })
-
-    if (post.errors && Object.keys(post.errors).length > 0) {
+    const post = await Post.create(this.postParams())
+    if (!post.persisted) {
       return this.unprocessableEntity(post.errors)
     }
 
-    // Broadcast to subscribers
-    this.broadcast('posts:new', { post })
-
     return this.render({ post }, { status: 201 })
-  }
-
-  /**
-   * GET /posts/:id/edit
-   */
-  async edit() {
-    const post = await this.findPostForUser()
-
-    if (!post) {
-      return this.notFound('Post not found')
-    }
-
-    return this.render({ post })
   }
 
   /**
    * PATCH /posts/:id
    */
   async update() {
-    const post = await this.findPostForUser()
-
+    const post = await Post.findById(this.params.id)
     if (!post) {
       return this.notFound('Post not found')
     }
 
-    const success = await post.update(this.params.post)
-
-    if (!success) {
+    if (!(await post.update(this.postParams()))) {
       return this.unprocessableEntity(post.errors)
     }
 
@@ -103,28 +69,16 @@ export default class PostsController extends Controller {
    * DELETE /posts/:id
    */
   async destroy() {
-    const post = await this.findPostForUser()
-
+    const post = await Post.findById(this.params.id)
     if (!post) {
       return this.notFound('Post not found')
     }
 
     await post.destroy()
-
-    return this.render({ success: true })
+    return this.render({ deleted: true })
   }
 
-  // Private methods
-  async findPostForUser() {
-    const post = await Post.find(this.params.id)
-
-    if (!post) return null
-
-    // Users can only edit their own posts (admins can edit any)
-    if (post.userId !== this.currentUser.id && !this.currentUser.isAdmin) {
-      return null
-    }
-
-    return post
+  postParams() {
+    return this.permitted('post', 'title', 'body', 'slug', 'published', 'user_id')
   }
 }

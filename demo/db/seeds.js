@@ -13,7 +13,7 @@ export default async function seed() {
   await User.create({
     email: 'admin@example.com',
     name: 'Admin User',
-    password: 'password123',
+    password_digest: 'not-a-real-digest', // authentication is planned
     role: 'admin'
   })
   console.log('  Created admin user')
@@ -24,7 +24,7 @@ export default async function seed() {
     const user = await User.create({
       email: `user${i}@example.com`,
       name: `Test User ${i}`,
-      password: 'password123'
+      password_digest: 'not-a-real-digest'
     })
     users.push(user)
   }
@@ -44,7 +44,7 @@ export default async function seed() {
     const post = await Post.create({
       title: postTitles[i],
       body: `This is the content for "${postTitles[i]}". Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.`,
-      userId: users[i % users.length].id,
+      user_id: users[i % users.length].id,
       published: i < 3
     })
     posts.push(post)
@@ -56,9 +56,9 @@ export default async function seed() {
   for (const post of posts.slice(0, 3)) {
     for (let i = 0; i < 3; i++) {
       await Comment.create({
-        body: `This is comment ${i + 1} on "${post.title}". Great article!`,
-        postId: post.id,
-        userId: users[i % users.length].id
+        body: `This is comment ${i + 1} on "${post.get('title')}". Great article!`,
+        post_id: post.id,
+        user_id: users[i % users.length].id
       })
       commentCount++
     }

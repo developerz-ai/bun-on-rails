@@ -1,38 +1,17 @@
 /**
- * Post Model Tests
- *
- * Run against PostgreSQL when TEST_DATABASE_URL names a server (CI's demo job
- * sets it; bin/check skips them without it). They create a database of their
- * own there, point config/database.js's DATABASE_URL at it, and drop it
- * afterwards, so they never migrate into or empty a database you use.
- * setupDatabase() runs the migrations; cleanDatabase() empties the tables
- * before each test.
+ * Post Model Tests - on PostgreSQL when TEST_DATABASE_URL is set
+ * (test/support/database.js); cleanDatabase() empties the tables before each.
  */
 
 import { test, expect, describe, beforeAll, afterAll, beforeEach } from 'bun:test'
-import { join } from 'path'
-import { factory, setupDatabase, cleanDatabase, getConnection, setConnection } from '../../../src/index.js'
-import { createDatabase, dropDatabase } from '../../../src/cli/commands/db.js'
+import { factory, cleanDatabase } from '../../../src/index.js'
+import { serverUrl, useTestDatabase, dropTestDatabase } from '../support/database.js'
 import '../factories/index.js'
 import Post from '../../app/models/post.js'
 
-const serverUrl = process.env.TEST_DATABASE_URL
-const root = join(import.meta.dir, '..', '..')
-
 describe.skipIf(!serverUrl)('Post', () => {
-  beforeAll(async () => {
-    const url = new URL(serverUrl)
-    url.pathname = `/demo_test_${process.pid}_${Date.now()}`
-    process.env.DATABASE_URL = url.toString()
-    await createDatabase(root)
-    await setupDatabase({ root })
-  })
-
-  afterAll(async () => {
-    await getConnection()?.disconnect()
-    setConnection(null)
-    await dropDatabase(root)
-  })
+  beforeAll(() => useTestDatabase())
+  afterAll(() => dropTestDatabase())
 
   beforeEach(async () => {
     await cleanDatabase()

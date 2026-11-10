@@ -25,28 +25,6 @@ export default {
     secret: process.env.SECRET_KEY_BASE
   },
 
-  // Jobs
-  jobs: {
-    workers: process.env.JOB_WORKERS || 2,
-    concurrency: process.env.JOB_CONCURRENCY || 10,
-    dashboard: false
-  },
-
-  // Mailer
-  mailer: {
-    adapter: process.env.MAILER_ADAPTER || 'sendgrid',
-    apiKey: process.env.SENDGRID_API_KEY
-  },
-
-  // Storage
-  storage: {
-    adapter: 's3',
-    bucket: process.env.S3_BUCKET,
-    region: process.env.AWS_REGION,
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-  },
-
   // Security
   forceSSL: true,
 
