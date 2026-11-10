@@ -36,11 +36,11 @@ Commands:
   db:seed                Run db/seeds.js
   routes [filter]        List the app's routes
   generate, g            Generate a migration, model or controller
+  test, t [args]         Run the tests with bun test (arguments pass through)
   help                   Show this help
 
 Planned (registered, not implemented yet; each exits with an error):
   console, c             Start interactive console
-  test, t                Run tests (use \`bun test\` for now)
   credentials            Manage encrypted credentials
 
 Options:
@@ -101,6 +101,18 @@ Field types: string, text, integer, bigint, smallint, float, double, decimal, nu
 boolean, date, datetime, time, timestamp, json, jsonb, uuid, binary, and references.
 Existing files are never overwritten. scaffold, job, mailer, channel, component, auth
 and admin are not implemented yet.
+`,
+
+  test: `
+Usage: brails test [args]   (alias: t)
+
+Run the app's tests with bun test, in the app root, with NODE_ENV=test.
+Every argument after "test" passes through unchanged:
+
+  brails test test/models
+  brails test -t "requires a title"
+
+Exits with bun test's exit code.
 `,
 
   routes: `

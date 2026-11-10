@@ -30,7 +30,8 @@ never loaded.
 ## Tests
 
 Use Bun's test runner, `bun test`, with `import { test, expect } from "bun:test"`. An app made by
-`brails new` has `"test": "bun test"` in `package.json`. `brails test` is not implemented yet: it exits 1 and says to use `bun test`.
+`brails new` has `"test": "bun test"` in `package.json`. `brails test` (or `t`) runs `bun test` in the app root with
+`NODE_ENV=test`, passing every argument through: `brails test test/models -t "requires a title"`.
 
 ## PostgreSQL
 

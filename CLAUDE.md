@@ -89,15 +89,15 @@ Parts of the tree are planned, not built. Each such function throws `NotImplemen
 | `brails db:create` / `db:drop [--force]` / `db:setup` / `db:reset [--force]`   | create or drop the database from the server's `postgres` maintenance database (drop and reset refuse in production without `--force`); setup = create + schema:load + seed; reset = drop + setup (`test/cli/db_create_drop.test.js`)                                                                                                                                                                                             |
 | `brails routes [filter]`                                                       | loads `config/routes.js` into a `Router` (no server, no database) and prints verb, path, controller#action and name in match order; a filter keeps rows whose path or target contains it (`src/cli/commands/routes.js`, `test/cli/routes.test.js`)                                                                                                                                                                               |
 | `brails generate` (`g`) `migration` / `model` / `controller`                   | writes `db/migrations/<version>_<name>.js` (a `createTable` one for `Create<Table>`), `app/models/<name>.js` plus its create migration, or `app/controllers/<name>_controller.js`; never overwrites; scaffold/job/mailer/channel/component/auth/admin still throw not implemented (`src/cli/commands/generate.js`, `test/cli/generate.test.js`)                                                                                  |
+| `brails test` (`t`) `[args]`                                                   | runs `bun test` in the app root with `NODE_ENV=test`, every argument passed through from the raw argv (`src/cli/commands/test.js`, `test/cli/test_command.test.js`)                                                                                                                                                                                                                                                              |
 | `--help`                                                                       | command list and per-command help (`src/cli/help.js`)                                                                                                                                                                                                                                                                                                                                                                            |
 
 Registered but not implemented. Each is built by `notImplemented()` (`src/cli/commands/not_implemented.js`) and exits 1 with `brails <cmd> is not implemented yet`, printing nothing to stdout. `brails help` lists them under Planned. Pinned by `test/cli/not_implemented.test.js`:
 
-| Command                                   | Where                                                        |
-| ----------------------------------------- | ------------------------------------------------------------ |
-| `brails console` (`c`)                    | `src/cli/commands/console.js`                                |
-| `brails test` (`t`)                       | `src/cli/commands/test.js`. The error says to use `bun test` |
-| `brails credentials` (`credentials:edit`) | `src/cli/commands/credentials.js`                            |
+| Command                                   | Where                             |
+| ----------------------------------------- | --------------------------------- |
+| `brails console` (`c`)                    | `src/cli/commands/console.js`     |
+| `brails credentials` (`credentials:edit`) | `src/cli/commands/credentials.js` |
 
 The CLI has no top-level `setup` verb: `brails db:setup` creates, loads and seeds the database.
 

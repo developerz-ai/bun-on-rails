@@ -2,22 +2,22 @@ plan: 105-silent-stubs
 title: No silent stubs; test support that works
 status: in-progress
 owner: unassigned
-percent: 85
-current_focus: S13 (a model refuses what it would silently ignore)
+percent: 92
+current_focus: S6 (brails test), the last task
 slices:
   - { id: S1, status: done }
   - { id: S2, status: done }
   - { id: S3, status: done }
   - { id: S4, status: done }
   - { id: S5, status: done }
-  - { id: S6, status: todo }
+  - { id: S6, status: in-progress }
   - { id: S7, status: done }
   - { id: S8, status: done }
   - { id: S9, status: done }
   - { id: S10, status: done }
   - { id: S11, status: done }
   - { id: S12, status: done }
-  - { id: S13, status: in-progress }
+  - { id: S13, status: done }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
   census:
@@ -36,4 +36,5 @@ evidence:
     - "#78 merged as eb28ca8 (S10 part 3)"
     - "#79 merged as 86d823c (S7)"
     - "#80 merged as 1581762 (S12)"
+    - "#81 merged as 1fad8d3 (S13)"
 last_updated: 2026-11-10

@@ -5,8 +5,9 @@
  * print the output of work they never did, then exit 0: `brails db:migrate`
  * printed "Migrations complete.", `brails routes` printed made-up routes,
  * `brails console` claimed "Models loaded: User, Post, Comment", and
- * `brails test` printed "Tests complete." without running a test. Each now
- * fails loudly: exit 1, the error on stderr, nothing on stdout.
+ * `brails test` printed "Tests complete." without running a test. Each one
+ * not implemented yet fails loudly: exit 1, the error on stderr, nothing on
+ * stdout (db:migrate, routes and test have since been implemented).
  *
  * The registry rule makes the next stub declare itself: a command is either in
  * the implemented set below or built by notImplemented().
@@ -49,13 +50,13 @@ const IMPLEMENTED = new Set([
   "routes",
   "generate",
   "g",
+  "test",
+  "t",
 ]);
 
 const UNIMPLEMENTED_INVOCATIONS = [
   ["console"],
   ["c"],
-  ["test"],
-  ["t"],
   ["credentials"],
   ["credentials:edit"],
 ];
@@ -70,10 +71,6 @@ describe("unimplemented commands fail loudly", () => {
       expect(r.stdout).toBe("");
     });
   }
-
-  test("brails test points at bun test", () => {
-    expect(brails("test").stderr).toContain("bun test");
-  });
 });
 
 describe("registry", () => {
@@ -94,7 +91,7 @@ describe("help", () => {
     const [available, rest] = out.split(/^Planned\b.*$/m);
     const planned = rest?.split(/^Options:/m)[0];
     expect(planned).toBeDefined();
-    for (const name of ["console", "test", "credentials"]) {
+    for (const name of ["console", "credentials"]) {
       expect(planned).toMatch(new RegExp(`^  .*\\b${name}\\b`, "m"));
       expect(available).not.toMatch(new RegExp(`^  .*\\b${name}\\b`, "m"));
     }
@@ -116,7 +113,7 @@ describe("help", () => {
   });
 
   test("brails help <unimplemented> says it is not implemented yet", () => {
-    for (const name of ["test", "credentials", "console"]) {
+    for (const name of ["credentials", "console"]) {
       expect(brails("help", name).stdout).toContain(
         `brails ${name} is not implemented yet`,
       );
