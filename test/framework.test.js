@@ -156,11 +156,14 @@ describe('Router', () => {
 })
 
 describe('Factory', () => {
+  class FrameworkFactoryWidget extends Model {}
+  FrameworkFactoryWidget.register()
+
   test('can define and build models', async () => {
     factory.define('testModel', {
       name: 'Test',
       value: 42
-    })
+    }, { model: FrameworkFactoryWidget })
 
     const instance = await factory.build('testModel')
     expect(instance.attributes.name).toBe('Test')
@@ -171,7 +174,7 @@ describe('Factory', () => {
     factory.define('overrideTest', {
       name: 'Default',
       value: 0
-    })
+    }, { model: 'FrameworkFactoryWidget' })
 
     const instance = await factory.build('overrideTest', { value: 100 })
     expect(instance.attributes.value).toBe(100)

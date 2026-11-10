@@ -1,6 +1,13 @@
 /**
  * Factory - Test data generation (like FactoryBot)
+ *
+ * A factory builds the class given as `model` (a class, or the name of a
+ * registered one), else the registered model named after the factory: 'user'
+ * is User, 'blog_post' is BlogPost. Pinned by test/testing/factory.test.js.
  */
+
+import { classify } from '../support/inflector.js'
+import { resolveAssociationModel } from '../database/associations.js'
 
 export class Factory {
   constructor() {
@@ -11,10 +18,11 @@ export class Factory {
   /**
    * Define a factory
    * @param {string} name
-   * @param {Object} definition
+   * @param {Object} attributes - values, or functions of the factory
+   * @param {{ model?: Function|string }} [options] - the model class, or a registered model's name
    */
-  define(name, definition) {
-    this.definitions.set(name, definition)
+  define(name, attributes, { model } = {}) {
+    this.definitions.set(name, { attributes, model })
   }
 
   /**
@@ -29,8 +37,8 @@ export class Factory {
       throw new Error(`Factory '${name}' not defined`)
     }
 
-    const attributes = await this.resolveAttributes(definition, overrides)
-    const ModelClass = await this.getModelClass(name)
+    const ModelClass = this.modelFor(name, definition.model)
+    const attributes = await this.resolveAttributes(definition.attributes, overrides)
     return new ModelClass(attributes)
   }
 
@@ -113,13 +121,19 @@ export class Factory {
   }
 
   /**
-   * Get model class by name
+   * The model a factory builds. There is no fallback to the base Model, which
+   * saved to a table named "models".
    */
-  async getModelClass(_name) {
-    // TODO: Load model from app/models
-    // For now, return the base Model class
-    const { Model } = await import('../database/model.js')
-    return Model
+  modelFor(name, model) {
+    const ModelClass = resolveAssociationModel({ model }, name)
+    if (!ModelClass) {
+      const className = typeof model === 'string' ? model : classify(name)
+      throw new Error(
+        `Factory '${name}' has no model: register ${className} with ${className}.register(), ` +
+          `or pass one: factory.define('${name}', attributes, { model: ${className} })`
+      )
+    }
+    return ModelClass
   }
 }
 

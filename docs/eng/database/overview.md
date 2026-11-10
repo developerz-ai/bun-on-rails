@@ -157,6 +157,21 @@ test("a post can be created", () =>
 | `withinTransaction(callback)` | runs `callback` in a transaction and rolls it back afterwards, even when it succeeds. Models use the transaction, and a failing assertion comes back unchanged                                |
 | `cleanDatabase()`             | empties every table except `schema_migrations` and restarts their ids, in the database the test config names. Refuses unless `NODE_ENV` is `test`, so a dev server or a script cannot call it |
 
+`factory` builds test records. A factory builds the model named after it (`user` is `User`,
+`blog_post` is `BlogPost`, registered with `User.register()`), or the one given as `model`, and
+throws when there is none:
+
+```js
+import { factory } from "bun-on-rails";
+
+factory.define("user", {
+  email: (f) => `user${f.sequence("user")}@example.com`,
+});
+factory.define("admin", { role: "admin" }, { model: "User" });
+
+const admin = await factory.create("admin"); // a saved User
+```
+
 A `connection.transaction()` that the code under test opens inside `withinTransaction` joins the
 test's transaction, so it is rolled back with the test. Called inside an open transaction,
 `withinTransaction` rolls back to a savepoint, so the outer commit keeps nothing it wrote.

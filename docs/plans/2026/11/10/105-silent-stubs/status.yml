@@ -2,19 +2,20 @@ plan: 105-silent-stubs
 title: No silent stubs; test support that works
 status: in-progress
 owner: unassigned
-percent: 40
-current_focus: S5 (hasAndBelongsToMany)
+percent: 45
+current_focus: S9 (factories build their model)
 slices:
   - { id: S1, status: done }
   - { id: S2, status: done }
   - { id: S3, status: done }
   - { id: S4, status: done }
-  - { id: S5, status: in-progress }
+  - { id: S5, status: done }
   - { id: S6, status: todo }
   - { id: S7, status: todo }
   - { id: S8, status: todo }
-  - { id: S9, status: todo }
+  - { id: S9, status: in-progress }
   - { id: S10, status: todo }
+  - { id: S11, status: todo }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
   census:
@@ -24,4 +25,5 @@ evidence:
     - "#69 merged as 7bc7d63 (S2)"
     - "#70 merged as cc2c072 (S3)"
     - "#71 merged as 1baa9e0 (S4)"
+    - "#72 merged as 6269b38 (S5)"
 last_updated: 2026-11-10
