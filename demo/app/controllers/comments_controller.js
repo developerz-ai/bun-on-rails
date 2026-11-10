@@ -14,7 +14,7 @@ export default class CommentsController extends ApplicationController {
    * GET /posts/:post_id/comments - newest first
    */
   async index() {
-    const comments = await Comment.where({ post_id: this.params.post_id }).scope('recent').all()
+    const comments = await Comment.where({ post_id: this.params.post_id }).recent().all()
     return this.render({ comments })
   }
 

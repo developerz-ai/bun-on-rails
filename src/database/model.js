@@ -21,6 +21,9 @@ const LIFECYCLE_HOOKS = [
 ]
 const checkedHookNames = new WeakSet()
 
+/** Marks the static methods _initializeScopes defines for a model's scopes. */
+const SCOPE_METHOD = Symbol('scope method')
+
 /**
  * Throw for a method named like a lifecycle hook, but not quite
  * (beforeValidate, afterSaved): the framework would never call it, so the
@@ -690,6 +693,23 @@ export class Model {
       return
     }
 
+    // A scope named like a method of the model or of its query builder could
+    // never be called (it used to be skipped without a word): refuse it, before
+    // marking the class initialized, so every query keeps refusing. A scope
+    // method inherited from a parent model is not a clash. Pinned by
+    // test/database/scope_chaining.test.js.
+    const builder = new QueryBuilder(null)
+    const scopeNames = Object.keys(this.scopes)
+    for (const scopeName of scopeNames) {
+      const existing = this[scopeName]
+      const inheritedScope = typeof existing === 'function' && existing[SCOPE_METHOD]
+      if (!inheritedScope && (typeof existing === 'function' || scopeName in builder)) {
+        throw new Error(
+          `${this.name} scope '${scopeName}' would shadow a method of the model or its query builder; rename the scope`
+        )
+      }
+    }
+
     // Mark as initialized for this specific class
     Object.defineProperty(this, '_scopesInitialized', {
       value: true,
@@ -697,19 +717,18 @@ export class Model {
       configurable: false
     })
 
-    // Create a method for each scope
-    const scopeNames = Object.keys(this.scopes)
+    // Create a static method for each scope; QueryBuilder defines the same
+    // methods on every builder for this model, so scopes chain.
     for (const scopeName of scopeNames) {
-      // Skip if method already exists (don't override existing methods)
       if (typeof this[scopeName] === 'function') {
-        continue
+        continue // inherited from a parent model's scopes
       }
-
-      // Define the scope method on the class
+      const method = function (...args) {
+        return this.scope(scopeName, ...args)
+      }
+      method[SCOPE_METHOD] = true
       Object.defineProperty(this, scopeName, {
-        value: function(...args) {
-          return this.scope(scopeName, ...args)
-        },
+        value: method,
         writable: false,
         configurable: true,
         enumerable: false

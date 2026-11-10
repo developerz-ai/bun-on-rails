@@ -320,7 +320,7 @@ describe('Model - Automatic Scope Methods', () => {
     expect(publishedMethod1).toBe(publishedMethod2)
   })
 
-  it('does not override existing methods', () => {
+  it('refuses a scope named like an existing static method (scope_chaining.test.js)', () => {
     // Add a method with the same name as a scope
     class TestModel extends Model {
       static scopes = {
@@ -333,9 +333,7 @@ describe('Model - Automatic Scope Methods', () => {
       }
     }
 
-    TestModel.query()
-
-    expect(TestModel.custom()).toBe('existing-method')
+    expect(() => TestModel.query()).toThrow("TestModel scope 'custom' would shadow")
   })
 
   it('handles scopes with multiple parameters', () => {

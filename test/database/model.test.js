@@ -1027,7 +1027,7 @@ describe('Model - Scopes', () => {
       expect(query.sql).toContain('published')
     })
 
-    it('does not override existing static methods', async () => {
+    it('refuses a scope named like a builder method (scope_chaining.test.js)', async () => {
       class MethodConflictModel extends Model {
         static tableName = 'items'
         static scopes = {
@@ -1038,13 +1038,9 @@ describe('Model - Scopes', () => {
           return 'custom'
         }
       }
-      MethodConflictModel.register()
-
-      // The original where method should still work
-      mockConnection.setMockResults([[]])
-      const query = MethodConflictModel.where({ name: 'test' })
-
-      expect(query).toBeInstanceOf(QueryBuilder)
+      expect(() => MethodConflictModel.register()).toThrow(
+        "MethodConflictModel scope 'where' would shadow"
+      )
     })
 
     it('only initializes scopes once per class', async () => {

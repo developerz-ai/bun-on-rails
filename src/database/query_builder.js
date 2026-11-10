@@ -295,6 +295,18 @@ export class QueryBuilder {
     this.distinctValue = false
     this.lockMode = null
     this._adapter = new PostgresAdapter()
+
+    // The model's named scopes chain on the builder: Post.published().recent().
+    // Model._initializeScopes refuses a scope that would shadow a builder member.
+    for (const name of Object.keys(model?.scopes ?? {})) {
+      if (name in this) continue
+      Object.defineProperty(this, name, {
+        value: (...args) => this.scope(name, ...args),
+        writable: true,
+        configurable: true,
+        enumerable: false
+      })
+    }
   }
 
   /**

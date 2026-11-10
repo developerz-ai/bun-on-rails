@@ -200,12 +200,15 @@ export default class Post extends Model {
 }
 
 await Post.published().all();
-await Post.published().scope("popular", 500).all();
+await Post.published().popular(500).all();
+await Post.where({ author_id: 3 }).published().all();
 ```
 
-Each scope becomes a static method that returns a query builder. A builder does not have the
-scope methods, so chain a second scope with `.scope(name, ...args)`. A builder is not a promise:
-end the chain with `.all()`, `.first()` or another [terminal method](./queries.md#terminal-methods).
+Each scope becomes a static method, and a method of every query builder for the model, so scopes
+chain with each other and with `where`, `order` and the rest (`.scope(name, ...args)` works too).
+A scope named like a method of the model or of the query builder (`where`, `all`, `order`) could
+never be called, so the model's first query throws, naming it. A builder is not a promise: end the
+chain with `.all()`, `.first()` or another [terminal method](./queries.md#terminal-methods).
 
 ## Associations
 

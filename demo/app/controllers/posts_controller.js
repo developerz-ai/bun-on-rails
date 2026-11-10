@@ -14,9 +14,8 @@ export default class PostsController extends ApplicationController {
    * GET /posts?page=2 - published posts, newest first, 20 a page
    */
   async index() {
-    // a builder does not carry the scope methods: chain a second one with .scope()
     const result = await Post.published()
-      .scope('recent')
+      .recent()
       .page(Number(this.params.page) || 1)
       .per(20)
       .paginate()
