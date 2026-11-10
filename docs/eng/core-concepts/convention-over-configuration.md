@@ -15,6 +15,9 @@ lists the conventions the code follows today, and how to override them.
 | `app/models/**/*.js`                         | models                                                                                 |
 | `app/jobs/`, `app/mailers/`, `app/channels/` | imported, but nothing runs them yet                                                    |
 
+A file under `app/` that fails to import (a syntax error, or an error thrown at the top level)
+fails boot with `Failed to load controller app/controllers/posts_controller.js: ...`.
+
 `db/migrations/` is not loaded at boot: a script runs it with `MigrationRunner` (see
 [Migrations](../database/migrations.md)).
 
