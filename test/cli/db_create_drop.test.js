@@ -164,3 +164,29 @@ describe("DatabaseError#code", () => {
     expect(error.code).toBe("42P04");
   });
 });
+
+describe("DatabaseError#code for system errors", () => {
+  test("keeps the symbolic code (ECONNREFUSED) when errno is a number, not a SQLSTATE", async () => {
+    Bun.SQL = class FakeSQL {
+      async unsafe(sql) {
+        if (sql.trim() === "SELECT 1") return Object.assign([], { count: 0 });
+        throw Object.assign(new Error("connect ECONNREFUSED 127.0.0.1:5432"), {
+          code: "ECONNREFUSED",
+          errno: -111,
+        });
+      }
+      async close() {}
+    };
+    const connection = new Connection({
+      url: "postgres://u:p@localhost:5432/app",
+    });
+    await connection.connect();
+    let error;
+    try {
+      await connection.query("SELECT now()");
+    } catch (e) {
+      error = e;
+    }
+    expect(error.code).toBe("ECONNREFUSED");
+  });
+});

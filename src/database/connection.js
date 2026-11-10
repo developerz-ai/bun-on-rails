@@ -45,14 +45,16 @@ export class DatabaseError extends Error {
 }
 
 /**
- * The SQLSTATE of a driver error: postgres.js reports it as `code`, Bun.SQL as
- * `errno` (its `code` is a generic ERR_POSTGRES_SERVER_ERROR). DatabaseError#code
- * is always the SQLSTATE (e.g. '23505' for a unique violation).
- * @param {Error & { errno?: string, code?: string }} error
+ * The code a DatabaseError carries. For a server error it is the SQLSTATE
+ * (e.g. '23505'): postgres.js reports that as `code`, Bun.SQL as `errno` (its
+ * `code` is a generic ERR_POSTGRES_SERVER_ERROR). A system error keeps its
+ * symbolic `code` (ECONNREFUSED); its `errno` is a negative number.
+ * @param {Error & { errno?: string|number, code?: string }} error
  * @returns {string|null}
  */
 function sqlState(error) {
-  return error?.errno ?? error?.code ?? null
+  const isSqlState = typeof error?.errno === 'string' && /^[0-9A-Z]{5}$/.test(error.errno)
+  return isSqlState ? error.errno : error?.code ?? null
 }
 
 /**
