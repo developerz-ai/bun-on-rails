@@ -2,8 +2,8 @@ plan: 105-silent-stubs
 title: No silent stubs; test support that works
 status: in-progress
 owner: unassigned
-percent: 55
-current_focus: S8 (the guard rejects any TODO in a function that never throws)
+percent: 64
+current_focus: S11 (boot fails when an app file fails to import)
 slices:
   - { id: S1, status: done }
   - { id: S2, status: done }
@@ -12,10 +12,10 @@ slices:
   - { id: S5, status: done }
   - { id: S6, status: todo }
   - { id: S7, status: todo }
-  - { id: S8, status: in-progress }
+  - { id: S8, status: done }
   - { id: S9, status: done }
   - { id: S10, status: todo }
-  - { id: S11, status: todo }
+  - { id: S11, status: in-progress }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
   census:
@@ -27,4 +27,5 @@ evidence:
     - "#71 merged as 1baa9e0 (S4)"
     - "#72 merged as 6269b38 (S5)"
     - "#73 merged as d38dede (S9)"
+    - "#74 merged as 6ce242a (S8)"
 last_updated: 2026-11-10

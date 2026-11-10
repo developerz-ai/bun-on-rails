@@ -62,6 +62,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Fixed
 
+- A file under `app/` that fails to import fails boot, naming the file and the error. Boot logged "Failed to load" and went on, so an app with a syntax error in a controller started and answered 404 for its routes. Pinned by `test/core/boot_loading.test.js`.
 - `factory.build` / `factory.create` built the base `Model` for every factory (saving to a table named `models`), never the model the factory is for. A factory now builds the class given as `model` (a class or a registered name, `factory.define('admin', attributes, { model: 'User' })`), else the registered model named after it, and throws naming both fixes when there is none. Pinned by `test/testing/factory.test.js`.
 - Generated SQL no longer ends in `LIMIT null OFFSET null` when a query has no limit or offset: the query builder uses `null` for none, and the adapter only skipped `undefined`.
 - `TestResponse#assertJson` and `#assertJsonHas` passed whatever the body held: each read the JSON and returned. `assertJson` now deep-compares and `assertJsonHas` follows a dotted key path, each throwing with what it found.

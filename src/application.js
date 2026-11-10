@@ -6,7 +6,7 @@
  */
 
 import { existsSync } from 'fs'
-import { join } from 'path'
+import { join, relative } from 'path'
 import { createConfig, getEnvironment, isDevelopment, isProduction } from './config/loader.js'
 import { Router } from './routing/router.js'
 import { Cache, MemoryStore } from './cache/cache.js'
@@ -450,28 +450,32 @@ export class Application {
     await this._loadComponents(mailersDir, this.mailers, 'mailer')
   }
 
+  /**
+   * Import every file under `dir`. A file that fails to import fails boot,
+   * naming it: logging and skipping it booted an app whose broken controller
+   * answered 404. Pinned by test/core/boot_loading.test.js.
+   */
   async _loadComponents(dir, map, type) {
-    try {
-      const { Glob } = await import('bun')
-      const glob = new Glob('**/*.js')
-
-      for await (const file of glob.scan({ cwd: dir, absolute: true })) {
-        try {
-          const module = await import(file)
-          const Component = module.default || Object.values(module)[0]
-
-          if (Component && typeof Component === 'function') {
-            const name = this._getComponentName(file, dir)
-            map.set(name, Component)
-            this.logger.debug(`Loaded ${type}: ${name}`)
-          }
-        } catch (error) {
-          this.logger.warn(`Failed to load ${type} from ${file}: ${error.message}`)
-        }
-      }
-    } catch (error) {
-      // Directory doesn't exist, skip silently
+    if (!existsSync(dir)) {
       this.logger.debug(`No ${type}s directory found`)
+      return
+    }
+
+    const { Glob } = await import('bun')
+    for await (const file of new Glob('**/*.js').scan({ cwd: dir, absolute: true })) {
+      let module
+      try {
+        module = await import(file)
+      } catch (error) {
+        throw new Error(`Failed to load ${type} ${relative(this.root, file)}: ${error.message}`, { cause: error })
+      }
+      const Component = module.default || Object.values(module)[0]
+
+      if (Component && typeof Component === 'function') {
+        const name = this._getComponentName(file, dir)
+        map.set(name, Component)
+        this.logger.debug(`Loaded ${type}: ${name}`)
+      }
     }
   }
 
