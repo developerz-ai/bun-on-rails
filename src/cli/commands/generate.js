@@ -5,14 +5,18 @@
  *   brails g model Post title:string user:references
  *                                                 app/models/post.js + its create_posts migration
  *   brails g controller Posts index show          app/controllers/posts_controller.js
+ *   brails g scaffold Post title:string body:text the model and migration, a JSON
+ *                                                 controller, a request test, and
+ *                                                 router.resources('posts')
  *
- * Existing files are never overwritten. Other generator types (scaffold, auth,
- * ...) are not implemented yet. Pinned by test/cli/generate.test.js.
+ * Existing files are never overwritten. Other generator types (job, mailer,
+ * auth, ...) are not implemented yet. Pinned by test/cli/generate.test.js and
+ * test/cli/scaffold.test.js.
  */
 
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs'
 import { dirname, join } from 'path'
-import { pascalize, tableize, underscore } from '../../support/inflector.js'
+import { camelize, capitalize, pascalize, tableize, underscore } from '../../support/inflector.js'
 import { resolveAppRoot } from './dev.js'
 
 /** Column types a field may use: the TableBuilder methods that take a column name. */
@@ -21,7 +25,7 @@ const COLUMN_TYPES = new Set([
   'boolean', 'date', 'datetime', 'time', 'timestamp', 'json', 'jsonb', 'uuid', 'binary'
 ])
 
-const IMPLEMENTED = ['migration', 'model', 'controller']
+const IMPLEMENTED = ['migration', 'model', 'controller', 'scaffold']
 
 /**
  * Parse `name:type` field arguments. `user:references` (or `belongs_to`)
@@ -115,22 +119,26 @@ function generateMigration(root, name, fields, now, created) {
   writeNew(root, join('db', 'migrations', `${nextVersion(root, now)}_${snake}.js`), content, created)
 }
 
-function generateModel(root, name, fields, now, created) {
+function checkModelName(name, generator) {
   if (!/^[A-Z][A-Za-z0-9]*$/.test(name || '')) {
-    throw new Error('Usage: brails generate model <Name> [field:type ...]; <Name> is singular PascalCase, e.g. Post')
+    throw new Error(`Usage: brails generate ${generator} <Name> [field:type ...]; <Name> is singular PascalCase, e.g. Post`)
   }
   if (name === 'Model') {
     // The file imports `Model` from the framework; a class of the same name cannot sit beside it.
     throw new Error('"Model" is the base class every model extends; choose another name')
   }
+}
+
+/** A model, registered so its associations and factories find it. */
+function modelSource(name, fields) {
   const references = fields.filter((f) => f.reference).map((f) => `'${f.name}'`)
   const body = references.length > 0 ? ` {\n  static associations = { belongsTo: [${references.join(', ')}] }\n}` : ' {}'
-  writeNew(
-    root,
-    join('app', 'models', `${underscore(name)}.js`),
-    `import { Model } from 'bun-on-rails'\n\nexport default class ${name} extends Model${body}\n`,
-    created
-  )
+  return `import { Model } from 'bun-on-rails'\n\nexport default class ${name} extends Model${body}\n\n${name}.register()\n`
+}
+
+function generateModel(root, name, fields, now, created) {
+  checkModelName(name, 'model')
+  writeNew(root, join('app', 'models', `${underscore(name)}.js`), modelSource(name, fields), created)
   const table = tableize(name)
   writeNew(
     root,
@@ -162,6 +170,170 @@ function generateController(root, name, actions, created) {
   )
 }
 
+/** A JSON controller with the five resource actions and a field whitelist. */
+function scaffoldController(name, table, fields) {
+  const key = underscore(name)
+  const record = camelize(key)
+  const permitted = fields.map((f) => `'${f.reference ? `${f.name}_id` : f.name}'`).join(', ')
+  const find = `    const ${record} = await ${name}.findById(this.params.id)
+    if (!${record}) {
+      return this.notFound('${capitalize(key.replace(/_/g, ' '))} not found')
+    }
+`
+  return `import { Controller, StrongParams } from 'bun-on-rails'
+import ${name} from '../models/${key}.js'
+
+export default class ${pascalize(table)}Controller extends Controller {
+  /** GET /${table} */
+  async index() {
+    return this.render({ ${camelize(table)}: await ${name}.all() })
+  }
+
+  /** GET /${table}/:id */
+  async show() {
+${find}    return this.render({ ${record} })
+  }
+
+  /** POST /${table} */
+  async create() {
+    const ${record} = await ${name}.create(this.${record}Params())
+    if (!${record}.persisted) {
+      return this.unprocessableEntity(${record}.errors)
+    }
+    return this.render({ ${record} }, { status: 201 })
+  }
+
+  /** PATCH /${table}/:id */
+  async update() {
+${find}    if (!(await ${record}.update(this.${record}Params()))) {
+      return this.unprocessableEntity(${record}.errors)
+    }
+    return this.render({ ${record} })
+  }
+
+  /** DELETE /${table}/:id */
+  async destroy() {
+${find}    await ${record}.destroy()
+    return this.render({ deleted: true })
+  }
+
+  /** The fields a request may set; anything else in params.${key} is dropped. */
+  ${record}Params() {
+    return new StrongParams(this.params.${key} ?? {}).permit(${permitted}).toObject()
+  }
+}
+`
+}
+
+/** A value for each column type, for the generated test's create request. */
+function sampleValue(field) {
+  const numbers = { integer: 1, bigint: 1, smallint: 1, float: 1.5, double: 1.5, decimal: 1.5, numeric: 1.5 }
+  if (field.type in numbers) return numbers[field.type]
+  if (field.type === 'boolean') return true
+  if (field.type === 'date') return '2026-01-01'
+  if (field.type === 'datetime' || field.type === 'timestamp') return '2026-01-01T00:00:00Z'
+  if (field.type === 'time') return '12:00:00'
+  if (field.type === 'json' || field.type === 'jsonb') return {}
+  if (field.type === 'uuid') return '00000000-0000-0000-0000-000000000000'
+  return capitalize(field.name.replace(/_/g, ' '))
+}
+
+/**
+ * A request test on the database config/database.js names for the test
+ * environment. It creates a record only when no field references another
+ * table: a required foreign key needs a parent row the scaffold cannot know.
+ */
+function scaffoldTest(name, table, fields) {
+  const key = underscore(name)
+  const create = fields.some((f) => f.reference) || fields.some((f) => f.type === 'binary')
+    ? ''
+    : `
+test('POST /${table} creates a ${key.replace(/_/g, ' ')}, and GET /${table}/:id shows it', () =>
+  withinTransaction(async () => {
+    const created = await request(app).post('/${table}', { ${key}: { ${fields.map((f) => `${f.name}: ${JSON.stringify(sampleValue(f))}`).join(', ')} } })
+    expect(created.status).toBe(201)
+    const { ${camelize(key)} } = await created.json()
+    expect((await request(app).get(\`/${table}/\${${camelize(key)}.id}\`)).status).toBe(200)
+  }))
+`
+  return `/**
+ * ${pascalize(table)} - written by brails generate scaffold. Runs on the database
+ * config/database.js names for the test environment (DATABASE_URL); each test
+ * rolls back what it wrote.
+ */
+
+import { beforeAll, test, expect } from 'bun:test'
+import { Application, request, setupDatabase, withinTransaction } from 'bun-on-rails'
+
+let app
+
+beforeAll(async () => {
+  await setupDatabase()
+  app = new Application({ root: process.cwd(), config: { logging: { level: 'error' } } })
+  await app.initialize()
+})
+
+test('GET /${table} lists them', () =>
+  withinTransaction(async () => {
+    expect((await request(app).get('/${table}')).status).toBe(200)
+  }))
+${create}
+test('GET /${table}/:id answers 404 for an id that does not exist', () =>
+  withinTransaction(async () => {
+    expect((await request(app).get('/${table}/0')).status).toBe(404)
+  }))
+`
+}
+
+/**
+ * config/routes.js with router.resources(table) added before the closing
+ * brace of its default export; null when the route is already there. Throws
+ * when the file is missing or does not end that way, before anything is
+ * written.
+ */
+function routesWithResource(root, table) {
+  const file = join(root, 'config', 'routes.js')
+  const line = `router.resources('${table}')`
+  if (!existsSync(file)) {
+    throw new Error(`config/routes.js not found; scaffold adds ${line} to it`)
+  }
+  const routes = readFileSync(file, 'utf8')
+  if (new RegExp(`router\\.resources\\(\\s*['"]${table}['"]`).test(routes)) {
+    return null
+  }
+  if (!/\n\}\s*$/.test(routes)) {
+    throw new Error(
+      `config/routes.js does not end with the closing brace of \`export default (router) => { ... }\`; add ${line} yourself`
+    )
+  }
+  return routes.replace(/\n\}\s*$/, `\n  ${line}\n}\n`)
+}
+
+function generateScaffold(root, name, fields, now, created) {
+  checkModelName(name, 'scaffold')
+  const table = tableize(name)
+  const files = [
+    [join('app', 'models', `${underscore(name)}.js`), modelSource(name, fields)],
+    [join('db', 'migrations', `${nextVersion(root, now)}_create_${table}.js`), createTableMigration(table, fields)],
+    [join('app', 'controllers', `${table}_controller.js`), scaffoldController(name, table, fields)],
+    [join('test', 'controllers', `${table}_controller.test.js`), scaffoldTest(name, table, fields)]
+  ]
+  // Check every target before writing any, so a conflict leaves the app as it was.
+  const routes = routesWithResource(root, table)
+  for (const [relative] of files) {
+    if (existsSync(join(root, relative))) {
+      throw new Error(`${relative} already exists; not overwriting it`)
+    }
+  }
+  for (const [relative, content] of files) {
+    writeNew(root, relative, content, created)
+  }
+  if (routes) {
+    writeFileSync(join(root, 'config', 'routes.js'), routes)
+    created.push(join('config', 'routes.js'))
+  }
+}
+
 /**
  * Run a generator.
  *
@@ -180,6 +352,8 @@ export function generate(root, type, name, args = [], { now = new Date() } = {})
     generateModel(root, name, parseFieldArgs(args), now, created)
   } else if (type === 'controller') {
     generateController(root, name, args, created)
+  } else if (type === 'scaffold') {
+    generateScaffold(root, name, parseFieldArgs(args), now, created)
   } else if (!type) {
     throw new Error(`Usage: brails generate <${IMPLEMENTED.join('|')}> <Name> ...`)
   } else {
@@ -190,7 +364,7 @@ export function generate(root, type, name, args = [], { now = new Date() } = {})
 
 export const generateCommand = {
   name: 'generate',
-  description: 'Generate a migration, model or controller',
+  description: 'Generate a migration, model, controller or scaffold',
 
   async run(args) {
     const [name, ...rest] = args.positional

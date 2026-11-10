@@ -3,7 +3,7 @@ title: Jobs and mail in-process
 status: in-progress
 owner: unassigned
 percent: 67
-current_focus: G1 (scaffold), part 1: CSRF off by default in the test environment
+current_focus: G1 (scaffold), part 2: brails generate scaffold
 slices:
   - { id: J1, status: done }
   - { id: M1, status: done }
@@ -13,4 +13,5 @@ evidence:
   prs:
     - "#88 merged as a28870a (J1)"
     - "#89 merged as 5f5fd31 (M1)"
+    - "#90 merged as 6fc98f8 (G1 part 1)"
 last_updated: 2026-11-10
