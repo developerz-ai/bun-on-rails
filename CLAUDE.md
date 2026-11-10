@@ -41,7 +41,7 @@ Parts of the tree are planned, not built. Each such function throws `NotImplemen
 | Module                         | State                                                                                                                                                                                                 |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `src/cli/commands/`            | `console`, `test`, `credentials` exit 1 as not implemented — see Commands                                                                                                                             |
-| `src/jobs/job.js`              | `performNow` runs a job; `performLater` / `performAt` / `performIn` throw `NotImplementedError` (`src/jobs/job.js:32`)                                                                                |
+| `src/jobs/job.js`              | `performNow` runs a job; `performLater` / `performAt` / `performIn` queue it in-process (`src/jobs/memory_queue.js`); the BullMQ `JobQueue` / `JobWorker` throw `NotImplementedError`                 |
 | `src/mail/mailer.js`           | `deliver()` and `deliverLater()` throw `NotImplementedError` (`src/mail/mailer.js:40`)                                                                                                                |
 | `src/storage/storage.js`       | upload, download and delete throw `NotImplementedError` (`src/storage/storage.js:22`)                                                                                                                 |
 | `src/cache/cache.js`           | `MemoryStore` works; the `RedisStore` methods throw `NotImplementedError` (`src/cache/cache.js:176`)                                                                                                  |
@@ -194,7 +194,7 @@ export default class SendWelcomeEmailJob extends Job {
 // SendWelcomeEmailJob.performNow({ userId })
 ```
 
-`performNow(data)` runs the job inline; `performLater` / `performAt` / `performIn` throw `NotImplementedError` (see Scaffolds).
+`performNow(data)` runs the job inline; `performLater` / `performAt` / `performIn` queue it in memory with retries (`src/jobs/memory_queue.js`, `test/jobs/memory_queue.test.js`).
 
 Migration — `db/migrations/<timestamp>_<name>.js`:
 

@@ -86,7 +86,7 @@ Run migrations before starting the new version: `brails db:migrate` (see
 
 ## Not implemented yet
 
-- **Background workers.** Jobs cannot be enqueued, so there is no worker process to run (see
-  [Background Jobs](../jobs/overview.md)).
+- **Background workers.** Queued jobs run inside the web process, in memory; there is no separate
+  worker process, and waiting jobs are lost on a restart (see [Background Jobs](../jobs/overview.md)).
 - **Shared sessions and cache.** `session.store: 'redis'` and `cache.store: 'redis'` fail at
   boot: the only built-in store is `'memory'`, which is per process.

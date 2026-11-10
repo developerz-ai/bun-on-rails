@@ -1,8 +1,12 @@
 /**
  * Job - Background job base class
+ *
+ * performLater / performIn / performAt run the job in this process, through
+ * the memory queue (src/jobs/memory_queue.js); performNow runs it inline.
  */
 
 import { NotImplementedError } from '../support/not_implemented.js'
+import { enqueue, performOnce } from './memory_queue.js'
 
 export class Job {
   static queue = 'default'
@@ -22,14 +26,12 @@ export class Job {
   }
 
   /**
-   * Enqueue job to run later
+   * Enqueue job to run later: on the next tick, in this process
    * @param {Object} data
-   * @param {Object} options
    * @returns {Promise<string>} Job ID
    */
-  static async performLater(_data, _options = {}) {
-    // TODO: Add to BullMQ queue
-    throw new NotImplementedError('Job.performLater', 'queued jobs')
+  static async performLater(data) {
+    return enqueue(this, data, new Date())
   }
 
   /**
@@ -38,9 +40,8 @@ export class Job {
    * @param {Object} data
    * @returns {Promise<string>} Job ID
    */
-  static async performAt(_at, _data) {
-    // TODO: Add to BullMQ with delay
-    throw new NotImplementedError('Job.performAt', 'queued jobs')
+  static async performAt(at, data) {
+    return enqueue(this, data, at)
   }
 
   /**
@@ -49,9 +50,8 @@ export class Job {
    * @param {Object} data
    * @returns {Promise<string>} Job ID
    */
-  static async performIn(_ms, _data) {
-    // TODO: Add to BullMQ with delay
-    throw new NotImplementedError('Job.performIn', 'queued jobs')
+  static async performIn(ms, data) {
+    return enqueue(this, data, new Date(Date.now() + ms))
   }
 
   /**
@@ -59,8 +59,7 @@ export class Job {
    * @param {Object} data
    */
   static async performNow(data) {
-    const job = new this()
-    return await job.perform(data)
+    return await performOnce(new this(), data)
   }
 
   // Callbacks - override as needed

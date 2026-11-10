@@ -27,7 +27,7 @@ skipped.
 | `config/routes.js`             | the routes. See [Routing & Controllers](../routing/overview.md)                                               |
 | `app/controllers/**/*.js`      | controllers, named by path: `posts_controller.js` is `posts`, `admin/users_controller.js` is `admin/users`    |
 | `app/models/**/*.js`           | models. See [Database Overview](../database/overview.md); the app connects at boot when `DATABASE_URL` is set |
-| `app/jobs/**/*.js`             | job classes. `performNow` runs a job inline; queueing (`performLater`) is not implemented yet                 |
+| `app/jobs/**/*.js`             | job classes. `performNow` runs a job inline; `performLater` queues it in-process                              |
 | `app/mailers/**/*.js`          | mailer classes. Delivery is not implemented yet                                                               |
 | `app/channels/**/*.js`         | WebSocket channel classes. The channel server wiring is not implemented yet                                   |
 | `config/<name>.js`             | the config section `<name>`: `config/security.js` exporting `{ csrf: false }` sets `security.csrf`            |

@@ -7,8 +7,8 @@ where you expect them, and the framework wires them up.
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
 
 > **Status: 0.1, early.** The HTTP core works: routing, controllers, params, filters and JSON
-> responses, and the database through models and `brails db:migrate`. Generators, queued jobs, mail, storage, WebSockets, React
-> integration and authentication are planned. The [list below](#planned) says which is which.
+> responses, the database through models and `brails db:migrate`, and jobs queued in-process. Mail
+> delivery, storage, WebSockets, React integration and authentication are planned. The [list below](#planned) says which is which.
 
 ## Quick Start
 
@@ -66,7 +66,7 @@ returns a `404`.
 | Controllers | classes found by file name, with merged params, JSON responses, redirects, before/after filters, and per-session CSRF tokens                                                                                                                                                                                       |
 | Config      | one file per section in `config/`, per-environment overrides, initializers                                                                                                                                                                                                                                         |
 | ORM         | an Active-Record-style `Model` with a query builder, validations and associations on PostgreSQL, connected at boot when `DATABASE_URL` is set                                                                                                                                                                      |
-| Jobs        | a `Job` base class. `performNow` runs a job inline                                                                                                                                                                                                                                                                 |
+| Jobs        | a `Job` base class: `performNow` runs a job inline; `performLater`, `performIn` and `performAt` queue it in-process, with retries                                                                                                                                                                                  |
 | Cache       | an in-process memory store                                                                                                                                                                                                                                                                                         |
 | Testing     | `request(app)` for controller tests without a server, and `setupDatabase`, `withinTransaction` (each test rolled back) and `cleanDatabase` against PostgreSQL                                                                                                                                                      |
 
@@ -77,7 +77,7 @@ itself, instead of doing nothing:
 
 - **CLI**: `brails generate scaffold` (and the job, mailer, channel and auth generators), `brails console`
   and `brails credentials`. Each exits with an error until it lands.
-- **Jobs**: queueing with BullMQ (`performLater`, `performAt`, `performIn`).
+- **Jobs**: a persistent queue in Redis with BullMQ, and a worker process (the in-process queue works).
 - **Mail delivery**, **S3 file storage**, and the **Redis cache**.
 - **Real-time**: WebSocket channels (the broadcast manager exists, the channel server does
   not).
