@@ -169,8 +169,10 @@ await dumpSchema(connection, process.cwd());
 
 `db/schema.js` is generated: never edit it by hand. Its header refers to a `db:schema:load` command, which is not implemented yet.
 
-`loadSchema(connection, appRoot)` applies a dumped schema to an empty database, but it creates
-the tables in alphabetical order, so it fails when a table references one that sorts after it.
+`loadSchema(connection, appRoot)` applies a dumped schema to an empty database. The dump lists
+tables so that each comes after the tables its foreign keys reference, so they load in a working
+order. Foreign keys that form a cycle between tables cannot be dumped this way: `dumpSchema`
+throws and names the tables.
 
 ## Not implemented yet
 
