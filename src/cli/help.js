@@ -34,12 +34,12 @@ Commands:
   db:schema:dump         Write db/schema.js from the database
   db:schema:load         Load db/schema.js into an empty database
   db:seed                Run db/seeds.js
+  routes [filter]        List the app's routes
   help                   Show this help
 
 Planned (registered, not implemented yet; each exits with an error):
   generate, g            Generate code (model, controller, scaffold, etc.)
   console, c             Start interactive console
-  routes                 List all routes
   test, t                Run tests (use \`bun test\` for now)
   credentials            Manage encrypted credentials
 
@@ -86,6 +86,14 @@ Usage: brails db:<command>   (or: brails db <command>)
 
 Each uses the database config/database.js names (DATABASE_URL in a generated app).
 db:create and db:drop run on the server's postgres maintenance database.
+`,
+
+  routes: `
+Usage: brails routes [filter]
+
+List the routes config/routes.js defines, in the order requests match them:
+verb, path, controller#action and name (the route's "as" option). A filter
+keeps the rows whose path or controller#action contains it.
 `,
 
   'db:create': `

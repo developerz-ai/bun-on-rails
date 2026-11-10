@@ -66,7 +66,7 @@ export default class PostsController extends Controller {
 Tell your assistant, or it will write code against these:
 
 - **Generators.** `brails generate` (`g`) is not implemented yet and exits 1. Write the files by hand.
-- **`brails routes`, `brails console`, `brails credentials`** are not implemented yet either.
+- **`brails console`, `brails credentials`** are not implemented yet either. (`brails routes` lists the routes.)
 - **Background jobs.** `performLater` does nothing; only `performNow` runs a job (see
   [Background Jobs](../jobs/overview.md)).
 - **Authentication, mail delivery, file storage, WebSocket channels, HTML views and React

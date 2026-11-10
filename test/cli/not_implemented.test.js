@@ -46,6 +46,7 @@ const IMPLEMENTED = new Set([
   "db:drop",
   "db:reset",
   "db:setup",
+  "routes",
 ]);
 
 const UNIMPLEMENTED_INVOCATIONS = [
@@ -53,7 +54,6 @@ const UNIMPLEMENTED_INVOCATIONS = [
   ["g", "scaffold", "Post", "title:string"],
   ["console"],
   ["c"],
-  ["routes"],
   ["test"],
   ["t"],
   ["credentials"],
@@ -94,13 +94,7 @@ describe("help", () => {
     const [available, rest] = out.split(/^Planned\b.*$/m);
     const planned = rest?.split(/^Options:/m)[0];
     expect(planned).toBeDefined();
-    for (const name of [
-      "generate",
-      "console",
-      "routes",
-      "test",
-      "credentials",
-    ]) {
+    for (const name of ["generate", "console", "test", "credentials"]) {
       expect(planned).toMatch(new RegExp(`^  .*\\b${name}\\b`, "m"));
       expect(available).not.toMatch(new RegExp(`^  .*\\b${name}\\b`, "m"));
     }

@@ -48,6 +48,9 @@ export default (router) => {
 | `PATCH` / `PUT` | `/posts/:id`      | `update`  |
 | `DELETE`        | `/posts/:id`      | `destroy` |
 
+`brails routes` prints the routes an app defines, in match order; `brails routes posts` keeps the
+ones whose path or controller#action contains `posts`.
+
 How a request is matched:
 
 - Routes are tried in the order they are defined, and the first match wins.
