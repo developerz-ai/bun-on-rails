@@ -2,15 +2,15 @@ plan: 104-cli-and-routing
 title: The planned CLI commands and routing gaps
 status: in-progress
 owner: unassigned
-percent: 57
-current_focus: C5 (brails generate migration, model, controller)
+percent: 71
+current_focus: R1 (controller filter options on the request path)
 slices:
   - { id: C1, status: done }
   - { id: C2, status: done }
   - { id: C3, status: done }
   - { id: C4, status: done }
-  - { id: C5, status: in-progress }
-  - { id: R1, status: todo }
+  - { id: C5, status: done }
+  - { id: R1, status: in-progress }
   - { id: R2, status: todo }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
@@ -19,4 +19,5 @@ evidence:
     - "#62 merged as 2edf963 (C2)"
     - "#63 merged as 92a013f (C3)"
     - "#64 merged as 10fea54 (C4)"
+    - "#65 merged as 787c4b8 (C5)"
 last_updated: 2026-11-10

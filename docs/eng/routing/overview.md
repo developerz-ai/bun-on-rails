@@ -73,10 +73,9 @@ import { Controller } from "bun-on-rails";
 const posts = [{ id: "1", title: "Hello" }];
 
 export default class PostsController extends Controller {
-  static beforeAction = ["requireToken"];
+  static beforeAction = { requireToken: { except: ["index", "show"] } };
 
   requireToken() {
-    if (this.request.method === "GET") return;
     if (this.request.headers.get("authorization") !== "Bearer secret") {
       return this.unauthorized();
     }
@@ -149,13 +148,24 @@ An action that throws answers `500` with `{"error": message}` (in production the
 
 ### Filters
 
-`static beforeAction` and `static afterAction` list method names, and the filters run in that
-order around every action of the controller. A before filter that returns a `Response` ends
-the request with it, and the action does not run. In the example, `requireToken` lets reads
-through and answers `401` to a write without the token.
+`static beforeAction` and `static afterAction` name methods to run around an action, in order. A
+before filter that returns a `Response` ends the request with it, and the action does not run; one
+that returns `false` ends it with `403`. In the example, `requireToken` answers `401` to a write
+without the token, and `except` lets `index` and `show` through.
 
-Filters take no `only` / `except` options yet: a filter runs for every action, so check
-`this.request.method` or the action yourself, as `requireToken` does.
+Each filter can be limited to some actions:
+
+```js
+// keyed by method name
+static beforeAction = { requireToken: { except: ["index", "show"] } };
+
+// or a list, mixing plain names and objects
+static beforeAction = ["loadUser", { name: "requireAdmin", only: ["destroy"] }];
+```
+
+The options are `only` and `except` (action names), and `if` and `unless` (a method name or a
+function). A filter naming a method the controller does not have fails the request with `500`,
+rather than being skipped, so a misspelled auth filter cannot silently stop guarding anything.
 
 ### CSRF protection
 
@@ -215,5 +225,4 @@ curl localhost:3000/admin/users/7                           # 200 {"user":{"id":
   Write nested paths out with `get` / `post`, as `/posts/:id/publish` does above.
 - **`scope(path, callback)`** and **`middleware(list, callback)`** run the callback without a
   path prefix or middleware.
-- **Filter options**: see [Filters](#filters).
 - **HTML views.** `render` returns JSON only.

@@ -220,6 +220,30 @@ export class ControllerMiddleware {
   }
 
   /**
+   * Filter declarations as a list of `{ name, only, except, if, unless }`.
+   * Accepts a method name, a list of names and/or such objects, or an object
+   * keyed by method name: `{ authenticate: { except: ['index'] } }`.
+   * Pinned by test/controller/filters_dispatch.test.js.
+   * @param {string|Array|Object|undefined} spec
+   * @param {string} label - 'beforeAction' or 'afterAction', for errors
+   * @returns {Array<Object|string>}
+   */
+  static normalizeFilters(spec, label) {
+    if (spec === undefined || spec === null) return [];
+    if (typeof spec === "string") return [spec];
+    if (Array.isArray(spec)) return spec;
+    if (typeof spec === "object") {
+      return Object.entries(spec).map(([name, options]) => ({
+        ...(options === true ? {} : options),
+        name,
+      }));
+    }
+    throw new Error(
+      `static ${label} must be a method name, a list, or an object keyed by method name`,
+    );
+  }
+
+  /**
    * Run before action filters on a controller
    * @param {Object} controller - Controller instance
    * @param {Function} ControllerClass - Controller class
@@ -227,7 +251,10 @@ export class ControllerMiddleware {
    * @returns {Promise<Response|null>} - Response to halt chain, or null to continue
    */
   static async runBeforeFilters(controller, ControllerClass, actionName) {
-    const beforeFilters = ControllerClass.beforeAction || [];
+    const beforeFilters = ControllerMiddleware.normalizeFilters(
+      ControllerClass.beforeAction,
+      "beforeAction",
+    );
 
     for (const filter of beforeFilters) {
       const result = await ControllerMiddleware._executeFilter(
@@ -266,7 +293,10 @@ export class ControllerMiddleware {
     actionName,
     response,
   ) {
-    const afterFilters = ControllerClass.afterAction || [];
+    const afterFilters = ControllerMiddleware.normalizeFilters(
+      ControllerClass.afterAction,
+      "afterAction",
+    );
 
     for (const filter of afterFilters) {
       await ControllerMiddleware._executeFilter(
@@ -342,8 +372,10 @@ export class ControllerMiddleware {
     // Execute the filter method
     const method = controller[name];
     if (typeof method !== "function") {
-      console.warn(`Filter method '${name}' not found on controller`);
-      return null;
+      // Skipping it would silently disable, say, a misspelled auth filter.
+      throw new Error(
+        `${phase}Action filter '${name}' is not a method of ${controller.constructor.name}`,
+      );
     }
 
     // Call the filter method

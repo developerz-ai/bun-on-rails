@@ -10,7 +10,7 @@ import { join } from 'path'
 import { createConfig, getEnvironment, isDevelopment, isProduction } from './config/loader.js'
 import { Router } from './routing/router.js'
 import { Cache, MemoryStore } from './cache/cache.js'
-import { MiddlewareStack, Middleware } from './controller/middleware.js'
+import { MiddlewareStack, Middleware, ControllerMiddleware } from './controller/middleware.js'
 import { ControllerContext } from './controller/base.js'
 import { BroadcastManager } from './websocket/broadcast_manager.js'
 import { Connection, getConnection, setConnection } from './database/connection.js'
@@ -866,27 +866,16 @@ export class Application {
       return this._notFound()
     }
 
-    // Run before filters
-    const beforeFilters = ControllerClass.beforeAction || []
-    for (const filter of beforeFilters) {
-      if (typeof controller[filter] === 'function') {
-        const result = await controller[filter]()
-        if (result instanceof Response) {
-          return result // Filter returned a response (e.g., unauthorized)
-        }
-      }
+    // Filters run through ControllerMiddleware: list or object form, with
+    // only / except / if / unless; a before filter's Response halts the action
+    const halted = await ControllerMiddleware.runBeforeFilters(controller, ControllerClass, route.action)
+    if (halted) {
+      return halted
     }
 
-    // Execute action
     const response = await action.call(controller)
 
-    // Run after filters
-    const afterFilters = ControllerClass.afterAction || []
-    for (const filter of afterFilters) {
-      if (typeof controller[filter] === 'function') {
-        await controller[filter]()
-      }
-    }
+    await ControllerMiddleware.runAfterFilters(controller, ControllerClass, route.action, response)
 
     return response
   }
