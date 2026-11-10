@@ -26,6 +26,8 @@ set -uo pipefail
 
 SRC=${1:-https://github.com/developerz-ai/bun-on-rails}
 GH_REPO=developerz-ai/bun-on-rails
+# The checker's own helpers come from beside this script, not from the clone under test.
+LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib"
 BUN_IMAGE=oven/bun:1.4.4
 NODE_IMAGE=node:22-slim
 LYCHEE_IMAGE=lycheeverse/lychee:0.24.2
@@ -49,8 +51,12 @@ trap cleanup EXIT
 
 # ---------------------------------------------------------------- source
 log "source: $SRC"
+# `docker compose version` alone only proves the client is installed; `docker info`
+# proves this user can reach the daemon.
+docker info >/dev/null 2>&1 \
+  || { echo "bin/qa-release: the docker daemon is unreachable for $(id -un) (docker info failed) — nothing graded" >&2; exit 75; }
 docker compose version >/dev/null 2>&1 \
-  || { echo "bin/qa-release: docker with the compose plugin is unreachable for $(id -un) — nothing graded" >&2; exit 75; }
+  || { echo "bin/qa-release: the docker compose plugin is missing — nothing graded" >&2; exit 75; }
 [ -d "$SRC" ] && SRC="file://$(cd "$SRC" && pwd)"
 git clone --quiet --depth 1 "$SRC" "$WORK/repo" \
   || { echo "bin/qa-release: cannot clone $SRC — nothing graded" >&2; exit 75; }
@@ -154,8 +160,11 @@ bar1() {
         echo "echo '+ $line &'"
         echo "$line >/tmp/server.log 2>&1 &"
         cat <<POLL
-for i in \$(seq 1 $BOOT_TIMEOUT_S); do
-  code=\$(bun -e 'try { const r = await fetch("http://localhost:$APP_PORT/"); console.log(r.status) } catch { console.log(0) }')
+# A wall-clock deadline, and a per-request abort: a server that accepts the
+# connection but never answers must not hold the loop past the deadline.
+deadline=\$((SECONDS + $BOOT_TIMEOUT_S)); code=0
+while [ \$SECONDS -lt \$deadline ]; do
+  code=\$(bun -e 'try { const r = await fetch("http://localhost:$APP_PORT/", { signal: AbortSignal.timeout(5000) }); console.log(r.status) } catch { console.log(0) }')
   [ "\$code" != 0 ] && break; sleep 1
 done
 echo "GET http://localhost:$APP_PORT/ -> \$code"
@@ -191,6 +200,8 @@ POLL
   status=$(sed -n 's/^QA_STATUS=//p' "$WORK/steps.log" | tail -1)
   if [ -n "$status" ] && [ "$status" -ge 200 ] && [ "$status" -lt 400 ]; then
     pass $B "README steps ran; GET / -> $status"
+  elif [ "$status" = 0 ]; then
+    fail $B "the server never answered GET / within ${BOOT_TIMEOUT_S}s"
   elif [ -n "$status" ]; then
     fail $B "server started but GET / -> $status"
   else
@@ -243,13 +254,18 @@ bar4() {
   local main_sha
   main_sha=$(gh api "repos/$GH_REPO/commits/main" --jq .sha 2>/dev/null) || { fail $B "gh cannot read $GH_REPO"; return; }
   [ "$main_sha" = "$SHA" ] || echo "  note: checked-out $SHA is not main HEAD $main_sha — CI is judged on main"
-  # Every workflow that runs on push to main: its latest completed main run must be green,
-  # and CI itself must have run on main HEAD.
-  for wf in $(grep -lE '^\s*branches:\s*\[\s*main\s*\]' "$REPO"/.github/workflows/*.yml | xargs -n1 basename); do
-    grep -qE '^\s*push:' "$REPO/.github/workflows/$wf" || continue
-    local row
+  # Every workflow that runs on push to main — read from its `on:` triggers by
+  # bin/lib/push-workflows.js (pinned by test/bin/push_workflows.test.js) — must have a
+  # green latest completed main run, and ci.yml must be among them and have run on main HEAD.
+  local wfs
+  wfs=$(docker run --rm -v "$REPO/.github/workflows":/wf:ro -v "$LIB_DIR":/qa-lib:ro "$BUN_IMAGE" \
+        bun /qa-lib/push-workflows.js /wf main 2>"$WORK/wf.err") \
+    || { fail $B "cannot read the workflow triggers: $(tail -1 "$WORK/wf.err")"; return; }
+  grep -qx ci.yml <<<"$wfs" || { fail $B "ci.yml does not run on push to main (found: ${wfs:-none})"; return; }
+  local wf row
+  for wf in $wfs; do
     row=$(gh run list -R "$GH_REPO" --workflow "$wf" --branch main --status completed --limit 1 \
-          --json conclusion,headSha,databaseId --jq '.[0] | "\(.conclusion) \(.headSha) \(.databaseId)"' 2>/dev/null)
+          --json conclusion,headSha,databaseId --jq '.[0] // empty | "\(.conclusion) \(.headSha) \(.databaseId)"' 2>/dev/null)
     echo "  $wf: ${row:-no runs}"
     case "$row" in
       success*) ;;
