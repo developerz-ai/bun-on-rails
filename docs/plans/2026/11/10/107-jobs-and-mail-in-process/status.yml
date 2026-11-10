@@ -1,0 +1,14 @@
+plan: 107-jobs-and-mail-in-process
+title: Jobs and mail in-process
+status: in-progress
+owner: unassigned
+percent: 0
+current_focus: J1 (the in-memory job queue)
+slices:
+  - { id: J1, status: in-progress }
+  - { id: M1, status: todo }
+  - { id: G1, status: todo }
+milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
+evidence:
+  prs: []
+last_updated: 2026-11-10

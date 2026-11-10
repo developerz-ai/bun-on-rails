@@ -8,7 +8,6 @@
 
 import { test, expect, describe } from "bun:test";
 import {
-  Job,
   Mailer,
   Storage,
   Channel,
@@ -18,6 +17,7 @@ import {
   request,
 } from "../../src/index.js";
 import { RedisStore } from "../../src/cache/cache.js";
+import { JobWorker } from "../../src/jobs/job.js";
 
 describe("NotImplementedError", () => {
   test("names the API and the planned feature", () => {
@@ -44,8 +44,8 @@ const refuses = async (call, api) => {
 };
 
 describe("a planned API throws instead of resolving undefined", () => {
-  test("Job.performLater: queues nothing", () =>
-    refuses(() => Job.performLater({ id: 1 }), "Job.performLater"));
+  test("JobWorker#start: the BullMQ worker is planned", () =>
+    refuses(() => new JobWorker(["default"], null).start(), "JobWorker#start"));
 
   test("Mail#deliver: sends nothing", () =>
     refuses(

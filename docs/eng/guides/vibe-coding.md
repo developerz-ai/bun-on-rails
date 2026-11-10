@@ -67,8 +67,8 @@ Tell your assistant, or it will write code against these. Each fails when used: 
 
 - **Generators beyond migration, model and controller.** `brails g migration`, `g model` and `g controller` work; `g scaffold`, `g job`, `g auth` and the rest are not implemented yet.
 - **`brails console`, `brails credentials`** are not implemented yet either. (`brails routes` lists the routes.)
-- **Background jobs.** `performLater` throws `NotImplementedError`; only `performNow` runs a job (see
-  [Background Jobs](../jobs/overview.md)).
+- **Background jobs.** `performLater` queues a job in the app's own process; a persistent queue
+  (BullMQ) is not implemented (see [Background Jobs](../jobs/overview.md)).
 - **Authentication, mail delivery, file storage, WebSocket channels, HTML views and React
   helpers.** See the status table in [Core Philosophy](../core-concepts/philosophy.md#batteries-included).
 

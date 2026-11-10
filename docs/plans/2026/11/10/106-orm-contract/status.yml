@@ -1,12 +1,12 @@
 plan: 106-orm-contract
 title: The ORM contract
-status: in-progress
+status: done
 owner: unassigned
-percent: 75
-current_focus: O2 (register() wires association methods)
+percent: 100
+current_focus: done; save/destroy throw what they do not handle, association methods are wired, scopes chain, one eager loader
 slices:
   - { id: O1, status: done }
-  - { id: O2, status: in-progress }
+  - { id: O2, status: done }
   - { id: O3, status: done }
   - { id: O4, status: done }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
@@ -15,4 +15,5 @@ evidence:
     - "#83 merged as 16b3a45 (O1)"
     - "#85 merged as c6071e3 (O3)"
     - "#86 merged as 2770721 (O4)"
+    - "#87 merged as 3ee1d29 (O2)"
 last_updated: 2026-11-10
