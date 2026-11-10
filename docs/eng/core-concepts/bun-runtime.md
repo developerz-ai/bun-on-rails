@@ -41,7 +41,6 @@ The database connection uses Bun's built-in SQL driver (`Bun.SQL`), and falls ba
 
 ## Not implemented yet
 
-- **WebSockets.** `Bun.serve` gets a WebSocket handler when the `websocket.enabled` config is
-  `true`, but no request is upgraded to a WebSocket yet, and the channel base class is a
-  scaffold.
+- **WebSockets.** No request is upgraded to a WebSocket yet, so `websocket.enabled: true` fails
+  at boot with `NotImplementedError`, and the `Channel` methods throw it.
 - **Reload on change** for `brails dev`.
