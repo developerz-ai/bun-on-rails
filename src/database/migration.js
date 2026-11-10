@@ -324,8 +324,7 @@ export class MigrationRunner {
    * @returns {Promise<string[]>} List of executed versions
    */
   async migrate() {
-    await this.ensureMigrationsTable()
-
+    // getCompletedVersions() ensures schema_migrations exists
     const completedVersions = await this.getCompletedVersions()
     const files = await this.getMigrationFiles()
     const executed = []
