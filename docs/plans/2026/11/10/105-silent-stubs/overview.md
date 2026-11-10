@@ -36,6 +36,7 @@ that describes the API change in the same PR; database features are also run aga
 | S8  | the guard also rejects a TODO in a function that returns normally; `Router#middleware` and `Channel#stream` throw                                                   | `test/support/no_silent_stubs.test.js`             |
 | S9  | `factory` builds the model a factory names (`define(name, attrs, { model })`, else `app/models/<name>.js`), not the base `Model`                                    | `src/testing/factory.js`                           |
 | S10 | one dispatch path: `Application` matches with `Router#match` (URI-decoded params) and parses params once with nested keys; the unused `Router#handle` pipeline goes | `src/application.js`, `src/routing/router.js`      |
+| S11 | boot fails when a file under `app/` fails to import, instead of warning and leaving it out                                                                          | `src/application.js`                               |
 
 Boot has the same defect one seam earlier: with `cache.store: 'redis'` (the demo's production
 config) it logs a warning and uses the memory store, and with `jobs.adapter: 'bullmq'` it logs "Job
@@ -48,6 +49,9 @@ which drops the list, so routes meant to be guarded are not. `factory.create('us
 `Model`, never a `User`. And dispatch runs its own matcher and parsers: params are not URI-decoded,
 `filter[status]=x` is not nested, and the body parser reads a body `_buildContext` already
 consumed, while `Router#handle`, with its own pipeline and 17 tests, is not what apps run.
+
+S11 came out of S9: `_loadComponents` catches a model, controller, job or mailer file that throws
+on import and logs "Failed to load", so a syntax error in a controller boots and answers 404.
 
 S7 came out of S3: the demo job's test steps are commented out ("Demo tests require database
 implementations"), so the demo's tests have never run.
