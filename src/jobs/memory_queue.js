@@ -15,6 +15,9 @@ import { NotImplementedError } from '../support/not_implemented.js'
 const pending = new Map()
 let lastId = 0
 
+/** setTimeout's longest delay; a longer one overflows and fires at once. */
+const MAX_TIMER_DELAY = 2 ** 31 - 1
+
 /**
  * Settings only a persistent queue can honor throw rather than being ignored.
  * @param {typeof Job} JobClass
@@ -43,15 +46,40 @@ function backoffDelay(JobClass, attempt) {
 export function enqueue(JobClass, data, runAt) {
   assertHonorable(JobClass)
   const entry = { id: `job-${++lastId}`, JobClass, data, runAt }
-  entry.timer = setTimeout(() => runEntry(entry), Math.max(0, runAt.getTime() - Date.now()))
   pending.set(entry.id, entry)
+  arm(entry)
   return entry.id
+}
+
+/**
+ * Set the entry's timer. A delay beyond setTimeout's limit (about 24.8 days)
+ * would overflow and fire at once, so a long one waits in chunks and is
+ * re-armed until its time comes.
+ */
+function arm(entry) {
+  const delay = Math.max(0, entry.runAt.getTime() - Date.now())
+  entry.timer =
+    delay > MAX_TIMER_DELAY
+      ? setTimeout(() => arm(entry), MAX_TIMER_DELAY)
+      : setTimeout(() => runEntry(entry).catch((error) => console.error(`${entry.JobClass.name}: ${error.message}`)), delay)
 }
 
 async function runEntry(entry) {
   if (!pending.delete(entry.id)) return // performEnqueuedJobs took it
   clearTimeout(entry.timer)
   await performWithRetries(entry.JobClass, entry.data)
+}
+
+/**
+ * Run a job's onRetry / onError: one that throws is logged, so it cannot
+ * abandon the retries or escape as an unhandled rejection.
+ */
+async function runCallback(job, name, ...args) {
+  try {
+    await job[name](...args)
+  } catch (error) {
+    console.error(`${job.constructor.name}#${name} threw: ${error.message}`)
+  }
 }
 
 /**
@@ -67,11 +95,11 @@ async function performWithRetries(JobClass, data) {
       return await performOnce(job, data)
     } catch (error) {
       if (attempt < attempts) {
-        await job.onRetry(error, attempt)
+        await runCallback(job, 'onRetry', error, attempt)
         await Bun.sleep(backoffDelay(JobClass, attempt))
         continue
       }
-      await job.onError(error)
+      await runCallback(job, 'onError', error)
       console.error(`${JobClass.name} failed after ${attempts} attempt${attempts === 1 ? '' : 's'}: ${error.message}`)
       return undefined
     }

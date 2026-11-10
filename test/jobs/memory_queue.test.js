@@ -91,6 +91,15 @@ describe("enqueuing", () => {
   });
 });
 
+describe("long delays", () => {
+  test("a job 30 days out does not run now (beyond setTimeout's 24.8-day limit)", async () => {
+    await GreetJob.performIn(30 * 24 * 60 * 60 * 1000, { name: "next month" });
+    await Bun.sleep(20);
+    expect(ran).toEqual([]);
+    expect(enqueuedJobs()).toHaveLength(1);
+  });
+});
+
 describe("retries", () => {
   test("a failing job is retried with its backoff until it succeeds", async () => {
     failures = 2;
@@ -113,6 +122,47 @@ describe("retries", () => {
       expect(logged.mock.calls.flat().join(" ")).toContain(
         "FlakyJob failed after 3 attempts: flaky",
       );
+    } finally {
+      logged.mockRestore();
+    }
+  });
+});
+
+describe("a callback that throws", () => {
+  test("onRetry throwing is logged, and the retries go on", async () => {
+    failures = 1;
+    class LoudRetryJob extends FlakyJob {
+      async onRetry() {
+        throw new Error("retry hook broke");
+      }
+    }
+    const logged = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await LoudRetryJob.performLater({});
+      await Bun.sleep(20);
+      expect(ran).toEqual(["done"]);
+      expect(logged.mock.calls.flat().join(" ")).toContain(
+        "LoudRetryJob#onRetry threw: retry hook broke",
+      );
+    } finally {
+      logged.mockRestore();
+    }
+  });
+
+  test("onError throwing on the timer path is logged, not an unhandled rejection", async () => {
+    failures = 5;
+    class LoudErrorJob extends FlakyJob {
+      async onError() {
+        throw new Error("error hook broke");
+      }
+    }
+    const logged = spyOn(console, "error").mockImplementation(() => {});
+    try {
+      await LoudErrorJob.performLater({});
+      await Bun.sleep(30);
+      const lines = logged.mock.calls.flat().join(" ");
+      expect(lines).toContain("LoudErrorJob#onError threw: error hook broke");
+      expect(lines).toContain("LoudErrorJob failed after 3 attempts: flaky");
     } finally {
       logged.mockRestore();
     }
