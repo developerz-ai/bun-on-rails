@@ -60,9 +60,12 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
-    "vitepress": "^1.0.0",
+    "vitepress": "^2.0.0-alpha.21",
     "prettier": "^3.9.10",
     "eslint": "^8.0.0",
     "espree": "^9.6.1"
+  },
+  "overrides": {
+    "brace-expansion": "^1.1.21"
   }
 }
