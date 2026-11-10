@@ -42,7 +42,7 @@ beforeAll(async () => {
     join(work, "config", "routes.js"),
     `export default (router) => {
   router.resources('posts', { only: ['index', 'show', 'create'] })
-  router.resources('notes', { only: ['index', 'show'] })
+  router.resources('notes', { only: ['index', 'show', 'edit'] })
   router.get('/broken', 'broken#index')
 }
 `,
@@ -66,11 +66,12 @@ beforeAll(async () => {
     `globalThis.__afterRan = []
 export default class NotesController extends Controller {
   static beforeAction = [{ name: 'onlyShow', only: ['show'] }]
-  static afterAction = [{ name: 'record', except: ['show'] }]
+  static afterAction = [{ name: 'record', except: ['edit'] }]
   onlyShow() { return this.forbidden('show is guarded') }
   record() { globalThis.__afterRan.push('note') }
   index() { return this.render({ action: 'index' }) }
   show() { return this.render({ action: 'show' }) }
+  edit() { return this.render({ action: 'edit' }) }
 }`,
   );
   // a typo in a filter name
@@ -132,7 +133,12 @@ describe("array-form filters with only / except", () => {
 
   test("`except` on an after filter skips the listed action", async () => {
     globalThis.__afterRan = [];
-    await call("GET", "/notes");
+    expect((await call("GET", "/notes")).status).toBe(200);
+    // edit passes the before filters, so only `except` keeps `record` from running
+    expect(await call("GET", "/notes/1/edit")).toMatchObject({
+      status: 200,
+      json: { action: "edit" },
+    });
     expect(globalThis.__afterRan).toEqual(["note"]);
   });
 });
