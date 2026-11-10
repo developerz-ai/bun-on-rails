@@ -2,11 +2,11 @@ plan: 102-pre-release-defects
 title: Fix the boot and ORM defects found while preparing v0.1.0
 status: in-progress
 owner: unassigned
-percent: 0
-current_focus: F1 (initializer errors fail boot)
+percent: 9
+current_focus: F2 (postgresql:// URLs)
 slices:
-  - { id: F1, status: in-progress }
-  - { id: F2, status: todo }
+  - { id: F1, status: done }
+  - { id: F2, status: in-progress }
   - { id: F3, status: todo }
   - { id: F4, status: todo }
   - { id: F5, status: todo }
@@ -18,5 +18,6 @@ slices:
   - { id: F11, status: todo }
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 evidence:
-  prs: []
+  prs:
+    - "#45 merged as 73fd9f8 (F1)"
 last_updated: 2026-11-10
