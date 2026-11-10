@@ -49,8 +49,7 @@ literal is left alone, and a condition with no values is not scanned at all (so 
 operator still works). A placeholder count that does not match the values throws. Never build the
 condition string itself from user input.
 
-Column names in the object forms are quoted as one identifier, so `{ "users.name": "Ada" }` does
-not reach a joined table. Use a string condition for that.
+A column can be qualified with its table, `{ "users.name": "Ada" }`, to reach a joined table.
 
 ## Ordering, limits and columns
 
@@ -68,16 +67,16 @@ Post.select("user_id").distinct();
 ```js
 await Post.query()
   .join("users", "users.id = posts.user_id")
-  .where("users.name = 'Ada'")
-  .select("title")
+  .where({ "users.name": "Ada" })
+  .select("posts.*")
   .all();
 ```
 
 `join(table, on)` is an inner join; `leftJoin`, `rightJoin` and `fullJoin` take the same
 arguments. Every joined column lands in the record's attributes, and a column name both tables
-share (`id`) keeps one of the two values, so select the columns you need. After a join,
-`first()` and `last()` fail because their default `ORDER BY "id"` is ambiguous: use
-`limit(1).all()`.
+share (`id`) keeps one of the two values, so select the columns you need (`posts.*`). Columns in
+`select`, `where`, `group` and `order` take a `table.column` form. `first()` and `last()` order by
+the model's qualified primary key (`"posts"."id"`), so they work after a join.
 
 ## Eager loading
 
