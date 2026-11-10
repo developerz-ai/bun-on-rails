@@ -33,13 +33,13 @@ does: it gives the table name and the name associations look the model up by.
 
 ## Database conventions
 
-| What        | Convention                                                                                                 |
-| ----------- | ---------------------------------------------------------------------------------------------------------- |
-| Table       | the class name, snake_case and pluralized (`Category` is `categories`). Set `static tableName` to override |
-| Primary key | `id`                                                                                                       |
-| Foreign key | `belongsTo: ["user"]` reads `user_id`; `hasMany: ["comments"]` on `Post` reads `comments.post_id`          |
-| Timestamps  | `created_at` and `updated_at`, which `save()` fills in on insert, so every table a model writes needs them |
-| Booleans    | plain names such as `published`; no prefix rule                                                            |
+| What        | Convention                                                                                                           |
+| ----------- | -------------------------------------------------------------------------------------------------------------------- |
+| Table       | the class name, snake_case and pluralized (`Category` is `categories`). Set `static tableName` to override           |
+| Primary key | `id`                                                                                                                 |
+| Foreign key | `belongsTo: ["user"]` reads `user_id`; `hasMany: ["comments"]` on `Post` reads `comments.post_id`                    |
+| Timestamps  | `created_at` and `updated_at`: set on insert, `updated_at` refreshed on update. `static timestamps = false` opts out |
+| Booleans    | plain names such as `published`; no prefix rule                                                                      |
 
 ```js
 import { Model } from "bun-on-rails";

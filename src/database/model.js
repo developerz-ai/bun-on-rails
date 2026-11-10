@@ -64,6 +64,13 @@ export class Model {
   static primaryKey = 'id'
 
   /**
+   * Whether save() writes `created_at` (on insert) and `updated_at` (on insert
+   * and every update). Set to false for a table without those columns.
+   * @type {boolean}
+   */
+  static timestamps = true
+
+  /**
    * Association definitions
    * @type {Object}
    * @property {Array<string|Object>} belongsTo - belongsTo associations
@@ -766,8 +773,9 @@ export class Model {
         const data = { ...this.attributes }
         delete data[this.constructor.primaryKey]
 
-        // Add updated_at if not present
-        if (data.updated_at === undefined) {
+        // Every update refreshes updated_at; a loaded record always carries the
+        // old value, so an "only if missing" check never fired.
+        if (this.constructor.timestamps) {
           data.updated_at = new Date()
         }
 
@@ -795,12 +803,14 @@ export class Model {
         const data = { ...this.attributes }
 
         // Add timestamps if not present
-        const now = new Date()
-        if (data.created_at === undefined) {
-          data.created_at = now
-        }
-        if (data.updated_at === undefined) {
-          data.updated_at = now
+        if (this.constructor.timestamps) {
+          const now = new Date()
+          if (data.created_at === undefined) {
+            data.created_at = now
+          }
+          if (data.updated_at === undefined) {
+            data.updated_at = now
+          }
         }
 
         // Remove undefined id
