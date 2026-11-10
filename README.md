@@ -75,7 +75,7 @@ These are designed and partly built, but not usable yet:
 
 - **CLI**: `brails generate`, the other `brails db:*` commands, `brails console`, `brails routes`,
   `brails test` and `brails credentials`. Each exits with an error until it lands.
-- **Database**: running migrations from the CLI, and test-database isolation.
+- **Database**: test-database isolation.
 - **Jobs**: queueing with BullMQ (`performLater`, `performAt`, `performIn`).
 - **Mail delivery**, **S3 file storage**, and the **Redis cache**.
 - **Real-time**: WebSocket channels (the broadcast manager exists, the channel server does

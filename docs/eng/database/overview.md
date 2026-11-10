@@ -96,8 +96,9 @@ with a stack trace is printed, pointing at `includes()` or a single `where({ id:
 
 - **The other `brails db:*` commands.** `db:create`, `db:drop`, `db:reset`, `db:seed`, `db:setup`,
   `db:schema:load` and `db:schema:dump` are registered but not implemented yet: each exits 1.
-- **Automatic schema dump.** Running migrations does not update `db/schema.js`. Call
-  `dumpSchema` yourself (see [Dump the schema](./migrations.md#dump-the-schema)).
+- **Automatic schema dump from `MigrationRunner`.** `brails db:migrate` and `db:rollback` rewrite
+  `db/schema.js`; a `MigrationRunner` you call from your own script does not, so call
+  `dumpSchema(connection, appRoot)` after it.
 - **Model annotations.** Nothing writes schema comments into model files.
 - **Many-to-many associations.** `hasAndBelongsToMany` does not load anything yet: its join
   query is a TODO, and `includes()` skips it with a warning.

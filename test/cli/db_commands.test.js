@@ -36,9 +36,14 @@ const RealSQL = Bun.SQL;
 const work = mkdtempSync(join(tmpdir(), "db-commands-"));
 afterAll(() => rmSync(work, { recursive: true, force: true }));
 
-/** A Bun.SQL stand-in: schema_migrations lives in `versions`; every statement is logged. */
+/**
+ * A Bun.SQL stand-in: schema_migrations lives in `versions`, and tables
+ * created or dropped by migrations live in `tables`, which the schema dumper
+ * sees through information_schema.tables. Every statement is logged.
+ */
 function fakeDriver() {
   const versions = new Set();
+  const tables = new Set();
   const log = [];
   const result = (rows = []) => Object.assign(rows, { count: rows.length });
   Bun.SQL = class FakeSQL {
@@ -61,14 +66,27 @@ function fakeDriver() {
       if (/^SELECT version FROM schema_migrations/.test(text)) {
         return result([...versions].sort().map((version) => ({ version })));
       }
+      if (/FROM information_schema\.tables/.test(text)) {
+        return result([...tables].sort().map((table_name) => ({ table_name })));
+      }
       if (/^INSERT INTO schema_migrations/.test(text)) versions.add(params[0]);
       if (/^DELETE FROM schema_migrations/.test(text))
         versions.delete(params[0]);
+      const created = text.match(/^CREATE TABLE (?:IF NOT EXISTS )?"?(\w+)"?/);
+      if (created) tables.add(created[1]);
+      const dropped = text.match(/^DROP TABLE (\w+)/);
+      if (dropped) tables.delete(dropped[1]);
       return result();
     }
     async close() {}
   };
-  return { versions, log };
+  return { versions, tables, log };
+}
+
+/** The tables db/schema.js creates, in order. */
+function dumpedTables(root) {
+  const schema = readFileSync(join(root, "db", "schema.js"), "utf8");
+  return [...schema.matchAll(/createTable\('(\w+)'/g)].map((m) => m[1]);
 }
 
 function appWithMigrations(name) {
@@ -109,9 +127,7 @@ describe("migrate()", () => {
       "20250102000000",
     ]);
     expect(existsSync(join(root, "db", "schema.js"))).toBe(true);
-    expect(readFileSync(join(root, "db", "schema.js"), "utf8")).toContain(
-      "export async function up(db)",
-    );
+    expect(dumpedTables(root)).toEqual(["posts", "users"]);
 
     expect(await migrate(root)).toEqual([]); // nothing pending the second time
   });
@@ -125,6 +141,7 @@ describe("rollback()", () => {
     expect(await rollback(root, 1)).toEqual(["20250102000000"]);
     expect(driver.log).toContain("DROP TABLE posts");
     expect([...driver.versions]).toEqual(["20250101000000"]);
+    expect(dumpedTables(root)).toEqual(["users"]);
   });
 });
 

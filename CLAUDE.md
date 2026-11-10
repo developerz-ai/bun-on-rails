@@ -40,7 +40,7 @@ Parts of the tree are stubs. Read the module before you rely on it.
 
 | Module                         | State                                                                                                                                                                               |
 | ------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/cli/commands/`            | `generate`, `db:*`, `console`, `routes`, `test`, `credentials` exit 1 as not implemented — see Commands                                                                             |
+| `src/cli/commands/`            | `generate`, the `db:*` commands other than `db:migrate` / `db:rollback`, `console`, `routes`, `test`, `credentials` exit 1 as not implemented — see Commands                        |
 | `src/jobs/job.js`              | `performNow` runs a job; `performLater` / `performAt` / `performIn` are TODO stubs (`src/jobs/job.js:29`)                                                                           |
 | `src/mail/mailer.js`           | `deliver()` and `deliverLater()` are TODO stubs (`src/mail/mailer.js:36`)                                                                                                           |
 | `src/storage/storage.js`       | upload, download and delete are TODO stubs (`src/storage/storage.js:17`)                                                                                                            |
