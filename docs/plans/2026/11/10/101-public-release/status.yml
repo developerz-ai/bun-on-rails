@@ -2,8 +2,8 @@ plan: 101-public-release
 title: Public release of bun-on-rails v0.1.0
 status: in-progress
 owner: unassigned
-percent: 85
-current_focus: T6 (rest of docs sweep)
+percent: 95
+current_focus: T7 (docs site config); then T7b once Pages is enabled, and the v0.1.0 tag after the first manual npm publish
 slices:
   - id: T10
     title: Land the QA script as bin/qa-release
@@ -31,16 +31,20 @@ slices:
     depends_on: [T3, T8]
   - id: T6
     title: Rest of docs sweep
-    status: in-progress
+    status: done
     depends_on: [T8]
   - id: T4
     title: README rewrite
     status: done
     depends_on: [T3]
   - id: T7
-    title: VitePress base, srcExclude, dead-link guard, Pages
+    title: VitePress base, srcExclude, dead-link guard, full sidebar
+    status: in-progress
+    depends_on: [T5, T6, T8]
+  - id: T7b
+    title: Link the live docs site from the README
     status: blocked
-    depends_on: [T5, T6, T8, pages-admin-setting]
+    depends_on: [T7, pages-admin-setting]
   - id: T11
     title: Issue CSRF tokens so writes work with CSRF on
     status: done
@@ -71,5 +75,6 @@ evidence:
     - "#39 merged as 08e34cb (T4)"
     - "#40 merged as f3a0241 (T9)"
     - "#41 merged as 5819caa (T11)"
+    - "#42 merged as 73e84f2 (T6)"
 milestone: https://github.com/developerz-ai/bun-on-rails/milestone/1
 last_updated: 2026-11-10

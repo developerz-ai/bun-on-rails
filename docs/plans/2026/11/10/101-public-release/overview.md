@@ -282,6 +282,15 @@ Suggested order (one PR in flight at a time): **T10, T1, T2, T3, T8, T5 ∥ T6, 
   ```
   The `curl` part passes only after the merge deploys.
 
+### T7b — Link the live docs site (after an admin enables Pages)
+
+- **Depends on:** T7 merged, and Settings > Pages > Source = GitHub Actions set by a repo admin (a human-only step; the workflow token cannot create a Pages site).
+- **Files:** `README.md` (the Documentation section).
+- **Steps:**
+  1. Re-run the `Deploy Documentation` workflow and confirm the deploy job ran.
+  2. Add `https://developerz-ai.github.io/bun-on-rails/` to the README's Documentation section.
+- **Acceptance:** `curl -fsS https://developerz-ai.github.io/bun-on-rails/ | grep -q '/bun-on-rails/assets/' && bin/qa-release`. The link is added only once it resolves, so bar 2 never carries a known-broken link.
+
 ### T8 — Routing & Controllers guide (only if D4 says write)
 
 - **Depends on:** D4.
