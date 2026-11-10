@@ -32,7 +32,9 @@ function fakeConnection() {
       if (/^INSERT/.test(sql)) {
         const columns = [...sql.matchAll(/"(\w+)"/g)].map((m) => m[1]).slice(1);
         const row = Object.fromEntries(columns.map((c, i) => [c, params[i]]));
-        return Object.assign([{ id: "1", ...row }], { count: 1 });
+        return Object.assign([{ id: "1", ...row, created_at: "2026-11-10" }], {
+          count: 1,
+        });
       }
       return Object.assign([{ id: "1" }], { count: 1 });
     },
@@ -66,8 +68,11 @@ describe("attributes are properties", () => {
   test("after a save, every column the database returned is a property", async () => {
     fakeConnection();
     const article = await Article.create({ title: "T", body: "B" });
-    expect(article.id).toBe("1");
-    expect(article.body).toBe("B");
+    // created_at was not among the attributes the record started with
+    expect(Object.hasOwn(new Article({ title: "T" }), "created_at")).toBe(
+      false,
+    );
+    expect(article.created_at).toBe("2026-11-10");
   });
 
   test("a model's own methods and getters win over an attribute of the same name", () => {
