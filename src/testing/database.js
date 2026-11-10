@@ -36,23 +36,30 @@ export async function setupDatabase({ root = process.cwd() } = {}) {
   }
 
   const connection = await connectToAppDatabase(root)
+  try {
+    const schemaPath = join(root, 'db', 'schema.js')
+    if (existsSync(schemaPath) && (await connection.query(TABLES)).length === 0) {
+      await loadSchema(connection, root)
+    }
+    const migrationsDir = join(root, 'db', 'migrations')
+    if (existsSync(migrationsDir)) {
+      await new MigrationRunner(connection, migrationsDir).migrate()
+    }
+  } catch (error) {
+    // Set only once the schema is up to date, so a failed load or migration
+    // leaves nothing installed and the next call tries again.
+    await connection.disconnect()
+    throw error
+  }
   setConnection(connection)
-
-  const schemaPath = join(root, 'db', 'schema.js')
-  if (existsSync(schemaPath) && (await connection.query(TABLES)).length === 0) {
-    await loadSchema(connection, root)
-  }
-  const migrationsDir = join(root, 'db', 'migrations')
-  if (existsSync(migrationsDir)) {
-    await new MigrationRunner(connection, migrationsDir).migrate()
-  }
   return connection
 }
 
 /**
- * Empty every table except schema_migrations and restart their ids. Refuses
- * unless NODE_ENV is 'test': a test run whose DATABASE_URL points at the
- * development database would otherwise truncate it.
+ * Empty every table except schema_migrations and restart their ids, in the
+ * database the test config names. Refuses unless NODE_ENV is 'test', so a dev
+ * server or a script cannot call it. It does not check which database that is:
+ * `bun test` sets NODE_ENV=test, so DATABASE_URL must name a test database.
  *
  * @returns {Promise<string[]>} the tables emptied
  */
@@ -87,6 +94,16 @@ export async function cleanDatabase() {
  */
 export async function withinTransaction(callback) {
   const connection = connected('withinTransaction')
+  // Inside an open transaction, transaction() would join it and the outer
+  // COMMIT would keep what the callback wrote: roll back to a savepoint.
+  if (connection.owner) {
+    await connection.query('SAVEPOINT bun_on_rails_within_transaction')
+    try {
+      return await callback(connection)
+    } finally {
+      await connection.query('ROLLBACK TO SAVEPOINT bun_on_rails_within_transaction')
+    }
+  }
   const rollback = new Error('withinTransaction rolls back')
   let result
   try {

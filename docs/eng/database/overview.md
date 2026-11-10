@@ -151,14 +151,19 @@ test("a post can be created", () =>
   }));
 ```
 
-| Helper                        | Does                                                                                                                                                                                      |
-| ----------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `setupDatabase({ root })`     | connects to the database `config/database.js` names (a connection already set is used as it is), loads `db/schema.js` into an empty database, then runs pending migrations. Drops nothing |
-| `withinTransaction(callback)` | runs `callback` in a transaction and rolls it back afterwards, even when it succeeds. Models use the transaction, and a failing assertion comes back unchanged                            |
-| `cleanDatabase()`             | empties every table except `schema_migrations` and restarts their ids. Refuses unless `NODE_ENV` is `test`, so it cannot empty a development database                                     |
+| Helper                        | Does                                                                                                                                                                                          |
+| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `setupDatabase({ root })`     | connects to the database `config/database.js` names (a connection already set is used as it is), loads `db/schema.js` into an empty database, then runs pending migrations. Drops nothing     |
+| `withinTransaction(callback)` | runs `callback` in a transaction and rolls it back afterwards, even when it succeeds. Models use the transaction, and a failing assertion comes back unchanged                                |
+| `cleanDatabase()`             | empties every table except `schema_migrations` and restarts their ids, in the database the test config names. Refuses unless `NODE_ENV` is `test`, so a dev server or a script cannot call it |
 
 A `connection.transaction()` that the code under test opens inside `withinTransaction` joins the
-test's transaction, so it is rolled back with the test.
+test's transaction, so it is rolled back with the test. Called inside an open transaction,
+`withinTransaction` rolls back to a savepoint, so the outer commit keeps nothing it wrote.
+
+`bun test` sets `NODE_ENV=test` itself, so neither helper checks which database it is given:
+`cleanDatabase()` empties the one `DATABASE_URL` names. Point it at a test database, never the
+development one, when you run the tests.
 
 ## Not implemented yet
 

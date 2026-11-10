@@ -66,6 +66,17 @@ export async function down(db) {
     rmSync(root, { recursive: true, force: true });
   });
 
+  test("a failing migration leaves no connection set, so the next setupDatabase tries again", async () => {
+    const bad = join(root, "db", "migrations", "20260101000001_fails.js");
+    writeFileSync(
+      bad,
+      "export async function up() { throw new Error('migration 1 fails') }\n",
+    );
+    await expect(setupDatabase({ root })).rejects.toThrow("migration 1 fails");
+    expect(getConnection()).toBeNull();
+    rmSync(bad);
+  });
+
   test("setupDatabase connects from config/database.js and runs the pending migrations", async () => {
     const connection = await setupDatabase({ root });
     expect(getConnection()).toBe(connection);
@@ -97,6 +108,18 @@ export async function down(db) {
     });
     expect(seen).toBe(1);
     expect(await Note.count()).toBe(0);
+  });
+
+  test("withinTransaction inside a transaction that commits still rolls back what it wrote", async () => {
+    await getConnection().transaction(async () => {
+      await Note.create({ body: "outer, committed" });
+      await withinTransaction(() =>
+        Note.create({ body: "inner, rolled back" }),
+      );
+    });
+    const bodies = (await Note.all()).map((n) => n.get("body"));
+    expect(bodies).toEqual(["outer, committed"]);
+    await cleanDatabase();
   });
 
   test("a failing assertion inside withinTransaction comes back unchanged, and is rolled back", async () => {

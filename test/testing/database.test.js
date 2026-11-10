@@ -90,6 +90,26 @@ describe("withinTransaction(callback)", () => {
     expect(log.at(-1)).toEqual(["tx", "ROLLBACK"]);
   });
 
+  test("inside an open transaction it rolls back to a savepoint, so the outer COMMIT keeps nothing it wrote", async () => {
+    const { connection, log } = fakeConnection();
+    setConnection(connection);
+
+    await connection.transaction(() =>
+      withinTransaction(() => Post.where({ id: 1 }).updateAll({ title: "x" })),
+    );
+
+    expect(
+      log.map(
+        ([where, sql]) => `${where}: ${sql.split(" ").slice(0, 3).join(" ")}`,
+      ),
+    ).toEqual([
+      "tx: SAVEPOINT bun_on_rails_within_transaction",
+      'tx: UPDATE "posts" SET',
+      "tx: ROLLBACK TO SAVEPOINT",
+      "tx: COMMIT",
+    ]);
+  });
+
   test("with no connection it throws, naming setupDatabase, instead of skipping the callback", async () => {
     let ran = false;
     await expect(
